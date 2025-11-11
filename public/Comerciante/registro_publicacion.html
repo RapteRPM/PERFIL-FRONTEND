@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Historial de Publicaciones - RPM</title>
+  <link rel="icon" type="image/jpg" href="../image/nuevo logo.jpeg" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <!-- Bootstrap -->
+  <link rel="stylesheet" href="style.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body>
+<!-- HEADER -->
+<header class="header text-white py-4 px-6">
+  <div class="max-w-7xl mx-auto flex items-center justify-between">
+    <!-- Logo -->
+    <div class="flex items-center space-x-4">
+      <img src="../General/IMAGENINGRESO/nuevo logo.jpeg" alt="RPM Logo" class="w-20 h-20 object-cover rounded-full shadow-lg"/>
+      <div>
+        <h1 class="text-4xl font-extrabold tracking-wide">RPM</h1>
+        <p class="text-lg text-gray-200 italic">Confianza que mueve tu camino</p>
+      </div>
+    </div>
+
+    <!-- Perfil -->
+    <div class="dropdown">
+      <button class="flex items-center bg-transparent border-0 text-white" id="perfilDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+          <img id="foto-usuario" src="../image/imagen_perfil.png" alt="Usuario" class="w-16 h-16 object-cover rounded-full border-2 border-white mr-2"/>
+          <span id="nombre-usuario" class="font-semibold text-lg">Cargando...</span>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="perfilDropdown">
+        <li><a class="dropdown-item" href="EditarPerfil_comerciante.html">Configuración Perfil</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item text-danger" href="/logout">Cerrar sesión</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <nav class="nav text-white py-4 px-6 shadow-lg mt-6 rounded-b-2xl">
+    <div class="max-w-7xl mx-auto flex items-center justify-between w-full">
+      <div class="flex items-center space-x-3">
+        <i class="fas fa-box-open text-2xl text-white"></i>
+        <h1 class="text-xl font-bold tracking-wide">Historial de Publicaciones</h1>
+      </div>
+      <div class="hidden md:flex items-center space-x-6">
+        <a href="Perfil_comerciante.html" class="hover:text-gray-200 transition">Inicio</a>
+        <a href="publicar.html" class="hover:text-gray-200 transition">Publicar</a>
+        <a href="Historial_ventas.html" class="hover:text-gray-200 transition">Historial de ventas</a>
+        <a href="../General/CentroAyuda.html" class="hover:text-gray-200 transition">Centro de ayuda</a>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<!-- CONTENIDO PRINCIPAL -->
+<main class="container my-16">
+  <h2 class="text-center text-3xl font-bold mb-10 text-white flex items-center justify-center gap-3">
+    <i class="fas fa-list text-red-500"></i> Tus Publicaciones Activas
+  </h2>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+    <!-- Tarjeta de publicación -->
+    <div class="card overflow-hidden shadow-lg">
+      <img src="../image/Chaqueta 1.png" alt="Producto 1" class="w-full h-56 object-cover rounded-t-lg">
+      <div class="p-5 flex flex-col justify-between h-48">
+        <div>
+          <h5 class="text-xl font-bold mb-1">Kit de Luces LED</h5>
+          <p class="text-green-400 font-semibold">$120.000</p>
+        </div>
+        <div class="flex justify-between mt-4">
+          <a href="editar_publicacion.html?id=1" class="btn btn-outline-primary btn-sm">Editar</a>
+          <button class="btn btn-outline-danger btn-sm">Eliminar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Otra publicación -->
+    <div class="card overflow-hidden shadow-lg">
+      <img src="../image/Casco 1.png" alt="Producto 2" class="w-full h-56 object-cover rounded-t-lg">
+      <div class="p-5 flex flex-col justify-between h-48">
+        <div>
+          <h5 class="text-xl font-bold mb-1">Aceite Motor 10W-40</h5>
+          <p class="text-green-400 font-semibold">$85.000</p>
+        </div>
+        <div class="flex justify-between mt-4">
+          <a href="editar_publicacion.html?id=2" class="btn btn-outline-primary btn-sm">Editar</a>
+          <button class="btn btn-outline-danger btn-sm">Eliminar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Más tarjetas pueden agregarse -->
+  </div>
+</main>
+
+<!-- FOOTER -->
+<footer class="footer text-white py-10 px-6 mt-20">
+  <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
+    <div class="text-center">
+      <img src="../General/IMAGENINGRESO/nuevo logo.jpeg" class="w-20 h-20 rounded-full mx-auto" alt="RPM Logo"/>
+      <h4 class="text-xl font-bold mt-2">RPM</h4>
+    </div>
+    <div>
+      <h4 class="text-lg font-bold mb-2">Atención al Cliente</h4>
+      <p>Email: infoRPM@gmail.com</p>
+      <p>Teléfono: 301 403 8181</p>
+    </div>
+    <div>
+      <h4 class="text-lg font-bold mb-2">Información</h4>
+      <ul class="space-y-1">
+        <li><a href="#">Política de Privacidad</a></li>
+        <li><a href="#">Términos y Condiciones</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="text-lg font-bold mb-2">Síguenos</h4>
+      <div class="flex space-x-4">
+        <a href="#"><i class="fab fa-facebook-f"></i></a>
+        <a href="#"><i class="fab fa-instagram"></i></a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="../JS/animacion.js"></script>
+<script src="../JS/perfil_usuario.js"></script>
+<script src="../JS/Comerciante/registro_publicacion.js"></script>
+<script src="../JS/UsuarioSesion.js"></script>
+</body>
+</html>

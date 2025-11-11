@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Proceso de Compra - RPM</title>
+  <link rel="icon" type="image/jpg" href="../image/nuevo logo.jpeg"/>
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <!-- Bootstrap (para carruseles y tarjetas) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body class="bg-light">
+<!-- HEADER -->
+<header class="header text-white py-4 px-6">
+  <div class="max-w-7xl mx-auto flex items-center justify-between">
+  <!-- Logo + Eslogan -->
+    <div class="flex items-center space-x-4">
+      <img src="../General/IMAGENINGRESO/nuevo logo.jpeg" alt="RPM Logo" class="w-20 h-20 object-cover rounded-full shadow-lg"/>
+      <div class="flex flex-col">
+        <h1 class="text-4xl font-extrabold tracking-wide">RPM</h1>
+        <p class="text-lg text-gray-200 italic">Confianza que mueve tu camino</p>
+      </div>
+    </div>
+  <!-- PERFIL EN HEADER -->
+    <div class="flex items-center space-x-4">
+      <div class="dropdown">
+        <button class="flex items-center bg-transparent border-0 text-white" id="perfilDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+          <img id="foto-usuario" src="../image/imagen_perfil.png" alt="Usuario" class="w-16 h-16 object-cover rounded-full border-2 border-white mr-2"/>
+          <span id="nombre-usuario" class="font-semibold text-lg">Cargando...</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="perfilDropdown">
+          <li><a class="dropdown-item" href="Editar_perfil.html">Configuración Perfil</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item text-danger" href="/logout">Cerrar sesión</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <!-- NAVBAR (sin perfil aquí) -->
+  <nav class="nav2 text-white py-4 px-6 shadow-lg mt-6 sticky top-0 z-50" style="background-color: red, #004B87; border-radius:0 0 1rem 1rem;">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <!-- Marca -->
+      <div class="flex items-center">
+        <i class="fas fa-cart-shopping text-2xl"></i>
+        <h1 class="text-xl font-bold tracking-wide">Confirmacion de pago</h1>
+      </div>
+      <!-- Links -->
+      <div class="hidden md:flex items-center space-x-6">
+        <a href="perfil_usuario.html" class="hover:text-gray-200 transition">Inicio</a>
+        <a href="carrito_compras.html" class="hover:text-gray-200 transition">Carrito</a>
+        <a href="Historial_compras.html" class="hover:text-gray-200 transition">Historial</a>
+        <a href="../UbicaTaller.html" class="hover:text-gray-200 transition">Ubica tu taller</a>
+        <a href="../CentroAyuda.html" class="hover:text-gray-200 transition">Centro de ayuda</a>
+      </div>
+      <!-- Móvil -->
+      <button class="md:hidden text-white"><i class="fas fa-bars text-xl"></i></button>
+    </div>
+  </nav>
+</header>
+<main class="container my-5">
+
+  <!-- 🛒 Detalle de productos -->
+  <section class="mb-5">
+    <h3 class="fw-bold text-center mb-4 text-primary">Detalle de productos</h3>
+    <div class="table-responsive shadow rounded overflow-hidden">
+      <table class="table table-bordered align-middle bg-white mb-0">
+        <thead class="table-light text-center">
+          <tr>
+            <th>Producto</th>
+            <th>Cantidad</th>
+            <th>Precio unitario</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-productos">
+          <tr>
+            <td colspan="4" class="text-center text-muted">Cargando productos...</td>
+          </tr>
+        </tbody>
+        <tfoot class="fw-bold bg-light">
+          <tr>
+            <td colspan="3" class="text-end">Total:</td>
+            <td id="total-general">$0.00</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+
+  <!-- 💳 Método de pago -->
+  <section class="mb-5">
+    <h3 class="fw-bold text-center mb-4 text-primary">Método de pago</h3>
+    <div class="list-group shadow-sm" id="metodosPago">
+
+      <!-- ✅ Opción Contraentrega -->
+      <label class="list-group-item">
+        <input class="form-check-input me-2" type="radio" name="metodoPago" value="contraentrega" required>
+        Pago contraentrega
+      </label>
+
+      <!-- ✅ Opción Recoger -->
+      <label class="list-group-item">
+        <input class="form-check-input me-2" type="radio" name="metodoPago" value="recoger" required id="opcionRecoger">
+        Recoger en comercio
+      </label>
+
+      <!-- Campos adicionales dinámicos -->
+      <div id="campoRecoger" class="p-3 bg-white border mt-2 rounded d-none">
+        <label class="form-label">Fecha de recogida:</label>
+        <input type="date" class="form-control mb-3" id="fechaRecoger">
+
+        <label class="form-label">Hora de recogida:</label>
+        <input type="time" class="form-control" id="horaRecoger">
+
+        <label class="form-label">Observaciones (opcional):</label>
+        <textarea id="comentariosRecoger" class="form-control mb-3" rows="3" placeholder="Ej: Llego una sola persona, llamar al timbre, etc."></textarea>
+
+        <div class="alert alert-info mt-3" id="infoComercio">
+          <strong>Comercio:</strong> <span id="nombreComercio">No especificado</span><br>
+          <small>Dirección: <span id="direccionComercio">No especificada</span></small>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="text-center">
+    <button class="btn btn-success btn-lg px-5 shadow" id="btn-finalizar">Finalizar compra</button>
+  </div>
+
+</main>
+
+  <!-- FOOTER UNIFICADO -->
+  <footer class="footer text-white py-5 mt-10">
+    <div class="container d-flex flex-wrap justify-content-between align-items-start">
+      <div class="text-center mb-3">
+        <img src="../General/IMAGENINGRESO/nuevo logo.jpeg" alt="RPM Logo" style="width: 100px; height: 80px; border-radius: 15px;">
+        <h4 class="fw-bold mt-2">RPM</h4>
+      </div>
+
+      <div class="footer-section">
+        <h5 class="fw-bold"> Atención al Cliente</h5>
+        <p class="mb-1">Email: infoRPM@gmail.com</p>
+        <p>Teléfono: 301 403 8181</p>
+      </div>
+
+      <div class="footer-section">
+        <h5 class="fw-bold"> Información</h5>
+        <ul class="list-unstyled">
+          <li><a href="#" class="text-white text-decoration-none">Política de privacidad</a></li>
+          <li><a href="#" class="text-white text-decoration-none">Términos y condiciones</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-section text-center">
+        <h5 class="fw-bold"> Síguenos</h5>
+        <div>
+          <a href="#" class="text-white me-3"><i class="fab fa-facebook fa-lg"></i></a>
+          <a href="#" class="text-white me-3"><i class="fab fa-instagram fa-lg"></i></a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../JS/Natural/procesoCompra.js">  </script>
+  <script src="../JS/perfil_usuario.js"></script>
+  <script src="../JS/UsuarioSesion.js"></script>
+</body>
+</html>

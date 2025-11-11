@@ -1,0 +1,291 @@
+    /* === GENERAL === */
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      width: 100%;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: url('IMAGENINGRESO/IMAGEN5.jpeg') no-repeat center center fixed;
+      background-size: cover;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    /* === CONTENEDOR PRINCIPAL (FORM) === */
+    .containerr {
+      width: 50%; /* 🔹 Más ancho */
+      max-width: 480px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(12px);
+      border-radius: 25px;
+      padding: 45px 40px;
+      margin-right: 15%; /* 🔹 Un poco más hacia la izquierda */
+      text-align: center;
+      color: #fff;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+      animation: slideIn 1s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(100px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    /* === TÍTULO === */
+    #heading {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #fff;
+      margin-bottom: 20px;
+      text-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+
+    /* === LOGO === */
+    .containerr img {
+      border-radius: 15px;
+      width: 240px;
+      height: 130px;
+      margin-bottom: 25px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+
+    /* === CAMPOS === */
+    .field {
+      display: flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 12px 15px;
+      margin-bottom: 18px;
+      box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
+    }
+
+    .field i {
+      margin-right: 10px;
+      color: #fff;
+      font-size: 1.2rem;
+    }
+
+    .input-field {
+      border: none;
+      outline: none;
+      background: transparent;
+      width: 100%;
+      font-size: 1rem;
+      color: #fff;
+    }
+
+    .input-field::placeholder {
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    /* === BOTONES === */
+    .btn {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .btn button {
+      flex: 1;
+      border: none;
+      padding: 12px 0;
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 1rem;
+      transition: 0.3s;
+      cursor: pointer;
+    }
+
+    .button1 {
+      background: #004b87;
+      color: white;
+    }
+
+    .button1:hover {
+      background: #004b87;
+      transform: scale(1.03);
+    }
+
+    .button2 {
+      background:  #ff0000;
+      color: white;
+    }
+
+    .button2:hover {
+      background: #b30000;
+      transform: scale(1.03);
+    }
+
+    .button3 {
+      background: transparent;
+      border: none;
+      color: #fff;
+      text-decoration: underline;
+      margin-top: 10px;
+      transition: 0.3s;
+      cursor: pointer;
+    }
+
+    .button3:hover {
+      color: #dceeff;
+    }
+
+    /* === BOTÓN INFERIOR ROJO === */
+    .boton-rojo {
+      background: linear-gradient(90deg, #ff0000, #b30000);
+      border: none;
+      color: white;
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-weight: bold;
+      margin-top: 25px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .boton-rojo:hover {
+      background: linear-gradient(90deg, #b30000, #ff0000);
+      transform: scale(1.03);
+    }
+
+    /* === MENSAJE ERROR === */
+    #mensaje-error {
+      color: #ffdddd;
+      font-size: 0.95rem;
+      margin-top: 10px;
+    }
+
+    /* === RESPONSIVO === */
+    @media (max-width: 900px) {
+      body {
+        justify-content: center;
+      }
+
+      .containerr {
+        width: 85%;
+        margin-right: 0;
+      }
+    }
+
+    /* === RECUPERAR CONTRASEÑA=== */
+    .contenedor-recuperar {
+      width: 32%;
+      margin-right: 33%;
+      background-color: rgba(255, 255, 255, 0.9);
+      border-radius: 20px;
+      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.4);
+      padding: 40px;
+      text-align: center;
+    }
+
+    .contenedor-recuperar h2 {
+      font-weight: 700;
+      color: #d10000;
+      margin-bottom: 25px;
+    }
+
+    .contenedor-recuperar .form-group {
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .contenedor-recuperar input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #bbb;
+      border-radius: 8px;
+      font-size: 16px;
+      outline: none;
+    }
+
+    .btn-enviar {
+      background-color: #d10000;
+      color: white;
+      border: none;
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .btn-enviar:hover {
+      background-color: #a30000;
+    }
+
+    .volver {
+      display: block;
+      margin-top: 15px;
+      text-decoration: none;
+      color: #444;
+      font-weight: bold;
+    }
+
+    /* === CAMBIAR CONTRASEÑA=== */
+
+        .contenedor-cambiar {
+      width: 32%;
+      margin-right: 33%;
+      background-color: rgba(255, 255, 255, 0.9);
+      border-radius: 20px;
+      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.4);
+      padding: 40px;
+      text-align: center;
+    }
+    .contenedor-cambiar h2 {
+      font-weight: 700;
+      color: #d10000;
+      margin-bottom: 25px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #bbb;
+      border-radius: 8px;
+      font-size: 16px;
+      outline: none;
+    }
+
+        .btn-guardar {
+      background-color: #d10000;
+      color: white;
+      border: none;
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .btn-guardar:hover {
+      background-color: #a30000;
+    }
+
+    .volver {
+      display: block;
+      margin-top: 15px;
+      text-decoration: none;
+      color: #444;
+      font-weight: bold;
+    }

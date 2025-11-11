@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Perfil de Usuario - RPM Market</title>
+  <link rel="icon" type="image/jpg" href="image/nuevo logo.jpeg"/>
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous"/>
+  <!-- Bootstrap SOLO si tienes carruseles -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+<!-- HEADER -->
+  <header class="header text-white py-4 px-6">
+    <div class="max-w-7xl mx-auto flex items-center justify-start space-x-4">
+      <!-- Logo -->
+      <div>
+        <img src="../General/IMAGENINGRESO/nuevo logo.jpeg" alt="RPM Logo" class="w-20 h-20 object-cover rounded-full shadow-lg"/>
+      </div>
+      <!-- Título y Eslogan -->
+      <div class="flex flex-col">
+        <h1 class="text-4xl font-extrabold tracking-wide">RPM</h1>
+        <p class="text-lg text-gray-200 italic">Confianza que mueve tu camino</p>
+      </div>
+    </div>
+    <!-- NAVBAR -->
+    <nav class="nav2 text-white py-4 px-6 shadow-lg mt-6 sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto flex items-center justify-between">
+        <!-- Marca -->
+        <div class="flex items-center">
+          <i class="fas fa-user text-2xl mr-2"></i>
+          <h1 class="text-xl font-bold tracking-wide">Perfil de Usuario</h1>
+        </div>
+        <!-- Links -->
+        <div class="hidden md:flex items-center space-x-6">
+          <a href="perfil_usuario.html" class="hover:text-gray-200 transition">Inicio</a>
+          <a href="carrito_compras.html" class="hover:text-gray-200 transition">Carrito</a>
+          <a href="../General/CentroAyuda.html" class="hover:text-gray-200 transition">Centro de ayuda</a>
+        </div>
+        <!-- Móvil -->
+        <button class="md:hidden text-white"><i class="fas fa-bars text-xl"></i></button>
+      </div>
+    </nav>
+  </header>
+
+<!-- MAIN -->
+<main class="max-w-7xl mx-auto mt-10 px-4">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+    <!-- Columna izquierda -->
+<aside class="bg-white rounded-xl shadow-lg p-6 flex flex-col items-center text-center space-y-6">
+
+  <!-- Bloque del usuario -->
+  <div class="relative flex flex-col items-center w-full">
+    <!-- Imagen del usuario -->
+      <img 
+        id="foto-usuario" 
+        src="/imagen/imagen_perfil.png" 
+        alt="Usuario" 
+        class="w-28 h-28 object-cover rounded-full border-4 border-red-600 shadow-md transition-transform duration-300 hover:scale-105"
+      />
+
+
+      <!-- Nombre del usuario -->
+      <span id="nombre-usuario" class="font-semibold text-xl text-gray-800 mt-3 block">Cargando...</span>
+
+      <!-- Botón desplegable -->
+      <div class="dropdown absolute top-0 right-0">
+        <button 
+          class="bg-transparent border-0 text-gray-700 text-2xl focus:outline-none"
+          id="perfilDropdown"
+          data-bs-toggle="dropdown"
+          aria-expanded="false"
+        >
+          <i class="fas fa-ellipsis-v"></i>
+        </button>
+
+        <!-- Menú desplegable -->
+        <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-lg">
+          <li>
+            <a 
+              class="dropdown-item text-red-600 hover:bg-gray-100 font-semibold transition" 
+              href="/logout"
+            >
+              <i class="fas fa-sign-out-alt mr-2"></i> Cerrar sesión
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Menú lateral -->
+    <ul class="mt-4 space-y-3 w-full">
+      <li>
+        <a href="#" class="block px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition">
+          <i class="fas fa-user mr-2"></i>Mi Perfil
+        </a>
+      </li>
+      <li>
+        <a href="Historial_compras.html" class="block px-4 py-2 rounded-lg hover:bg-gray-100 text-gray-800 transition">
+          <i class="fas fa-receipt mr-2"></i>Historial de Compras
+        </a>
+      </li>
+      <li>
+        <a href="../General/CambiarContraseña.html" class="block px-4 py-2 rounded-lg hover:bg-gray-100 text-gray-800 transition">
+          <i class="fas fa-lock mr-2"></i>Cambiar contraseña
+        </a>
+      </li>
+    </ul>
+
+  </aside>
+
+    <!-- Columna principal -->
+    <section class="md:col-span-2 bg-white rounded-xl shadow-lg p-6">
+      <h2 class="text-2xl font-bold text-gray-800 mb-4">Información Personal</h2>
+      <form id="perfilForm" class="space-y-4">
+        <div>
+          <label class="block text-gray-700 font-medium">Nombre completo</label>
+          <input type="text" id="nombreCompleto"  class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none"/>
+        </div>
+        <div>
+          <label class="block text-gray-700 font-medium">Direccion</label>
+          <input type="dir" id="direccion"  class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none"/>
+        </div>
+        <div>
+          <label class="block text-gray-700 font-medium">Barrio</label>
+          <input type="bar" id="barrio"  class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none"/>
+        </div>
+        <div>
+          <label class="block text-gray-700 font-medium">Correo electrónico</label>
+          <input type="email" id="correo"  class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none"/>
+        </div>
+        <div>
+          <label class="block text-gray-700 font-medium">Teléfono</label>
+          <input type="tel" id="telefono" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none"/>
+        </div>
+        <div>
+            <label class="block text-gray-700 font-medium">Actualizar imagen de perfil</label>
+            <input type="file" id="imagen" class="form-control" id="imagen" accept="image/*">
+            <div class="preview-container d-none" id="previewContainer">
+              <img id="previewImg" class="preview-img" />
+              <button type="button" class="remove-btn" id="removeImg">&times;</button>
+            </div>
+        </div>
+        <div class="flex justify-end">
+          <button type="submit" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition">Guardar Cambios</button>
+        </div>
+      </form>
+    </section>
+  </div>
+</main>
+
+<!-- FOOTER -->
+<footer class="footer text-white py-8 px-4 mt-10">
+  <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
+    <div class="text-center">
+      <img src="../General/IMAGENINGRESO/nuevo logo.jpeg" class="w-20 h-20 rounded-full mx-auto" alt="RPM Logo"/>
+      <h4 class="text-xl font-bold mt-2">RPM</h4>
+    </div>
+    <div>
+      <h4 class="text-lg font-bold mb-2">Atención al Cliente</h4>
+      <p>Email: infoRPM@gmail.com</p>
+      <p>Teléfono: 301 403 8181</p>
+    </div>
+    <div>
+      <h4 class="text-lg font-bold mb-2">Información</h4>
+      <ul class="space-y-1">
+        <li><a href="#" class="hover:text-gray-200">Política de Privacidad</a></li>
+        <li><a href="#" class="hover:text-gray-200">Términos y Condiciones</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="text-lg font-bold mb-2">Síguenos</h4>
+      <div class="flex space-x-4">
+        <a href="#"><i class="fab fa-facebook-f"></i></a>
+        <a href="#"><i class="fab fa-instagram"></i></a>
+      </div>
+    </div>
+  </div>
+</footer>
+<script src="../JS/perfil_usuario.js"></script>
+<script src="../JS/UsuarioSesion.js"></script>
+<script src="../JS/Natural/editar_perfil.js"></script>
+</body>
+</html>

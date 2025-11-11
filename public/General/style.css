@@ -1,0 +1,499 @@
+/* ===========================
+   ESTILO GENERAL
+=========================== */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Poppins', sans-serif;
+  background-color: #f9fafb;
+  color: #333;
+}
+
+a {
+  text-decoration: none;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+}
+
+.container {
+  max-width: 1200px;
+  margin: auto;
+  padding: 0 15px;
+}
+
+/* ===========================
+   HEADER
+=========================== */
+header {
+  background: linear-gradient(90deg, #ff0000, #004b87);
+  color: white;
+}
+
+header img {
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.nav, .nav2 {
+  background: linear-gradient(135deg, #ff0000, #004B87);
+  color: #fff;
+}
+
+.nav a, .nav2 a {
+  color: white;
+  transition: 0.3s;
+}
+
+.nav a:hover, .nav2 a:hover {
+  color: #f1f1f1;
+}
+
+/* ===========================
+   FOOTER
+=========================== */
+footer {
+  background: linear-gradient(90deg, #ff0000, #004b87);
+  color: white;
+  padding: 40px 20px;
+}
+
+footer a {
+  color: #fff;
+  transition: 0.3s;
+}
+
+footer a:hover {
+  color: #ffdddd;
+}
+
+/* ===========================
+   TARJETAS / CARD
+=========================== */
+.card, .card-grua {
+  background-color: #ffffff;
+  border-radius: 16px;
+  border: none;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.card-grua:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+}
+
+.card-grua img {
+  height: 220px;
+  object-fit: cover;
+}
+
+/* ===========================
+   FORMULARIOS
+=========================== */
+.form-label {
+  color: #222;
+  font-weight: 600;
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #bbb;
+  border-radius: 8px;
+  font-size: 16px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+textarea {
+  resize: vertical;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* Botones principales */
+.btn-primary {
+  background: green;
+  border: none;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  transition: 0.3s;
+}
+
+.btn-primary:hover {
+  opacity: 0.95;
+  background: #008000;
+}
+
+/* Botones de formulario de cambio y recuperación */
+.btn-guardar, .btn-enviar {
+  background-color: #d10000;
+  color: white;
+  border: none;
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: bold;
+  transition: 0.3s;
+}
+
+.btn-guardar:hover, .btn-enviar:hover {
+  background-color: #a30000;
+}
+
+/* ===========================
+   CONTENEDORES CAMBIAR / RECUPERAR
+=========================== */
+.contenedor-cambiar, .contenedor-recuperar {
+  width: 32%;
+  max-width: 400px;
+  margin-right: 7%;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 20px;
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.4);
+  padding: 40px;
+  text-align: center;
+}
+
+.contenedor-cambiar h2, .contenedor-recuperar h2 {
+  font-weight: 700;
+  color: #d10000;
+  margin-bottom: 25px;
+}
+
+.volver {
+  display: block;
+  margin-top: 15px;
+  text-decoration: none;
+  color: #444;
+  font-weight: bold;
+}
+
+/* ===========================
+   BARRA DE BÚSQUEDA
+=========================== */
+.search-bar {
+  max-width: 600px;
+  border-radius: 25px;
+  padding: 12px 20px;
+  border: 1px solid #ccc;
+  transition: all 0.3s;
+}
+
+.search-bar:focus {
+  outline: none;
+  border-color: #004B87;
+  box-shadow: 0 0 8px rgba(0, 75, 135, 0.3);
+}
+
+/* ===========================
+   RESPONSIVIDAD
+=========================== */
+@media (max-width: 992px) {
+  .contenedor-cambiar, .contenedor-recuperar {
+    width: 50%;
+    margin-right: 5%;
+  }
+}
+
+@media (max-width: 768px) {
+  .contenedor-cambiar, .contenedor-recuperar {
+    width: 90%;
+    margin: 40px auto;
+  }
+}
+
+@media (max-width: 576px) {
+  .search-bar {
+    width: 100%;
+  }
+}
+    .card-bootstrap img { height: 200px; object-fit: cover; border-radius: 8px; }
+
+
+    /* ====== ESTILO GLOBAL ====== */
+    body {
+      background-color: #f9fafb;
+      color: #333;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    /* ====== HEADER ====== */
+    header {
+      background: linear-gradient(90deg, #ff0000, #004b87);
+      color: white;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    .header-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 15px 6%; /* Aumentamos el margen lateral */
+      max-width: 1300px;
+      margin: 0 auto;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+    }
+
+    .logo-container img {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      margin-right: 15px;
+      box-shadow: 0 0 8px rgba(255,255,255,0.3);
+    }
+
+    .logo-container h1 {
+      font-weight: 800;
+      margin: 0;
+      font-size: 1.9rem;
+    }
+
+    .logo-container p {
+      font-style: italic;
+      font-size: 0.9rem;
+      color: #f1f1f1;
+      margin: 0;
+    }
+
+    /* Perfil */
+    .perfil-btn {
+      display: flex;
+      align-items: center;
+      border: none;
+      background: transparent;
+      color: white;
+      font-weight: 500;
+    }
+
+    .perfil-btn img {
+      width: 55px;
+      height: 55px;
+      border-radius: 50%;
+      margin-right: 10px;
+      border: 2px solid white;
+    }
+
+    /* ====== NAVBAR ====== */
+    nav {
+      background: linear-gradient(90deg, #ff0000, #004b87);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+    }
+
+    .navbar-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 1300px;
+      margin: 0 auto;
+      padding: 12px 6%;
+    }
+
+    /* Título del lado izquierdo */
+    .navbar-title {
+      font-weight: 700;
+      font-size: 1.5rem;
+      color: white;
+      margin: 0;
+    }
+
+    /* Enlaces del lado derecho */
+    .navbar-links a {
+      color: white;
+      font-weight: 600;
+      text-decoration: none;
+      margin-left: 25px;
+      transition: all 0.3s ease;
+      letter-spacing: 0.3px;
+    }
+
+    .navbar-links a:hover {
+      color: #ffdddd;
+      transform: scale(1.05);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .navbar-container {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .navbar-links {
+        margin-top: 10px;
+      }
+
+      .navbar-links a {
+        margin: 10px;
+      }
+    }
+    /* Botones */
+    .btn-primary {
+      background: #007bff;
+      border: none;
+      color: white;
+      font-weight: 500;
+      border-radius: 8px;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+    }
+
+    .btn-success {
+      background:  #ff0000;
+      border: none;
+      color: white;
+      font-weight: 500;
+      border-radius: 8px;
+    }
+        /* Contenido principal */
+    main h2 {
+      font-weight: 700;
+      color: #222;
+    }
+
+    /* Tarjetas y listas */
+    .list-group-item {
+      border: none;
+      border-bottom: 1px solid #eee;
+      transition: 0.3s;
+    }
+
+    .list-group-item:hover {
+      background-color: #f1f1f1;
+    }
+
+
+    .social-icons a {
+      color: white;
+      font-size: 1.2rem;
+      margin-right: 15px;
+      transition: 0.3s;
+    }
+
+    .social-icons a:hover {
+      color: #ffdddd;
+    }
+
+/* ===========================
+   FORMULARIO DE REGISTRO
+=========================== */
+
+section.container {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  padding: 50px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  max-width: 900px;
+  margin: 50px auto;
+  backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+}
+
+section.container:hover {
+  box-shadow: 0 12px 50px rgba(0, 0, 0, 0.15);
+}
+
+section.container h2 {
+  text-align: center;
+  font-weight: 700;
+  color: #d10000;
+  margin-bottom: 25px;
+}
+
+.form-label {
+  font-weight: 600;
+  color: #0a0f1f;
+  margin-bottom: 6px;
+}
+
+.form-select, 
+.form-control {
+  background-color: #f8f9fa;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+.form-control:focus, 
+.form-select:focus {
+  border-color: #004B87;
+  box-shadow: 0 0 6px rgba(0, 75, 135, 0.3);
+  background-color: #fff;
+}
+
+.mb-3 {
+  margin-bottom: 20px !important;
+}
+
+/* Campos agrupados */
+.row.g-2 .col {
+  flex: 1;
+}
+
+.row.g-2 input[type="time"] {
+  text-align: center;
+}
+
+/* Botones */
+.btn-primary {
+  background: linear-gradient(135deg, #d10000);
+  border: none;
+  font-weight: bold;
+  padding: 12px 20px;
+  border-radius: 10px;
+  color: white;
+  transition: 0.3s;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  opacity: 0.9;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  border: none;
+  color: #fff;
+  font-weight: bold;
+  padding: 12px 20px;
+  border-radius: 10px;
+  transition: 0.3s;
+}
+
+.btn-secondary:hover {
+  background-color: #555;
+}
+
+/* Inputs tipo file */
+input[type="file"] {
+  padding: 10px;
+  background-color: #f8f9fa;
+  border: 2px dashed #ccc;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+input[type="file"]:hover {
+  background-color: #fff;
+  border-color: #004B87;
+}
+
+/* Placeholder más suave */
+::placeholder {
+  color: #888;
+  font-style: italic;
+}

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Registro - RPM</title>
+  <link rel="icon" type="image/jpg" href="image/nuevo logo.jpeg"/>
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous"/>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+<!-- HEADER -->
+  <header class="header text-white py-4 px-6">
+    <div class="max-w-7xl mx-auto flex items-center justify-start space-x-4">
+      <!-- Logo -->
+      <div>
+        <img src="IMAGENINGRESO/nuevo logo.jpeg" alt="RPM Logo" class="w-20 h-20 object-cover rounded-full shadow-lg"/>
+      </div>
+      <!-- Título y Eslogan -->
+      <div class="flex flex-col">
+        <h1 class="text-4xl font-extrabold tracking-wide">RPM</h1>
+        <p class="text-lg text-gray-200 italic">Confianza que mueve tu camino</p>
+      </div>
+    </div>
+    <!-- NAVBAR -->
+    <nav class="nav2 text-white py-4 px-6 shadow-lg mt-6 sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto flex items-center justify-between">
+        <!-- Marca -->
+        <div class="flex items-center">
+          <i class="fas fa-user text-2xl mr-2"></i>
+          <h1 class="text-xl font-bold tracking-wide">Formulario de registro</h1>
+        </div>
+        <!-- Links -->
+        <div class="hidden md:flex items-center space-x-6">
+          <a href="index.html" class="hover:text-gray-200 transition">Inicio</a>
+          <a href="Ingreso.html" class="hover:text-gray-200 transition">Ingresar</a>
+          <a href="CentroAyuda.html" class="hover:text-gray-200 transition">Centro de ayuda</a>
+        </div>
+        <!-- Móvil -->
+        <button class="md:hidden text-white"><i class="fas fa-bars text-xl"></i></button>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Contenido principal -->
+<section class="container mt-4 mb-5">
+    <form id="formRegistro" action="/api/registro" method="POST" enctype="multipart/form-data">
+
+        <!-- Selección de tipo de usuario -->
+        <div class="mb-3">
+            <label for="tipoUsuario" class="form-label">Tipo de usuario</label>
+            <select class="form-select" id="tipoUsuario" name="tipoUsuario" data-required="true">
+                <option value="">Seleccione una opción</option>
+                <option value="natural">Usuario Natural</option>
+                <option value="comerciante">Usuario Comerciante</option>
+                <option value="servicio">Prestador de Servicios</option>
+            </select>
+        </div>
+
+        <!-- Formulario Usuario Natural -->
+
+        <div id="formNatural" style="display:none;">
+            <div class="mb-3">
+            <label class="form-label">Foto de perfil</label>
+            <input type="file" class="form-control" id="FotoPerfil" name="FotoPerfil" accept="image/*" data-required="true">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Documento</label>
+            <input type="text" class="form-control" id="Usuario" name="Usuario">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Nombre completo</label>
+            <input type="text" class="form-control" id="Nombre" name="Nombre">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Teléfono</label>
+            <input type="tel" class="form-control" id="Telefono" name="Telefono">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Correo electrónico</label>
+            <input type="email" class="form-control" id="Correo" name="Correo">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Dirección</label>
+            <input type="text" class="form-control" id="Direccion" name="Direccion" placeholder="Ej: Cra 10 #20-30">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Barrio</label>
+            <input type="text" class="form-control" id="Barrio" name="Barrio">
+        </div>
+        <div class="d-flex justify-content-between mt-4">
+            <button type="submit" class="btn btn-primary">Registrar</button>
+            <a href="ingreso.html" class="btn btn-secondary">Volver</a>
+        </div>
+    </div>
+
+    <!-- Formulario Comerciante -->
+    <div id="formComerciante" style="display:none;">
+        <div class="mb-3">
+            <label class="form-label">Foto de perfil</label>
+            <input type="file" class="form-control" id="fotoPerfilComercio" name="FotoPerfil" accept="image/*" data-required="true">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Nombre completo</label>
+            <input type="text" class="form-control" id="NombreComerciante" name="Nombre">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Documento</label>
+            <input type="text" class="form-control" id="UsuarioComercio" name="Usuario">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Teléfono</label>
+            <input type="tel" class="form-control" id="TelefonoComercio" name="Telefono">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Correo electrónico</label>
+            <input type="email" class="form-control" id="CorreoComercio" name="Correo">
+        </div>
+        <div class="mb-3">
+        <label class="form-label">Dirección del comercio</label>
+
+        <div class="row g-2">
+            <!-- Tipo de vía -->
+            <div class="col-md-2">
+                <select class="form-select" id="TipoVia" name="TipoVia" data-required="true">
+                    <option value="">Tipo</option>
+                    <option value="Calle">Calle</option>
+                    <option value="Carrera">Carrera</option>
+                    <option value="Avenida">Avenida</option>
+                    <option value="Transversal">Transversal</option>
+                    <option value="Diagonal">Diagonal</option>
+                    <option value="Circular">Circular</option>
+                </select>
+            </div>
+
+            <!-- Número principal -->
+            <div class="col-md-2">
+                <input type="text" class="form-control" id="NumPrincipal" name="NumPrincipal" placeholder="Ej: 45">
+            </div>
+
+            <!-- Complemento (BIS o letra) -->
+            <div class="col-md-2">
+                <select class="form-select" id="Letra1" name="Letra1">
+                    <option value="">N/A</option>
+                    <option value="Bis">Bis</option>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                    <option value="E">E</option>
+                    <option value="F">F</option>
+                    <option value="G">G</option>
+                </select>
+            </div>
+
+            <!-- # -->
+            <div class="col-auto align-self-center">
+                <span>#</span>
+            </div>
+
+            <!-- Segundo número -->
+            <div class="col-md-2">
+                <input type="text" class="form-control" id="NumSecundario" name="NumSecundario" placeholder="Ej: 22">
+            </div>
+
+            <!-- Complemento 2 -->
+            <div class="col-md-2">
+                <select class="form-select" id="Letra2" name="Letra2">
+                    <option value="">N/A</option>
+                    <option value="Bis">Bis</option>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                    <option value="E">E</option>
+                    <option value="F">F</option>
+                    <option value="G">G</option>
+                </select>
+            </div>
+
+            <!-- - -->
+            <div class="col-auto align-self-center">
+                <span>-</span>
+            </div>
+
+            <!-- Último número -->
+            <div class="col-md-2">
+                <input type="text" class="form-control" id="NumFinal" name="NumFinal" placeholder="Ej: 15">
+            </div>
+
+            <!-- Complemento 3 -->
+            <div class="col-md-2">
+                <select class="form-select" id="Letra3" name="Letra3">
+                    <option value="">N/A</option>
+                    <option value="Bis">Bis</option>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                    <option value="E">E</option>
+                    <option value="F">F</option>
+                    <option value="G">G</option>
+                </select>
+            </div>
+        </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Barrio</label>
+            <input type="text" class="form-control" id="BarrioComercio" name="Barrio">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Nit Comercio</label>
+            <input type="text" class="form-control" id="InfoVendedor" name="InfoVendedor">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Nombre del comercio</label>
+            <input type="text" class="form-control" id="NombreComercio" name="NombreComercio">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Redes Sociales</label>
+            <input type="text" class="form-control" id="RedesSociales" name="RedesSociales">
+        </div>
+        <div class="mb-3">
+            <label for="dias" class="form-label">Días de atención</label>
+            <input type="text" class="form-control" id="DiasAtencion" name="DiasAtencion" placeholder="ej: Lunes-Viernes">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Horario de atención</label>
+                <div class="row g-2">
+                    <div class="col"><input type="time" class="form-control" id="horaInicio" name="horaInicio"></div>
+                    <div class="col-auto align-self-center">a</div>
+                    <div class="col"><input type="time" class="form-control" id="horaFin" name="horaFin"></div>
+                </div>
+        </div>
+        <div class="d-flex justify-content-between mt-4">
+            <button type="submit" class="btn btn-primary">Registrar</button>
+            <a href="ingreso.html" class="btn btn-secondary">Volver</a>
+        </div>
+    </div>
+
+    <!-- Formulario Prestador de Servicios -->
+    <div id="formServicio" style="display:none;">
+        <div class="mb-3">
+            <label class="form-label">Foto de perfil</label>
+            <input type="file" class="form-control" id="FotoPerfilServicio" name="FotoPerfil" accept=".png,.jpg,.jpeg" data-required="true">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Documento</label>
+            <input type="text" class="form-control" id="UsuarioServicio" name="Usuario">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Nombre completo</label>
+            <input type="text" class="form-control" id="NombreServicio" name="Nombre">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Teléfono</label>
+            <input type="tel" class="form-control" id="TelefonoServicio" name="Telefono">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Correo electrónico</label>
+            <input type="email" class="form-control" id="CorreoServicio" name="Correo">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Dirección</label>
+            <input type="text" class="form-control" id="DireccionServicio" name="Direccion" placeholder="Ej: Cra 10 #20-30">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Barrio</label>
+            <input type="text" class="form-control" id="BarrioServicio" name="Barrio">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Redes Sociales</label>
+            <input type="text" class="form-control" id="RedesSocialesServicio" name="RedesSociales">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Foto de certificado</label>
+            <input type="file" id="Certificado" name="Certificado" accept=".pdf,.png,.jpg,.jpeg" data-required="true">
+        </div>
+        <div class="mb-3">
+            <label for="dias" class="form-label">Días de atención</label>
+            <input type="text" class="form-control" id="diasAtencionServicio" name="DiasAtencion" placeholder="ej: Lunes-Viernes">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Horario de atención</label>
+                <div class="row g-2">
+                    <div class="col"><input type="time" class="form-control" id="horaInicioServicio" name="HoraInicio"></div>
+                    <div class="col-auto align-self-center">a</div>
+                    <div class="col"><input type="time" class="form-control" id="horaFinServicio" name="HoraFin"></div>
+                </div>
+        </div>
+
+        <!-- Botones -->
+        <div class="d-flex justify-content-between mt-4">
+            <button type="submit" class="btn btn-primary">Registrar</button>
+            <a href="ingreso.html" class="btn btn-secondary">Volver</a>
+        </div>
+        </div>
+    </form>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer text-white py-8 px-4 mt-10">
+  <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
+    <div class="text-center">
+      <img src="IMAGENINGRESO/nuevo logo.jpeg" class="w-20 h-20 rounded-full mx-auto" alt="RPM Logo"/>
+      <h4 class="text-xl font-bold mt-2">RPM</h4>
+    </div>
+    <div>
+      <h4 class="text-lg font-bold mb-2">Atención al Cliente</h4>
+      <p>Email: infoRPM@gmail.com</p>
+      <p>Teléfono: 301 403 8181</p>
+    </div>
+    <div>
+      <h4 class="text-lg font-bold mb-2">Información</h4>
+      <ul class="space-y-1">
+        <li><a href="#" class="hover:text-gray-200">Política de Privacidad</a></li>
+        <li><a href="#" class="hover:text-gray-200">Términos y Condiciones</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="text-lg font-bold mb-2">Síguenos</h4>
+      <div class="flex space-x-4">
+        <a href="#"><i class="fab fa-facebook-f"></i></a>
+        <a href="#"><i class="fab fa-instagram"></i></a>
+      </div>
+    </div>
+  </div>
+</footer>
+    <script src="../JS/registro.js"></script>
+</body>
+</html>
