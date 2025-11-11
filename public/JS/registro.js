@@ -152,11 +152,20 @@ if (tipoUsuario === "comerciante") {
       const data = await res.json();
 
       if (res.ok) {
-        alert("✅ Registro exitoso");
+        alert("✅ Registro exitoso. Ahora crea tu contraseña de acceso.");
         console.log("Respuesta del servidor:", data);
-        window.location.href = "ingreso.html";
+        
+        // Guardar usuario recién registrado para crear contraseña
+        localStorage.setItem("usuarioRecuperacion", JSON.stringify({
+          id: data.usuario,
+          esNuevoRegistro: true
+        }));
+        
+        window.location.href = "CambiarContraseña.html";
       } else {
-        alert("⚠️ Error: " + (data.error || "No se pudo registrar"));
+        // Manejar tanto 'error' como 'mensaje'
+        const mensajeError = data.error || data.mensaje || "No se pudo registrar";
+        alert("⚠️ " + mensajeError);
       }
     } catch (err) {
       console.error("Error en fetch:", err);

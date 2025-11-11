@@ -12,14 +12,14 @@ async function cargarUsuarioHeader() {
     const fotoEl = document.getElementById("foto-usuario");
 
     if (nombreEl) nombreEl.textContent = data.nombre || "Usuario";
-    if (fotoEl) fotoEl.src = data.foto || "/image/imagen_perfil.png";
+    if (fotoEl) fotoEl.src = data.foto || "../General/IMAGENINGRESO/imagen_perfil.png";
   } catch (error) {
     console.warn("⚠️ No se pudo cargar la sesión:", error);
     const nombreEl = document.getElementById("nombre-usuario");
     const fotoEl = document.getElementById("foto-usuario");
 
     if (nombreEl) nombreEl.textContent = "Invitado";
-    if (fotoEl) fotoEl.src = "/image/imagen_perfil.png";
+    if (fotoEl) fotoEl.src = "../General/IMAGENINGRESO/imagen_perfil.png";
   }
 }
 

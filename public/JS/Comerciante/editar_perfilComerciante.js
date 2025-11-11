@@ -28,6 +28,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     console.log("✅ Perfil del comerciante:", data);
 
+    // Actualizar formulario
     document.getElementById("Nombre").value = data.Nombre || "";
     document.getElementById("Apellido").value = data.Apellido || "";
     document.getElementById("NombreComercio").value = data.NombreComercio || "";
@@ -41,6 +42,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("HoraFin").value = data.HoraFin || "";
     document.getElementById("RedesSociales").value = data.RedesSociales || "";
 
+    // Actualizar sidebar (foto y nombre)
+    const fotoUsuario = document.getElementById("foto-usuario");
+    const nombreUsuario = document.getElementById("nombre-usuario");
+    
+    if (fotoUsuario && data.FotoPerfil) {
+      fotoUsuario.src = `/${data.FotoPerfil}`;
+    }
+    
+    if (nombreUsuario) {
+      const nombreCompleto = `${data.Nombre || ""} ${data.Apellido || ""}`.trim();
+      nombreUsuario.textContent = nombreCompleto || data.NombreComercio || "Usuario";
+    }
+
+    // Preview de imagen
     if (data.FotoPerfil && previewImg) {
       previewImg.src = `/${data.FotoPerfil}`;
       previewContainer.classList.remove("hidden");
@@ -70,9 +85,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       alert(data.mensaje || "Perfil actualizado correctamente ✅");
 
       if (data.fotoPerfil) {
+        // Actualizar preview
         previewImg.src = `/${data.fotoPerfil}`;
         imagenPerfil.value = "";
         previewContainer.classList.add("hidden");
+        
+        // Actualizar foto del sidebar
+        const fotoUsuario = document.getElementById("foto-usuario");
+        if (fotoUsuario) {
+          fotoUsuario.src = `/${data.fotoPerfil}`;
+        }
       }
     } catch (err) {
       console.error("❌ Error al enviar formulario:", err);

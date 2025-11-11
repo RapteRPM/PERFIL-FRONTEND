@@ -2,7 +2,7 @@ export function verificarSesion(req, res, next) {
   if (req.session && req.session.usuario) {
     next();
   } else {
-    res.redirect('/General/ingreso.html');
+    res.redirect('/General/Ingreso.html');
   }
 }
 

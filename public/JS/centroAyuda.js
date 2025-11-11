@@ -50,7 +50,37 @@ document.addEventListener("DOMContentLoaded", async () => {
       window.location.href = "ingreso.html";
     });
   }
+
+  // 🏠 Actualizar botón de Inicio según el tipo de usuario
+  actualizarBotonInicio(usuario);
 });
+
+// 🏠 Función para actualizar el botón de inicio según el tipo de usuario
+function actualizarBotonInicio(usuario) {
+  const botonInicio = document.querySelector('a[href="../General/index.html"]');
+  if (!botonInicio) return;
+
+  if (!usuario || !usuario.tipo) {
+    // Si no hay sesión, mantener el enlace a index.html
+    botonInicio.href = "../General/index.html";
+    return;
+  }
+
+  // Redirigir según el tipo de usuario
+  switch (usuario.tipo) {
+    case "Natural":
+      botonInicio.href = "../Natural/perfil_usuario.html";
+      break;
+    case "Comerciante":
+      botonInicio.href = "../Comerciante/perfil_comerciante.html";
+      break;
+    case "PrestadorServicio":
+      botonInicio.href = "../PrestadorServicios/perfil_servicios.html";
+      break;
+    default:
+      botonInicio.href = "../General/index.html";
+  }
+}
 
 // 📤 Envío del formulario de ayuda
 document.getElementById("formAyuda").addEventListener("submit", async function (e) {
@@ -82,7 +112,7 @@ document.getElementById("formAyuda").addEventListener("submit", async function (
   };
 
   try {
-    const res = await fetch("http://localhost:3000/api/centro-ayuda", {
+    const res = await fetch("/api/centro-ayuda", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(solicitud)

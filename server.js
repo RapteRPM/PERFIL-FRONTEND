@@ -53,6 +53,51 @@ app.use((req, res, next) => {
   next();
 });
 
+// ===============================
+// 🏠 Ruta raíz - Redireccionar al índice
+// ===============================
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/General/index.html'));
+});
+
+// ===============================
+// 🧪 MODO DEMO - Login sin BD (para pruebas)
+// ===============================
+app.post('/api/login/demo', (req, res) => {
+  const { username, password } = req.body;
+  
+  // Usuarios de demo
+  const usuariosDemo = {
+    'usuario1': { password: '123456', tipo: 'Natural', id: 1001, nombre: 'Juan Usuario' },
+    'comerciante1': { password: '123456', tipo: 'Comerciante', id: 2001, nombre: 'Tienda ABC' },
+    'prestador1': { password: '123456', tipo: 'PrestadorServicio', id: 3001, nombre: 'Grúa Express' }
+  };
+  
+  const usuario = usuariosDemo[username];
+  
+  if (!usuario) {
+    return res.status(401).json({ error: 'Usuario no encontrado (demo)' });
+  }
+  
+  if (usuario.password !== password) {
+    return res.status(401).json({ error: 'Contraseña incorrecta (demo)' });
+  }
+  
+  // Simular sesión
+  req.session.usuario = {
+    id: usuario.id,
+    nombre: usuario.nombre,
+    tipo: usuario.tipo
+  };
+  
+  res.json({
+    success: true,
+    message: 'Login demo exitoso',
+    tipo: usuario.tipo,
+    usuario: usuario.nombre,
+    idUsuario: usuario.id
+  });
+});
 
 // ===============================
 // 🔑 Login
@@ -68,8 +113,8 @@ app.post('/api/login', async (req, res) => {
 
     const query = `
       SELECT c.*, u.TipoUsuario
-      FROM Credenciales c
-      JOIN Usuario u ON u.IdUsuario = c.Usuario
+      FROM credenciales c
+      JOIN usuario u ON u.IdUsuario = c.Usuario
       WHERE TRIM(c.NombreUsuario) = TRIM(?)
     `;
 
@@ -124,7 +169,7 @@ app.get('/api/usuario-actual', verificarSesion, async (req, res) => {
     // 🔍 Obtenemos los datos del usuario
     const [userRows] = await pool.query(
       `SELECT u.IdUsuario, u.TipoUsuario, u.Nombre, u.Documento, u.FotoPerfil
-       FROM Usuario u
+       FROM usuario u
        INNER JOIN Credenciales c ON c.Usuario = u.IdUsuario
        WHERE u.IdUsuario = ?`,
       [usuarioSesion.id]
@@ -140,7 +185,7 @@ app.get('/api/usuario-actual', verificarSesion, async (req, res) => {
     // 🏪 Si es comerciante, obtener nombre del comercio
     if (user.TipoUsuario === "Comerciante") {
       const [comercioRows] = await pool.query(
-        `SELECT NombreComercio FROM Comerciante WHERE Comercio = ?`,
+        `SELECT NombreComercio FROM comerciante WHERE Comercio = ?`,
         [usuarioSesion.id]
       );
       if (comercioRows.length > 0) {
@@ -159,8 +204,8 @@ app.get('/api/usuario-actual', verificarSesion, async (req, res) => {
       tipoCarpeta = "PrestadorServicios";
     }
 
-    const rutaCarpeta = path.join(__dirname, 'public', 'Imagen', tipoCarpeta, documento.toString());
-    let fotoRutaFinal = '/image/imagen_perfil.png'; // por defecto
+    const rutaCarpeta = path.join(__dirname, 'public', 'imagen', tipoCarpeta, documento.toString());
+    let fotoRutaFinal = '/imagen/imagen_perfil.png'; // por defecto
 
     if (fs.existsSync(rutaCarpeta)) {
       const archivos = fs.readdirSync(rutaCarpeta);
@@ -168,7 +213,7 @@ app.get('/api/usuario-actual', verificarSesion, async (req, res) => {
         f => f.includes(fotoGuardada) || f.match(/\.(jpg|jpeg|png|webp)$/i)
       );
       if (archivoFoto) {
-        fotoRutaFinal = `/Imagen/${tipoCarpeta}/${documento}/${archivoFoto}`;
+        fotoRutaFinal = `/imagen/${tipoCarpeta}/${documento}/${archivoFoto}`;
       }
     } else {
       console.warn(`⚠️ Carpeta de usuario no encontrada: ${rutaCarpeta}`);
@@ -221,20 +266,23 @@ app.put('/api/usuarios/:id/contrasena', async (req, res) => {
   }
 
   try {
+    console.log(`🔐 Actualizando contraseña para usuario: ${id}`);
     const hash = await bcrypt.hash(nuevaContrasena, 10);
 
-    const [result] = await pool.query(
+    const result = await queryPromise(
       'UPDATE credenciales SET Contrasena = ? WHERE Usuario = ?',
       [hash, id]
     );
 
-    if (result.affectedRows === 0) {
+    if (result.changes === 0) {
+      console.log(`⚠️ No se encontró el usuario ${id} en credenciales`);
       return res.status(404).json({ msg: 'Usuario no encontrado.' });
     }
 
+    console.log(`✅ Contraseña actualizada para usuario: ${id}`);
     res.json({ msg: 'Contraseña actualizada correctamente.' });
   } catch (error) {
-    console.error('Error actualizando contraseña:', error);
+    console.error('❌ Error actualizando contraseña:', error);
     res.status(500).json({ msg: 'Error del servidor.' });
   }
 });
@@ -253,7 +301,7 @@ app.get('/logout', (req, res) => {
     res.clearCookie('connect.sid', { path: '/' });
 
     // 🔄 Redirige al login
-    res.redirect('/General/ingreso.html');
+    res.redirect('/General/Ingreso.html');
   });
 });
 
@@ -293,7 +341,12 @@ app.listen(port, () => {
 app.get('/api/historial', async (req, res) => {
   const { fechaInicio, fechaFin, tipoProducto, ordenPrecio, usuarioId } = req.query;
 
-    let query = `
+  try {
+    const paramsProductos = [];
+    const paramsGruas = [];
+
+    // Query para productos/servicios de comerciantes
+    let queryProductos = `
       SELECT
         df.IdDetalleFactura AS idDetalleFactura,
         pub.NombreProducto AS producto,
@@ -307,42 +360,99 @@ app.get('/api/historial', async (req, res) => {
           WHEN df.Estado = 'Pendiente' THEN 'Pendiente'
           ELSE df.Estado
         END AS estado,
-        f.IdFactura AS idFactura
-      FROM DetalleFactura df
-      LEFT JOIN Factura f ON df.Factura = f.IdFactura
-      INNER JOIN Publicacion pub ON df.Publicacion = pub.IdPublicacion
-      INNER JOIN Categoria c ON pub.Categoria = c.IdCategoria
-      WHERE 1 = 1
-        AND df.VisibleUsuario = TRUE
+        f.IdFactura AS idFactura,
+        'producto' AS tipo
+      FROM detallefactura df
+      LEFT JOIN factura f ON df.Factura = f.IdFactura
+      INNER JOIN publicacion pub ON df.Publicacion = pub.IdPublicacion
+      INNER JOIN categoria c ON pub.Categoria = c.IdCategoria
+      WHERE df.VisibleUsuario = 1
     `;
 
+    // Query para servicios de grúa
+    let queryGruas = `
+      SELECT
+        cas.IdSolicitudServicio AS idDetalleFactura,
+        pg.TituloPublicacion AS producto,
+        'Servicio de grua' AS categoria,
+        cas.FechaServicio AS fecha,
+        CAST(pg.TarifaBase AS REAL) AS precio,
+        'Servicio' AS metodoPago,
+        cas.Estado AS estado,
+        NULL AS idFactura,
+        'grua' AS tipo
+      FROM controlagendaservicios cas
+      INNER JOIN publicaciongrua pg ON cas.PublicacionGrua = pg.IdPublicacionGrua
+      WHERE 1 = 1
+    `;
 
-  const params = [];
+    // Aplicar filtros para productos
+    if (usuarioId) {
+      queryProductos += ' AND f.Usuario = ?';
+      paramsProductos.push(usuarioId);
+      queryGruas += ' AND cas.UsuarioNatural = ?';
+      paramsGruas.push(usuarioId);
+    }
+    
+    if (fechaInicio) {
+      queryProductos += ' AND f.FechaCompra >= ?';
+      paramsProductos.push(fechaInicio);
+      queryGruas += ' AND cas.FechaServicio >= ?';
+      paramsGruas.push(fechaInicio);
+    }
+    
+    if (fechaFin) {
+      queryProductos += ' AND f.FechaCompra <= ?';
+      paramsProductos.push(fechaFin);
+      queryGruas += ' AND cas.FechaServicio <= ?';
+      paramsGruas.push(fechaFin);
+    }
 
-  if (usuarioId) {
-    query += ' AND f.Usuario = ?';
-    params.push(usuarioId);
-  }
-  if (fechaInicio) {
-    query += ' AND f.FechaCompra >= ?';
-    params.push(fechaInicio);
-  }
-  if (fechaFin) {
-    query += ' AND f.FechaCompra <= ?';
-    params.push(fechaFin);
-  }
-  if (tipoProducto) {
-    query += ' AND LOWER(c.NombreCategoria) = ?';
-    params.push(tipoProducto.toLowerCase());
-  }
+    // Filtro de tipo de producto
+    let incluirProductos = true;
+    let incluirGruas = true;
 
-  if (ordenPrecio === 'asc') query += ' ORDER BY df.Total ASC';
-  else if (ordenPrecio === 'desc') query += ' ORDER BY df.Total DESC';
-  else query += ' ORDER BY f.FechaCompra DESC, df.IdDetalleFactura DESC';
+    if (tipoProducto) {
+      if (tipoProducto.toLowerCase() === 'servicio de grua') {
+        incluirProductos = false;
+      } else {
+        incluirGruas = false;
+        queryProductos += ' AND LOWER(c.NombreCategoria) = ?';
+        paramsProductos.push(tipoProducto.toLowerCase());
+      }
+    }
 
-  try {
-    const [results] = await pool.query(query, params);
+    // Obtener resultados
+    let results = [];
+    
+    if (incluirProductos && incluirGruas) {
+      const resultadosProductos = await queryPromise(queryProductos, paramsProductos);
+      const resultadosGruas = await queryPromise(queryGruas, paramsGruas);
+      results = [...resultadosProductos, ...resultadosGruas];
+    } else if (incluirProductos) {
+      results = await queryPromise(queryProductos, paramsProductos);
+    } else {
+      results = await queryPromise(queryGruas, paramsGruas);
+    }
+
+    // Ordenamiento
+    if (ordenPrecio === 'asc') {
+      results.sort((a, b) => (a.precio || 0) - (b.precio || 0));
+    } else if (ordenPrecio === 'desc') {
+      results.sort((a, b) => (b.precio || 0) - (a.precio || 0));
+    } else {
+      results.sort((a, b) => {
+        const fechaA = new Date(a.fecha || 0);
+        const fechaB = new Date(b.fecha || 0);
+        if (fechaB - fechaA !== 0) return fechaB - fechaA;
+        return (b.idDetalleFactura || 0) - (a.idDetalleFactura || 0);
+      });
+    }
+
+    console.log("📊 Consultando historial para usuario:", usuarioId);
+    console.log(`✅ ${results.length} registros encontrados`);
     res.json(results);
+
   } catch (err) {
     console.error('❌ Error en la consulta de historial:', err);
     res.status(500).json({ error: 'Error en la consulta de historial' });
@@ -355,39 +465,42 @@ app.put('/api/historial/estado/:id', async (req, res) => {
   const { estado } = req.body;
 
   try {
-    // 1️⃣ Actualizar DetalleFactura
-    await pool.query(
-      'UPDATE DetalleFactura SET Estado = ? WHERE IdDetalleFactura = ?',
+    // 1️⃣ Obtener información del detalle para actualizar ambas tablas
+    const detalle = await queryPromise(
+      'SELECT Factura, Publicacion FROM detallefactura WHERE IdDetalleFactura = ?',
+      [id]
+    );
+
+    if (!detalle || detalle.length === 0) {
+      return res.status(404).json({ success: false, message: 'Detalle no encontrado.' });
+    }
+
+    const { Factura, Publicacion } = detalle[0];
+
+    // 2️⃣ Actualizar detallefactura
+    await queryPromise(
+      'UPDATE detallefactura SET Estado = ? WHERE IdDetalleFactura = ?',
       [estado, id]
     );
 
-    // 2️⃣ Actualizar DetalleFacturaComercio correspondiente
-    await pool.query(
-      'UPDATE DetalleFacturaComercio SET Estado = ? WHERE DetFacturacomercio = ?',
-      [estado, id]
+    // 3️⃣ Actualizar detallefacturacomercio correspondiente (por Factura y Publicacion)
+    await queryPromise(
+      'UPDATE detallefacturacomercio SET Estado = ? WHERE Factura = ? AND Publicacion = ?',
+      [estado, Factura, Publicacion]
     );
 
-    // 3️⃣ Si se marcó como Finalizado, verificar si toda la factura está finalizada
+    // 4️⃣ Si se marcó como Finalizado, verificar si toda la factura está finalizada
     if (estado === 'Finalizado') {
-      const [detalle] = await pool.query(
-        'SELECT Factura FROM DetalleFactura WHERE IdDetalleFactura = ?',
-        [id]
+      const pendientes = await queryPromise(
+        'SELECT COUNT(*) AS pendientes FROM detallefactura WHERE Factura = ? AND Estado != ?',
+        [Factura, 'Finalizado']
       );
 
-      if (detalle.length) {
-        const facturaId = detalle[0].Factura;
-
-        const [pendientes] = await pool.query(
-          'SELECT COUNT(*) AS pendientes FROM DetalleFactura WHERE Factura = ? AND Estado != "Finalizado"',
-          [facturaId]
+      if (pendientes && pendientes[0] && pendientes[0].pendientes === 0) {
+        await queryPromise(
+          'UPDATE factura SET Estado = ? WHERE IdFactura = ?',
+          ['Pago exitoso', Factura]
         );
-
-        if (pendientes[0].pendientes === 0) {
-          await pool.query(
-            'UPDATE Factura SET Estado = ? WHERE IdFactura = ?',
-            ['Pago exitoso', facturaId]
-          );
-        }
       }
     }
 
@@ -402,13 +515,58 @@ app.put('/api/historial/estado/:id', async (req, res) => {
   }
 });
 
+// ===============================
+//  ACTUALIZAR ESTADO DE SOLICITUD DE GRÚA
+// ===============================
+app.put('/api/historial/grua/estado/:id', async (req, res) => {
+  const { id } = req.params;
+  const { estado } = req.body;
+
+  try {
+    // Verificar que la solicitud existe y obtener su estado actual
+    const solicitud = await queryPromise(
+      'SELECT IdSolicitudServicio, Estado FROM controlagendaservicios WHERE IdSolicitudServicio = ?',
+      [id]
+    );
+
+    if (!solicitud || solicitud.length === 0) {
+      return res.status(404).json({ success: false, message: 'Solicitud de grúa no encontrada.' });
+    }
+
+    const estadoActual = solicitud[0].Estado;
+
+    // Validar que solo se pueda marcar como "Terminado" si está "Aceptado"
+    if (estado === 'Terminado' && estadoActual !== 'Aceptado') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Solo puedes marcar como terminado un servicio que ha sido aceptado por el prestador.' 
+      });
+    }
+
+    // Actualizar estado de la solicitud de grúa
+    await queryPromise(
+      'UPDATE controlagendaservicios SET Estado = ? WHERE IdSolicitudServicio = ?',
+      [estado, id]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Estado de la solicitud de grúa #${id} actualizado a '${estado}'.`
+    });
+
+  } catch (error) {
+    console.error('❌ Error al actualizar estado de grúa:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+  }
+});
+
 
 //ACTUALIZAR ESTADO VISIBLES
 app.delete('/api/historial/eliminar/:idFactura', async (req, res) => {
   const { idFactura } = req.params;
 
   try {
-    await pool.query(`UPDATE DetalleFactura SET VisibleUsuario = FALSE WHERE Factura = ?`, [idFactura]);
+    await queryPromise('UPDATE DetalleFactura SET VisibleUsuario = 0 WHERE factura = ?', [idFactura]);
     res.json({ success: true, message: "Registro ocultado correctamente." });
   } catch (err) {
     console.error("❌ Error al ocultar registro:", err);
@@ -423,55 +581,112 @@ app.delete('/api/historial/eliminar/:idFactura', async (req, res) => {
 app.get('/api/historial/excel', async (req, res) => {
   const { fechaInicio, fechaFin, tipoProducto, ordenPrecio, usuarioId } = req.query;
 
-  let query = `
-    SELECT
-      df.IdDetalleFactura AS idDetalleFactura,
-      pub.NombreProducto AS producto,
-      c.NombreCategoria AS categoria,
-      f.FechaCompra AS fecha,
-      df.Total AS total,
-      COALESCE(f.MetodoPago, 'Sin registro') AS metodoPago,
-      CASE
-        WHEN f.Estado = 'Pago exitoso' THEN 'Finalizado'
-        WHEN f.Estado = 'Proceso pendiente' AND df.Estado = 'Pendiente' THEN 'Pendiente'
-        ELSE f.Estado
-      END AS estado,
-      f.IdFactura AS idFactura
-    FROM DetalleFactura df
-    LEFT JOIN Factura f ON df.Factura = f.IdFactura
-    INNER JOIN Publicacion pub ON df.Publicacion = pub.IdPublicacion
-    INNER JOIN Categoria c ON pub.Categoria = c.IdCategoria
-    WHERE 1 = 1
-      AND df.VisibleUsuario = TRUE
-  `;
-
-  const params = [];
-
-  if (usuarioId) {
-    query += ' AND f.Usuario = ?';
-    params.push(usuarioId);
-  }
-
-  if (fechaInicio) {
-    query += ' AND (f.FechaCompra >= ? OR f.FechaCompra IS NULL)';
-    params.push(fechaInicio);
-  }
-
-  if (fechaFin) {
-    query += ' AND (f.FechaCompra <= ? OR f.FechaCompra IS NULL)';
-    params.push(fechaFin);
-  }
-
-  if (tipoProducto) {
-    query += ' AND LOWER(c.NombreCategoria) = ?';
-    params.push(tipoProducto.toLowerCase());
-  }
-
-  if (ordenPrecio === 'asc') query += ' ORDER BY df.Total ASC';
-  else if (ordenPrecio === 'desc') query += ' ORDER BY df.Total DESC';
-
   try {
-    const [results] = await pool.query(query, params);
+    const paramsProductos = [];
+    const paramsGruas = [];
+
+    // Query para productos/servicios de comerciantes
+    let queryProductos = `
+      SELECT
+        df.IdDetalleFactura AS idDetalleFactura,
+        pub.NombreProducto AS producto,
+        c.NombreCategoria AS categoria,
+        f.FechaCompra AS fecha,
+        df.Total AS total,
+        COALESCE(f.MetodoPago, 'Sin registro') AS metodoPago,
+        CASE
+          WHEN f.Estado = 'Pago exitoso' THEN 'Finalizado'
+          WHEN f.Estado = 'Proceso pendiente' AND df.Estado = 'Pendiente' THEN 'Pendiente'
+          ELSE f.Estado
+        END AS estado,
+        f.IdFactura AS idFactura,
+        'producto' AS tipo
+      FROM detallefactura df
+      LEFT JOIN factura f ON df.Factura = f.IdFactura
+      INNER JOIN publicacion pub ON df.Publicacion = pub.IdPublicacion
+      INNER JOIN categoria c ON pub.Categoria = c.IdCategoria
+      WHERE df.VisibleUsuario = 1
+    `;
+
+    // Query para servicios de grúa
+    let queryGruas = `
+      SELECT
+        cas.IdSolicitudServicio AS idDetalleFactura,
+        pg.TituloPublicacion AS producto,
+        'Servicio de grua' AS categoria,
+        cas.FechaServicio AS fecha,
+        CAST(pg.TarifaBase AS REAL) AS total,
+        'Servicio' AS metodoPago,
+        cas.Estado AS estado,
+        NULL AS idFactura,
+        'grua' AS tipo
+      FROM controlagendaservicios cas
+      INNER JOIN publicaciongrua pg ON cas.PublicacionGrua = pg.IdPublicacionGrua
+      WHERE 1 = 1
+    `;
+
+    // Aplicar filtros
+    if (usuarioId) {
+      queryProductos += ' AND f.Usuario = ?';
+      paramsProductos.push(usuarioId);
+      queryGruas += ' AND cas.UsuarioNatural = ?';
+      paramsGruas.push(usuarioId);
+    }
+
+    if (fechaInicio) {
+      queryProductos += ' AND (f.FechaCompra >= ? OR f.FechaCompra IS NULL)';
+      paramsProductos.push(fechaInicio);
+      queryGruas += ' AND cas.FechaServicio >= ?';
+      paramsGruas.push(fechaInicio);
+    }
+
+    if (fechaFin) {
+      queryProductos += ' AND (f.FechaCompra <= ? OR f.FechaCompra IS NULL)';
+      paramsProductos.push(fechaFin);
+      queryGruas += ' AND cas.FechaServicio <= ?';
+      paramsGruas.push(fechaFin);
+    }
+
+    // Filtro de tipo de producto
+    let incluirProductos = true;
+    let incluirGruas = true;
+
+    if (tipoProducto) {
+      if (tipoProducto.toLowerCase() === 'servicio de grua') {
+        incluirProductos = false;
+      } else {
+        incluirGruas = false;
+        queryProductos += ' AND LOWER(c.NombreCategoria) = ?';
+        paramsProductos.push(tipoProducto.toLowerCase());
+      }
+    }
+
+    // Obtener resultados
+    let results = [];
+    
+    if (incluirProductos && incluirGruas) {
+      const resultadosProductos = await queryPromise(queryProductos, paramsProductos);
+      const resultadosGruas = await queryPromise(queryGruas, paramsGruas);
+      results = [...resultadosProductos, ...resultadosGruas];
+    } else if (incluirProductos) {
+      results = await queryPromise(queryProductos, paramsProductos);
+    } else {
+      results = await queryPromise(queryGruas, paramsGruas);
+    }
+
+    // Ordenamiento
+    if (ordenPrecio === 'asc') {
+      results.sort((a, b) => (a.total || 0) - (b.total || 0));
+    } else if (ordenPrecio === 'desc') {
+      results.sort((a, b) => (b.total || 0) - (a.total || 0));
+    } else {
+      results.sort((a, b) => {
+        const fechaA = new Date(a.fecha || 0);
+        const fechaB = new Date(b.fecha || 0);
+        if (fechaB - fechaA !== 0) return fechaB - fechaA;
+        return (b.idDetalleFactura || 0) - (a.idDetalleFactura || 0);
+      });
+    }
 
     if (results.length === 0) {
       console.warn('⚠️ No hay datos para generar el Excel.');
@@ -486,7 +701,7 @@ app.get('/api/historial/excel', async (req, res) => {
       { header: 'ID Detalle', key: 'idDetalleFactura', width: 10 },
       { header: 'Producto', key: 'producto', width: 25 },
       { header: 'Categoría', key: 'categoria', width: 20 },
-      { header: 'Fecha de Compra', key: 'fecha', width: 20 },
+      { header: 'Fecha', key: 'fecha', width: 20 },
       { header: 'Total Pagado', key: 'total', width: 15 },
       { header: 'Método de Pago', key: 'metodoPago', width: 20 },
       { header: 'Estado', key: 'estado', width: 15 },
@@ -512,7 +727,7 @@ app.get('/api/historial/excel', async (req, res) => {
 
     await workbook.xlsx.write(res);
     res.end();
-    console.log(`📦 Excel generado con ${results.length} registros`);
+    console.log(`📦 Excel generado con ${results.length} registros (productos + grúas)`);
 
   } catch (err) {
     console.error('❌ Error en consulta Excel:', err);
@@ -531,48 +746,60 @@ app.get('/api/historial-ventas', async (req, res) => {
     return res.status(403).json({ error: 'Acceso no autorizado. Solo disponible para comerciantes.' });
   }
 
-  let query = `
-    SELECT 
-      f.IdFactura AS idVenta,
-      pub.NombreProducto AS producto,
-      c.NombreCategoria AS categoria,
-      u.Nombre AS comprador,
-      f.FechaCompra AS fecha,
-      df.Total AS total,
-      df.Cantidad AS cantidad,
-      f.MetodoPago AS metodoPago,
-      df.Estado AS estado
-    FROM DetalleFactura df
-    JOIN Factura f ON df.Factura = f.IdFactura
-    JOIN Publicacion pub ON df.Publicacion = pub.IdPublicacion
-    JOIN Categoria c ON pub.Categoria = c.IdCategoria
-    LEFT JOIN Usuario u ON f.Usuario = u.IdUsuario
-    WHERE pub.Comerciante = ?
-  `;
-
-  const params = [usuario.id];
-
-  if (fechaInicio) {
-    query += ' AND f.FechaCompra >= ?';
-    params.push(fechaInicio);
-  }
-
-  if (fechaFin) {
-    query += ' AND f.FechaCompra <= ?';
-    params.push(fechaFin);
-  }
-
-  if (tipoProducto) {
-    query += ' AND LOWER(c.NombreCategoria) = ?';
-    params.push(tipoProducto.toLowerCase());
-  }
-
-  if (ordenPrecio === 'asc') query += ' ORDER BY df.Total ASC';
-  else if (ordenPrecio === 'desc') query += ' ORDER BY df.Total DESC';
-  else query += ' ORDER BY f.FechaCompra DESC, df.IdDetalleFactura DESC';
-
   try {
-    const [results] = await pool.query(query, params);
+    // 🔍 Obtener el NIT del comerciante logueado
+    const comercianteRows = await queryPromise(
+      'SELECT NitComercio FROM comerciante WHERE Comercio = ?',
+      [usuario.id]
+    );
+
+    if (comercianteRows.length === 0) {
+      return res.status(403).json({ error: 'No se encontró información del comerciante.' });
+    }
+
+    const nitComercio = comercianteRows[0].NitComercio;
+
+    let query = `
+      SELECT 
+        f.IdFactura AS idVenta,
+        pub.NombreProducto AS producto,
+        c.NombreCategoria AS categoria,
+        u.Nombre AS comprador,
+        f.FechaCompra AS fecha,
+        df.Total AS total,
+        df.Cantidad AS cantidad,
+        f.MetodoPago AS metodoPago,
+        df.Estado AS estado
+      FROM detallefactura df
+      JOIN factura f ON df.Factura = f.IdFactura
+      JOIN publicacion pub ON df.Publicacion = pub.IdPublicacion
+      JOIN categoria c ON pub.Categoria = c.IdCategoria
+      LEFT JOIN usuario u ON f.Usuario = u.IdUsuario
+      WHERE pub.Comerciante = ?
+    `;
+
+    const params = [nitComercio];
+
+    if (fechaInicio) {
+      query += ' AND f.FechaCompra >= ?';
+      params.push(fechaInicio);
+    }
+
+    if (fechaFin) {
+      query += ' AND f.FechaCompra <= ?';
+      params.push(fechaFin);
+    }
+
+    if (tipoProducto) {
+      query += ' AND LOWER(c.NombreCategoria) = ?';
+      params.push(tipoProducto.toLowerCase());
+    }
+
+    if (ordenPrecio === 'asc') query += ' ORDER BY df.Total ASC';
+    else if (ordenPrecio === 'desc') query += ' ORDER BY df.Total DESC';
+    else query += ' ORDER BY f.FechaCompra DESC, df.IdDetalleFactura DESC';
+
+    const results = await queryPromise(query, params);
     res.json(results);
   } catch (err) {
     console.error('❌ Error en historial ventas:', err);
@@ -593,49 +820,59 @@ app.get('/api/historial-ventas/excel', async (req, res) => {
     return res.status(403).send('Acceso no autorizado.');
   }
 
-  const idComerciante = usuario.id; // ID del comerciante de la sesión
-  const params = [idComerciante];
-
-let query = `
-  SELECT 
-    f.IdFactura AS idVenta,
-    p.NombreProducto AS producto,
-    c.NombreCategoria AS categoria,
-    u.Nombre AS comprador,
-    f.FechaCompra AS fecha,
-    df.Cantidad AS cantidad,
-    df.Total AS total,
-    f.MetodoPago AS metodoPago,
-    f.Estado AS estado
-  FROM DetalleFacturacomercio df
-  JOIN Factura f ON df.Factura = f.IdFactura
-  JOIN Producto p ON df.Producto = p.IdProducto
-  JOIN Publicacion pub ON pub.IdPublicacion = p.PublicacionComercio
-  JOIN Categoria c ON p.IdCategoria = c.IdCategoria
-  LEFT JOIN Usuario u ON f.Usuario = u.IdUsuario
-  WHERE pub.Comerciante = ?
-`;
-
-  // 🔹 Filtros opcionales
-  if (fechaInicio) {
-    query += ' AND f.FechaCompra >= ?';
-    params.push(fechaInicio);
-  }
-  if (fechaFin) {
-    query += ' AND f.FechaCompra <= ?';
-    params.push(fechaFin);
-  }
-  if (tipoProducto) {
-    query += ' AND LOWER(c.NombreCategoria) = ?';
-    params.push(tipoProducto.toLowerCase());
-  }
-
-  // 🔹 Orden
-  if (ordenPrecio === 'asc') query += ' ORDER BY df.Total ASC';
-  else if (ordenPrecio === 'desc') query += ' ORDER BY df.Total DESC';
-
   try {
-    const [results] = await pool.query(query, params);
+    // 🔍 Obtener el NIT del comerciante logueado
+    const comercianteRows = await queryPromise(
+      'SELECT NitComercio FROM comerciante WHERE Comercio = ?',
+      [usuario.id]
+    );
+
+    if (comercianteRows.length === 0) {
+      return res.status(403).json({ error: 'No se encontró información del comerciante.' });
+    }
+
+    const nitComercio = comercianteRows[0].NitComercio;
+    const params = [nitComercio];
+
+    let query = `
+      SELECT 
+        f.IdFactura AS idVenta,
+        pub.NombreProducto AS producto,
+        c.NombreCategoria AS categoria,
+        u.Nombre AS comprador,
+        f.FechaCompra AS fecha,
+        df.Cantidad AS cantidad,
+        df.Total AS total,
+        f.MetodoPago AS metodoPago,
+        df.Estado AS estado
+      FROM detallefactura df
+      JOIN factura f ON df.Factura = f.IdFactura
+      JOIN publicacion pub ON df.Publicacion = pub.IdPublicacion
+      JOIN categoria c ON pub.Categoria = c.IdCategoria
+      LEFT JOIN usuario u ON f.Usuario = u.IdUsuario
+      WHERE pub.Comerciante = ?
+    `;
+
+    // 🔹 Filtros opcionales
+    if (fechaInicio) {
+      query += ' AND f.FechaCompra >= ?';
+      params.push(fechaInicio);
+    }
+    if (fechaFin) {
+      query += ' AND f.FechaCompra <= ?';
+      params.push(fechaFin);
+    }
+    if (tipoProducto) {
+      query += ' AND LOWER(c.NombreCategoria) = ?';
+      params.push(tipoProducto.toLowerCase());
+    }
+
+    // 🔹 Orden
+    if (ordenPrecio === 'asc') query += ' ORDER BY df.Total ASC';
+    else if (ordenPrecio === 'desc') query += ' ORDER BY df.Total DESC';
+    else query += ' ORDER BY f.FechaCompra DESC';
+
+    const results = await queryPromise(query, params);
 
     if (results.length === 0) {
       return res.json({ success: false, mensaje: 'No hay datos para generar el Excel.' });
@@ -710,7 +947,7 @@ app.post("/api/confirmar-recibido", async (req, res) => {
       await conn.query(`
         UPDATE detallefactura
         SET Estado = 'Finalizado'
-        WHERE Factura = ?
+        WHERE factura = ?
       `, [detalle.Factura]);
     }
 
@@ -729,7 +966,8 @@ app.post("/api/confirmar-recibido", async (req, res) => {
 // RUTA PARA OBTENER LOS TALLERES 
 // ----------------------
 app.get('/api/talleres', async (req, res) => {
-    const [rows] = await pool.query(`
+  try {
+    const rows = await queryPromise(`
       SELECT
         U.Nombre AS NombreVendedor,
         C.NombreComercio,
@@ -740,13 +978,10 @@ app.get('/api/talleres', async (req, res) => {
         C.DiasAtencion,
         C.Barrio
       FROM comerciante C
-      INNER JOIN usuario U ON C.Comercio = U.IdUsuario;
-    `);
-
-
-  try {
-    const [results] = await pool.query(sql);
-    res.json(results);
+      INNER JOIN usuario U ON C.Comercio = U.IdUsuario
+    `, []);
+    
+    res.json(rows);
   } catch (err) {
     console.error('❌ Error al obtener ubicaciones:', err);
     res.status(500).json({ error: 'Error al obtener ubicaciones' });
@@ -822,11 +1057,13 @@ app.post(
 
       // Verificar si ya existe
       const usuarioExistente = await queryPromise(
-        'SELECT IdUsuario FROM Usuario WHERE IdUsuario = ?',
+        'SELECT IdUsuario FROM usuario WHERE IdUsuario = ?',
         [idUsuarioValue]
       );
-      if (usuarioExistente.length > 0)
-        return res.status(400).json({ mensaje: 'El usuario ya está registrado.' });
+      if (usuarioExistente.length > 0) {
+        console.log(`⚠️ Usuario ${idUsuarioValue} ya existe en la base de datos`);
+        return res.status(409).json({ error: 'El usuario ya está registrado. Por favor, utilice otro número de documento.' });
+      }
 
       // Insertar en Usuario
       const insertUsuarioSQL = `
@@ -876,11 +1113,13 @@ app.post(
 
       // Insertar perfil correspondiente
       if (tipoKey === 'natural') {
+        console.log('📝 Insertando perfil natural...');
         await queryPromise(
-          `INSERT INTO \`PerfilNatural\` (UsuarioNatural, Direccion, Barrio)
+          `INSERT INTO PerfilNatural (UsuarioNatural, Direccion, Barrio)
            VALUES (?, ?, ?)`,
           [idUsuarioValue, data.Direccion || null, data.Barrio || null]
         );
+        console.log('✅ Perfil natural creado');
 
       } else if (tipoKey === 'comerciante') {
         // 🗺️ 1. Armar dirección completa para geocodificar
@@ -913,25 +1152,32 @@ app.post(
         }
 
         // 🏪 2. Insertar registro del comerciante
-        await queryPromise(
-          `INSERT INTO Comerciante
-            (NitComercio, Comercio, NombreComercio, Direccion, Barrio, RedesSociales, DiasAtencion, HoraInicio, HoraFin, Latitud, Longitud)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `,
-          [
-            data.NitComercio || null,
-            idUsuarioValue,
-            data.NombreComercio || null,
-            data.Direccion || null,
-            data.Barrio || null,
-            data.RedesSociales || null,
-            data.DiasAtencion || null,
-            data.HoraInicio || null,
-            data.HoraFin || null,
-            latitud,
-            longitud,
-          ]
-        );
+        console.log('📝 Insertando comerciante en la base de datos...');
+        try {
+          await queryPromise(
+            `INSERT INTO comerciante
+              (NitComercio, Comercio, NombreComercio, Direccion, Barrio, RedesSociales, DiasAtencion, HoraInicio, HoraFin, Latitud, Longitud)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `,
+            [
+              data.NitComercio || null,
+              idUsuarioValue,
+              data.NombreComercio || null,
+              data.Direccion || null,
+              data.Barrio || null,
+              data.RedesSociales || null,
+              data.DiasAtencion || null,
+              data.HoraInicio || null,
+              data.HoraFin || null,
+              latitud,
+              longitud,
+            ]
+          );
+          console.log('✅ Comerciante creado exitosamente');
+        } catch (insertError) {
+          console.error('❌ Error al insertar comerciante:', insertError);
+          throw insertError;
+        }
 
         console.log(`✅ Comerciante registrado con coordenadas: ${latitud}, ${longitud}`);
 
@@ -1057,7 +1303,7 @@ app.post('/api/publicar', uploadPublicacion.array('imagenesProducto', 5), async 
   try {
     // 🔹 Obtener NIT del comerciante asociado
     const [rowsComercio] = await connection.query(
-      'SELECT NitComercio FROM Comerciante WHERE Comercio = ? LIMIT 1',
+      'SELECT NitComercio FROM comerciante WHERE Comercio = ? LIMIT 1',
       [usuario.id]
     );
 
@@ -1070,7 +1316,7 @@ app.post('/api/publicar', uploadPublicacion.array('imagenesProducto', 5), async 
 
     // 🔹 Buscar categoría
     const [rowsCategoria] = await connection.query(
-      'SELECT IdCategoria FROM Categoria WHERE LOWER(NombreCategoria) = LOWER(?) LIMIT 1',
+      'SELECT IdCategoria FROM categoria WHERE LOWER(NombreCategoria) = LOWER(?) LIMIT 1',
       [categoriaProducto]
     );
 
@@ -1155,29 +1401,34 @@ app.get('/api/publicaciones', async (req, res) => {
       return res.status(403).json({ error: 'Acceso no autorizado. Solo comerciantes pueden ver sus publicaciones.' });
     }
 
+    console.log(`📋 Obteniendo publicaciones para comerciante: ${usuario.id}`);
+
     // 🔹 1. Buscar el NIT del comercio asociado al usuario
-    const [comercio] = await pool.query(
-      'SELECT NitComercio FROM Comerciante WHERE Comercio = ? LIMIT 1',
+    const comercio = await queryPromise(
+      'SELECT NitComercio FROM comerciante WHERE Comercio = ? LIMIT 1',
       [usuario.id]
     );
 
     if (!comercio || comercio.length === 0) {
+      console.log(`⚠️ No se encontró comercio para usuario: ${usuario.id}`);
       return res.status(404).json({ error: 'No se encontró el comercio asociado a este usuario.' });
     }
 
     const nitComercio = comercio[0].NitComercio;
+    console.log(`✅ NIT del comercio: ${nitComercio}`);
 
     // 🔹 2. Obtener publicaciones del comerciante
-    const [publicaciones] = await pool.query(
+    const publicaciones = await queryPromise(
       `
         SELECT IdPublicacion, NombreProducto, Precio, ImagenProducto
-        FROM Publicacion
-        WHERE Comerciante = ?
+        FROM publicacion
+        WHERE comerciante = ?
         ORDER BY IdPublicacion DESC
       `,
       [nitComercio]
     );
 
+    console.log(`✅ ${publicaciones.length} publicaciones encontradas`);
     res.json(publicaciones);
   } catch (err) {
     console.error('❌ Error al obtener las publicaciones:', err);
@@ -1200,7 +1451,7 @@ app.delete('/api/publicaciones/:id', async (req, res) => {
 
     // 🔹 1️⃣ Obtener el NIT del comercio asociado al usuario
     const [comercio] = await pool.query(
-      'SELECT NitComercio FROM Comerciante WHERE Comercio = ? LIMIT 1',
+      'SELECT NitComercio FROM comerciante WHERE Comercio = ? LIMIT 1',
       [usuario.id]
     );
 
@@ -1212,7 +1463,7 @@ app.delete('/api/publicaciones/:id', async (req, res) => {
 
     // 🔹 2️⃣ Verificar que la publicación exista y obtener las imágenes
     const [publicacion] = await pool.query(
-      'SELECT ImagenProducto FROM Publicacion WHERE IdPublicacion = ? AND Comerciante = ?',
+      'SELECT ImagenProducto FROM publicacion WHERE IdPublicacion = ? AND Comerciante = ?',
       [idPublicacion, nitComercio]
     );
 
@@ -1228,10 +1479,10 @@ app.delete('/api/publicaciones/:id', async (req, res) => {
     }
 
     // 🔹 3️⃣ Eliminar productos asociados
-    await pool.query('DELETE FROM Producto WHERE PublicacionComercio = ?', [idPublicacion]);
+    await pool.query('DELETE FROM producto WHERE PublicacionComercio = ?', [idPublicacion]);
 
     // 🔹 4️⃣ Eliminar la publicación
-    await pool.query('DELETE FROM Publicacion WHERE IdPublicacion = ? AND Comerciante = ?', [
+    await pool.query('DELETE FROM publicacion WHERE IdPublicacion = ? AND Comerciante = ?', [
       idPublicacion,
       nitComercio
     ]);
@@ -1281,7 +1532,7 @@ app.get('/api/publicaciones/:id', async (req, res) => {
 
     // 🔹 1️⃣ Obtener el NIT del comercio asociado al usuario
     const [comercio] = await pool.query(
-      'SELECT NitComercio FROM Comerciante WHERE Comercio = ? LIMIT 1',
+      'SELECT NitComercio FROM comerciante WHERE Comercio = ? LIMIT 1',
       [usuario.id]
     );
 
@@ -1298,10 +1549,10 @@ app.get('/api/publicaciones/:id', async (req, res) => {
         NombreProducto,
         Descripcion,
         Categoria AS IdCategoria,
-        (SELECT NombreCategoria FROM Categoria WHERE IdCategoria = Publicacion.Categoria) AS NombreCategoria,
+        (SELECT NombreCategoria FROM categoria WHERE IdCategoria = Publicacion.Categoria) AS NombreCategoria,
         Precio,
         ImagenProducto
-      FROM Publicacion
+      FROM publicacion
       WHERE IdPublicacion = ? AND Comerciante = ?
       LIMIT 1
     `;
@@ -1335,7 +1586,7 @@ app.get('/api/publicaciones/:id', async (req, res) => {
 app.get('/api/categorias', async (req, res) => {
   try {
     const [categorias] = await pool.query(
-      'SELECT IdCategoria, NombreCategoria FROM Categoria ORDER BY NombreCategoria ASC'
+      'SELECT IdCategoria, NombreCategoria FROM categoria ORDER BY NombreCategoria ASC'
     );
 
     // 🔹 Filtramos categorías que contengan "grua"
@@ -1389,7 +1640,7 @@ app.put('/api/publicaciones/:id', uploadEditar.array('imagenesNuevas', 10), asyn
 
     // 🔹 1️⃣ Obtener NIT del comerciante
     const [comercio] = await pool.query(
-      'SELECT NitComercio FROM Comerciante WHERE Comercio = ? LIMIT 1',
+      'SELECT NitComercio FROM comerciante WHERE Comercio = ? LIMIT 1',
       [usuario.id]
     );
 
@@ -1406,7 +1657,7 @@ app.put('/api/publicaciones/:id', uploadEditar.array('imagenesNuevas', 10), asyn
 
     // 🔹 3️⃣ Obtener imágenes anteriores para eliminar las que ya no están
     const [resultPub] = await pool.query(
-      'SELECT ImagenProducto FROM Publicacion WHERE IdPublicacion = ? AND Comerciante = ?',
+      'SELECT ImagenProducto FROM publicacion WHERE IdPublicacion = ? AND Comerciante = ?',
       [idPublicacion, nitComercio]
     );
 
@@ -1459,15 +1710,16 @@ app.put('/api/publicaciones/:id', uploadEditar.array('imagenesNuevas', 10), asyn
 app.get('/api/dashboard/comerciante', async (req, res) => {
   try {
     // 🧩 Validar sesión activa
-    if (!req.session || !req.session.usuarioId) {
+    if (!req.session || !req.session.usuario) {
       return res.status(401).json({ error: 'No has iniciado sesión.' });
     }
 
-    const idUsuario = req.session.usuarioId;
+    const idUsuario = req.session.usuario.id;
+    console.log('📊 Cargando dashboard del comerciante:', idUsuario);
 
     // 🔍 Obtener el NIT del comerciante logueado
-    const [comercianteRows] = await pool.query(
-      'SELECT NitComercio FROM Comerciante WHERE Comercio = ?',
+    const comercianteRows = await queryPromise(
+      'SELECT NitComercio FROM comerciante WHERE Comercio = ?',
       [idUsuario]
     );
 
@@ -1477,20 +1729,20 @@ app.get('/api/dashboard/comerciante', async (req, res) => {
 
     const nitComercio = comercianteRows[0].NitComercio;
 
-    // 🧾 Consultar las ventas del comerciante
-    const [result] = await pool.query(`
+    // 🧾 Consultar las ventas del comerciante usando detallefactura
+    const result = await queryPromise(`
       SELECT 
         c.NombreComercio,
         cat.NombreCategoria,
         p.NombreProducto,
-        COUNT(f.IdFactura) AS totalVentas,
-        SUM(f.TotalPago) AS totalRecaudado,
+        COUNT(df.IdDetalleFactura) AS totalVentas,
+        SUM(df.Total) AS totalRecaudado,
         DATE(f.FechaCompra) AS fechaCompra
-      FROM Factura f
-      INNER JOIN Carrito ca ON f.Carrito = ca.IdCarrito
-      INNER JOIN Publicacion p ON ca.Publicacion = p.IdPublicacion
-      INNER JOIN Categoria cat ON p.Categoria = cat.IdCategoria
-      INNER JOIN Comerciante c ON p.Comerciante = c.NitComercio
+      FROM detallefactura df
+      INNER JOIN factura f ON df.Factura = f.IdFactura
+      INNER JOIN publicacion p ON df.Publicacion = p.IdPublicacion
+      INNER JOIN categoria cat ON p.Categoria = cat.IdCategoria
+      INNER JOIN comerciante c ON p.Comerciante = c.NitComercio
       WHERE c.NitComercio = ?
       GROUP BY cat.NombreCategoria, p.NombreProducto, fechaCompra
       ORDER BY fechaCompra DESC
@@ -1504,22 +1756,24 @@ app.get('/api/dashboard/comerciante', async (req, res) => {
 
     result.forEach(row => {
       totalVentas += row.totalVentas;
-      totalRecaudado += row.totalRecaudado;
+      totalRecaudado += row.totalRecaudado || 0;
       categorias.add(row.NombreCategoria);
-      ventasPorCategoria[row.NombreCategoria] = (ventasPorCategoria[row.NombreCategoria] || 0) + row.totalRecaudado;
+      ventasPorCategoria[row.NombreCategoria] = (ventasPorCategoria[row.NombreCategoria] || 0) + (row.totalRecaudado || 0);
     });
 
     // 📅 Ventas del día y de la semana
     const hoy = new Date().toISOString().split('T')[0];
-    const semanaPasada = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const semanaPasada = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     const ventasHoy = result
       .filter(r => r.fechaCompra === hoy)
-      .reduce((acc, r) => acc + r.totalRecaudado, 0);
+      .reduce((acc, r) => acc + (r.totalRecaudado || 0), 0);
 
     const ventasSemana = result
-      .filter(r => new Date(r.fechaCompra) >= semanaPasada)
-      .reduce((acc, r) => acc + r.totalRecaudado, 0);
+      .filter(r => r.fechaCompra >= semanaPasada)
+      .reduce((acc, r) => acc + (r.totalRecaudado || 0), 0);
+
+    console.log('✅ Dashboard del comerciante cargado correctamente');
 
     // 📤 Respuesta final
     res.json({
@@ -1656,7 +1910,9 @@ app.get("/api/perfilComerciante/:idUsuario", async (req, res) => {
   const { idUsuario } = req.params;
 
   try {
-    const [rows] = await pool.query(
+    console.log(`📖 Obteniendo perfil comerciante para usuario: ${idUsuario}`);
+    
+    const rows = await queryPromise(
       `
       SELECT 
         u.IdUsuario,
@@ -1673,17 +1929,19 @@ app.get("/api/perfilComerciante/:idUsuario", async (req, res) => {
         c.DiasAtencion,
         c.HoraInicio,
         c.HoraFin
-      FROM Usuario u
-      LEFT JOIN Comerciante c ON u.IdUsuario = c.Comercio
+      FROM usuario u
+      LEFT JOIN comerciante c ON u.IdUsuario = c.Comercio
       WHERE u.IdUsuario = ?
       `,
       [idUsuario]
     );
 
-    if (rows.length === 0) {
+    if (!rows || rows.length === 0) {
+      console.log(`⚠️ Comerciante no encontrado: ${idUsuario}`);
       return res.status(404).json({ error: "Comerciante no encontrado" });
     }
 
+    console.log(`✅ Perfil comerciante encontrado:`, rows[0]);
     res.json(rows[0]);
   } catch (error) {
     console.error("❌ Error al obtener perfil del comerciante:", error);
@@ -1694,32 +1952,61 @@ app.get("/api/perfilComerciante/:idUsuario", async (req, res) => {
 ///APARTADO DE CONTROL DE AGENDA - COMERCIANTE 
 
 app.get('/api/privado/citas', async (req, res) => {
-  const idUsuario = req.session?.usuario?.IdUsuario || 123;
+  const usuario = req.session?.usuario;
+
+  if (!usuario) {
+    return res.status(401).json({ error: 'No autenticado' });
+  }
 
   try {
-    const [comercioRows] = await pool.query(
+    // 🔍 Obtener el NIT del comerciante logueado
+    const comercianteRows = await queryPromise(
       'SELECT NitComercio FROM comerciante WHERE Comercio = ?',
-      [idUsuario]
+      [usuario.id]
     );
 
-    if (comercioRows.length === 0) {
+    if (comercianteRows.length === 0) {
       return res.status(404).json({ error: 'Comerciante no encontrado' });
     }
 
-    const nitComercio = comercioRows[0].NitComercio;
+    const nitComercio = comercianteRows[0].NitComercio;
 
-    const [citas] = await pool.query(`
+    // 🧾 Obtener las citas/pedidos del comerciante desde detallefactura
+    const citas = await queryPromise(`
       SELECT 
-        IdSolicitud AS id,
-        CONCAT(ModoServicio, ': ', ComentariosAdicionales) AS title,
-        FechaServicio AS start,
-        ComentariosAdicionales AS descripcion,
-        HoraServicio AS hora
-      FROM controlagendacomercio
-      WHERE Comercio = ?
+        df.IdDetalleFactura AS id,
+        p.NombreProducto AS title,
+        DATE(f.FechaCompra) AS start,
+        u.Nombre AS cliente,
+        df.Cantidad AS cantidad,
+        df.Total AS total,
+        df.Estado AS estado,
+        f.MetodoPago AS metodoPago
+      FROM detallefactura df
+      JOIN factura f ON df.Factura = f.IdFactura
+      JOIN publicacion p ON df.Publicacion = p.IdPublicacion
+      LEFT JOIN usuario u ON f.Usuario = u.IdUsuario
+      WHERE p.Comerciante = ?
+      ORDER BY f.FechaCompra DESC
     `, [nitComercio]);
 
-    res.json(citas);
+    // Formatear datos para FullCalendar
+    const eventosFormateados = citas.map(cita => ({
+      id: cita.id,
+      title: `${cita.title} - ${cita.cliente || 'Cliente'}`,
+      start: cita.start,
+      extendedProps: {
+        descripcion: `Cliente: ${cita.cliente || 'N/A'} | Cantidad: ${cita.cantidad} | Total: $${Number(cita.total || 0).toLocaleString()} | Estado: ${cita.estado}`,
+        hora: new Date(cita.start).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+        cliente: cita.cliente,
+        cantidad: cita.cantidad,
+        total: cita.total,
+        estado: cita.estado,
+        metodoPago: cita.metodoPago
+      }
+    }));
+
+    res.json(eventosFormateados);
   } catch (error) {
     console.error('Error al obtener citas:', error);
     res.status(500).json({ error: 'Error al obtener citas' });
@@ -1737,18 +2024,22 @@ app.put("/api/actualizarPerfilNatural/:idUsuario", upload.single("FotoPerfil"), 
   const nuevaFoto = req.file || null;
 
   try {
-    const [usuarioRows] = await pool.query(
-      "SELECT FotoPerfil FROM Usuario WHERE IdUsuario = ?",
+    console.log(`📝 Actualizando perfil natural para usuario: ${idUsuario}`);
+    
+    const usuarioRows = await queryPromise(
+      "SELECT FotoPerfil FROM usuario WHERE IdUsuario = ?",
       [idUsuario]
     );
 
-    if (usuarioRows.length === 0) {
+    if (!usuarioRows || usuarioRows.length === 0) {
+      console.log(`⚠️ Usuario no encontrado: ${idUsuario}`);
       return res.status(404).json({ error: "Usuario no encontrado" });
     }
 
     let rutaFotoFinal = usuarioRows[0].FotoPerfil;
 
     if (nuevaFoto) {
+      console.log(`📸 Nueva foto detectada: ${nuevaFoto.originalname}`);
       const tipoFolder = "Natural";
       const userFolder = path.join(__dirname, "public", "imagen", tipoFolder, idUsuario);
       fs.mkdirSync(userFolder, { recursive: true });
@@ -1757,6 +2048,7 @@ app.put("/api/actualizarPerfilNatural/:idUsuario", upload.single("FotoPerfil"), 
         const rutaFotoAnterior = path.join(__dirname, "public", rutaFotoFinal);
         if (fs.existsSync(rutaFotoAnterior)) {
           fs.unlinkSync(rutaFotoAnterior);
+          console.log(`🗑️ Foto anterior eliminada`);
         }
       }
 
@@ -1766,11 +2058,12 @@ app.put("/api/actualizarPerfilNatural/:idUsuario", upload.single("FotoPerfil"), 
 
       rutaFotoFinal = path.join("imagen", tipoFolder, idUsuario, nuevoNombreFoto).replace(/\\/g, "/");
 
-      await pool.query("UPDATE Usuario SET FotoPerfil = ? WHERE IdUsuario = ?", [rutaFotoFinal, idUsuario]);
+      await queryPromise("UPDATE usuario SET FotoPerfil = ? WHERE IdUsuario = ?", [rutaFotoFinal, idUsuario]);
+      console.log(`✅ Foto actualizada: ${rutaFotoFinal}`);
     }
 
-    await pool.query(
-      `UPDATE Usuario 
+    await queryPromise(
+      `UPDATE usuario 
        SET Nombre = ?, Apellido = ?, Telefono = ?, Correo = ?
        WHERE IdUsuario = ?`,
       [
@@ -1781,13 +2074,27 @@ app.put("/api/actualizarPerfilNatural/:idUsuario", upload.single("FotoPerfil"), 
         idUsuario,
       ]
     );
+    console.log(`✅ Datos de usuario actualizados`);
 
-    await pool.query(
-      `INSERT INTO perfilnatural (UsuarioNatural, Direccion, Barrio)
-       VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE Direccion = VALUES(Direccion), Barrio = VALUES(Barrio)`,
-      [idUsuario, data.Direccion || null, data.Barrio || null]
+    // SQLite compatible: verificar si existe y luego UPDATE o INSERT
+    const perfilExiste = await queryPromise(
+      `SELECT UsuarioNatural FROM perfilnatural WHERE UsuarioNatural = ?`,
+      [idUsuario]
     );
+
+    if (perfilExiste && perfilExiste.length > 0) {
+      await queryPromise(
+        `UPDATE perfilnatural SET Direccion = ?, Barrio = ? WHERE UsuarioNatural = ?`,
+        [data.Direccion || null, data.Barrio || null, idUsuario]
+      );
+      console.log(`✅ Perfil natural actualizado`);
+    } else {
+      await queryPromise(
+        `INSERT INTO perfilnatural (UsuarioNatural, Direccion, Barrio) VALUES (?, ?, ?)`,
+        [idUsuario, data.Direccion || null, data.Barrio || null]
+      );
+      console.log(`✅ Perfil natural creado`);
+    }
 
     res.json({ mensaje: "✅ Perfil actualizado correctamente", fotoPerfil: rutaFotoFinal });
   } catch (error) {
@@ -1803,7 +2110,9 @@ app.get("/api/perfilNatural/:idUsuario", async (req, res) => {
   const { idUsuario } = req.params;
 
   try {
-    const [rows] = await pool.query(
+    console.log(`📖 Obteniendo perfil natural para usuario: ${idUsuario}`);
+    
+    const rows = await queryPromise(
       `SELECT 
          u.IdUsuario,
          u.Nombre,
@@ -1813,16 +2122,18 @@ app.get("/api/perfilNatural/:idUsuario", async (req, res) => {
          u.FotoPerfil,
          pn.Direccion,
          pn.Barrio
-       FROM Usuario u
+       FROM usuario u
        LEFT JOIN perfilnatural pn ON u.IdUsuario = pn.UsuarioNatural
        WHERE u.IdUsuario = ?`,
       [idUsuario]
     );
 
-    if (rows.length === 0) {
+    if (!rows || rows.length === 0) {
+      console.log(`⚠️ Perfil no encontrado para usuario: ${idUsuario}`);
       return res.status(404).json({ error: "Usuario no encontrado" });
     }
 
+    console.log(`✅ Perfil encontrado para: ${rows[0].Nombre} ${rows[0].Apellido}`);
     res.json(rows[0]);
   } catch (error) {
     console.error("❌ Error al obtener perfil natural:", error);
@@ -1842,9 +2153,9 @@ app.get('/api/publicaciones_publicas', async (req, res) => {
         p.IdPublicacion,
         p.NombreProducto AS nombreProducto,
         p.Precio,
-        (SELECT NombreCategoria FROM Categoria WHERE IdCategoria = p.Categoria) AS categoria,
+        (SELECT NombreCategoria FROM categoria WHERE IdCategoria = p.Categoria) AS categoria,
         p.ImagenProducto
-      FROM Publicacion p
+      FROM publicacion p
       WHERE 1
     `;
 
@@ -1852,7 +2163,7 @@ app.get('/api/publicaciones_publicas', async (req, res) => {
 
     // 🔹 Filtro opcional por categoría
     if (categoria && categoria.toLowerCase() !== 'todos') {
-      query += ` AND p.Categoria = (SELECT IdCategoria FROM Categoria WHERE LOWER(NombreCategoria) = LOWER(?))`;
+      query += ` AND p.Categoria = (SELECT IdCategoria FROM categoria WHERE LOWER(NombreCategoria) = LOWER(?))`;
       params.push(categoria);
     }
 
@@ -1934,9 +2245,9 @@ app.get('/api/detallePublicacion/:id', async (req, res) => {
                 u.Nombre AS NombreUsuario,
                 u.Apellido AS ApellidoUsuario,
                 IFNULL(AVG(o.Calificacion), 0) AS CalificacionPromedio
-            FROM Publicacion p
-            JOIN Comerciante c ON p.Comerciante = c.NitComercio
-            JOIN Usuario u ON c.Comercio = u.IdUsuario
+            FROM publicacion p
+            JOIN comerciante c ON p.Comerciante = c.NitComercio
+            JOIN usuario u ON c.Comercio = u.IdUsuario
             LEFT JOIN Opiniones o ON o.Publicacion = p.IdPublicacion
             WHERE p.IdPublicacion = ?
             GROUP BY p.IdPublicacion, c.NombreComercio, u.Nombre, u.Apellido`,
@@ -1957,7 +2268,7 @@ app.get('/api/detallePublicacion/:id', async (req, res) => {
                 u.Nombre, 
                 u.Apellido
             FROM Opiniones o
-            JOIN Usuario u ON o.UsuarioNatural = u.IdUsuario
+            JOIN usuario u ON o.UsuarioNatural = u.IdUsuario
             WHERE o.Publicacion = ?
             ORDER BY o.FechaOpinion DESC`,
             [idPublicacion]
@@ -2020,7 +2331,7 @@ app.post('/api/carrito', async (req, res) => {
 
         // 🔹 Consultar el precio del producto desde la publicación
         const [producto] = await pool.query(
-            `SELECT Precio FROM Publicacion WHERE IdPublicacion = ?`,
+            `SELECT Precio FROM publicacion WHERE IdPublicacion = ?`,
             [idPublicacion]
         );
 
@@ -2086,7 +2397,7 @@ app.get('/api/carrito', async (req, res) => {
         c.Cantidad,
         (p.Precio * c.Cantidad) AS Total
       FROM Carrito c
-      JOIN Publicacion p ON c.Publicacion = p.IdPublicacion
+      JOIN publicacion p ON c.Publicacion = p.IdPublicacion
       WHERE c.UsuarioNat = ? AND c.Estado = 'Pendiente'
     `, [usuario.id]);
 
@@ -2156,9 +2467,9 @@ app.get('/api/proceso-compra', async (req, res) => {
          u.Nombre AS NombreUsuarioComercio,
          u.Apellido AS ApellidoUsuarioComercio
        FROM Carrito c
-       JOIN Publicacion p ON c.Publicacion = p.IdPublicacion
-       JOIN Comerciante cm ON p.Comerciante = cm.NitComercio
-       JOIN Usuario u ON cm.Comercio = u.IdUsuario
+       JOIN publicacion p ON c.Publicacion = p.IdPublicacion
+       JOIN comerciante cm ON p.Comerciante = cm.NitComercio
+       JOIN usuario u ON cm.Comercio = u.IdUsuario
        WHERE c.UsuarioNat = ? AND c.Estado = 'Pendiente'`,
       [idUsuarioNat]
     );
@@ -2189,7 +2500,6 @@ app.get('/api/proceso-compra', async (req, res) => {
 //PROCESO DE COMPRA//
 
 app.post("/api/finalizar-compra", async (req, res) => {
-  const conn = await pool.getConnection();
   try {
     console.log("📦 Finalizando compra...");
 
@@ -2197,18 +2507,20 @@ app.post("/api/finalizar-compra", async (req, res) => {
     const usuarioId = (usuarioSesion && usuarioSesion.id) || req.body.usuarioId || null;
     const metodoPago = req.body.metodoPago;
 
+    console.log(`👤 Usuario: ${usuarioId}, 💳 Método: ${metodoPago}`);
+
     if (!usuarioId || !metodoPago) {
+      console.log("⚠️ Faltan datos: usuario o método de pago");
       return res.status(400).json({ message: "Faltan datos del usuario o método de pago." });
     }
 
     if (!['contraentrega', 'recoger'].includes(metodoPago)) {
+      console.log(`⚠️ Método de pago no válido: ${metodoPago}`);
       return res.status(400).json({ message: "Método de pago no válido." });
     }
 
-    await conn.beginTransaction();
-
     // 1️⃣ Obtener productos pendientes del carrito
-    const [carritoRows] = await conn.query(`
+    const carritoRows = await queryPromise(`
       SELECT 
         c.IdCarrito, 
         c.Cantidad, 
@@ -2217,15 +2529,17 @@ app.post("/api/finalizar-compra", async (req, res) => {
         pub.Precio, 
         (pub.Precio * c.Cantidad) AS Subtotal,
         pub.Comerciante AS Comercio
-      FROM Carrito c
-      JOIN Publicacion pub ON c.Publicacion = pub.IdPublicacion
+      FROM carrito c
+      JOIN publicacion pub ON c.Publicacion = pub.IdPublicacion
       WHERE c.UsuarioNat = ? AND c.Estado = 'Pendiente'
     `, [usuarioId]);
 
-    if (!carritoRows.length) {
-      await conn.rollback();
+    if (!carritoRows || carritoRows.length === 0) {
+      console.log("⚠️ No hay productos en el carrito");
       return res.status(400).json({ message: "No hay productos pendientes en el carrito." });
     }
+
+    console.log(`📋 ${carritoRows.length} productos en el carrito`);
 
     // 2️⃣ Preparar detalles
     let totalCompra = 0;
@@ -2242,30 +2556,33 @@ app.post("/api/finalizar-compra", async (req, res) => {
       });
     }
 
+    console.log(`💰 Total de la compra: $${totalCompra}`);
+
     // 3️⃣ Insertar factura con estado "Proceso pendiente"
-    const [insertFactura] = await conn.query(
-      `INSERT INTO Factura (Usuario, TotalPago, MetodoPago, Estado, FechaCompra)
-       VALUES (?, ?, ?, ?, NOW())`,
+    const insertFactura = await queryPromise(
+      `INSERT INTO factura (Usuario, TotalPago, MetodoPago, Estado, FechaCompra)
+       VALUES (?, ?, ?, ?, datetime('now'))`,
       [usuarioId, totalCompra, metodoPago, 'Proceso pendiente']
     );
 
-    const facturaId = insertFactura.insertId;
+    const facturaId = insertFactura.lastID || insertFactura.insertId;
+    console.log(`✅ Factura creada con ID: ${facturaId}`);
 
     // 4️⃣ Insertar detalles con estado "Pendiente"
     for (const detalle of detallesParaInsertar) {
-      await conn.query(
-        `INSERT INTO DetalleFactura (Factura, Publicacion, Cantidad, PrecioUnitario, Total, Estado)
+      await queryPromise(
+        `INSERT INTO detallefactura (Factura, Publicacion, Cantidad, PrecioUnitario, Total, Estado)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [facturaId, detalle.publicacion, detalle.cantidad, detalle.precioUnitario, detalle.total, 'Pendiente']
       );
 
-      const [insertDetalleComercio] = await conn.query(
-        `INSERT INTO DetalleFacturaComercio (Factura, Publicacion, Cantidad, PrecioUnitario, Total, Estado)
+      const insertDetalleComercio = await queryPromise(
+        `INSERT INTO detallefacturacomercio (Factura, Publicacion, Cantidad, PrecioUnitario, Total, Estado)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [facturaId, detalle.publicacion, detalle.cantidad, detalle.precioUnitario, detalle.total, 'Pendiente']
       );
 
-      const detalleComercioId = insertDetalleComercio.insertId;
+      const detalleComercioId = insertDetalleComercio.lastID || insertDetalleComercio.insertId;
 
       let modoServicio = metodoPago === "recoger" ? "Visita al taller" : "Domicilio";
       let tipoServicio = metodoPago === "recoger" ? 1 : 2;
@@ -2273,8 +2590,8 @@ app.post("/api/finalizar-compra", async (req, res) => {
       let hora = req.body.horaRecoger || null;
       let comentarios = req.body.comentariosRecoger || null;
 
-      await conn.query(
-        `INSERT INTO ControlAgendaComercio 
+      await queryPromise(
+        `INSERT INTO controlagendacomercio 
          (Comercio, DetFacturacomercio, TipoServicio, ModoServicio, FechaServicio, HoraServicio, ComentariosAdicionales)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [detalle.comercio, detalleComercioId, tipoServicio, modoServicio, fecha, hora, comentarios]
@@ -2282,9 +2599,9 @@ app.post("/api/finalizar-compra", async (req, res) => {
     }
 
     // 5️⃣ Vaciar carrito
-    await conn.query(`DELETE FROM Carrito WHERE UsuarioNat = ?`, [usuarioId]);
+    await queryPromise(`DELETE FROM carrito WHERE UsuarioNat = ?`, [usuarioId]);
+    console.log("🗑️ Carrito vaciado");
 
-    await conn.commit();
     console.log("✅ Compra registrada con método:", metodoPago);
 
     // 6️⃣ Mensaje final
@@ -2300,11 +2617,8 @@ app.post("/api/finalizar-compra", async (req, res) => {
     return res.json({ success: true, message, redirect });
 
   } catch (err) {
-    await conn.rollback();
     console.error("❌ Error al finalizar compra:", err);
     res.status(500).json({ message: "Error al finalizar la compra", error: err.message });
-  } finally {
-    conn.release();
   }
 });
 
@@ -2326,8 +2640,8 @@ app.get('/api/factura/:id', async (req, res) => {
         u.Apellido AS ApellidoUsuario,
         u.Telefono,
         u.Correo
-      FROM Factura f
-      LEFT JOIN Usuario u ON f.Usuario = u.IdUsuario
+      FROM factura f
+      LEFT JOIN usuario u ON f.Usuario = u.IdUsuario
       WHERE f.IdFactura = ?
     `, [id]);
 
@@ -2344,8 +2658,8 @@ app.get('/api/factura/:id', async (req, res) => {
       df.Cantidad,
       df.PrecioUnitario,
       df.Total
-      FROM DetalleFactura df
-      JOIN Publicacion p ON df.Publicacion = p.IdPublicacion
+      FROM detallefactura df
+      JOIN publicacion p ON df.Publicacion = p.IdPublicacion
       WHERE df.Factura = ?
     `, [id]);
 
@@ -2370,14 +2684,18 @@ app.get('/api/factura/:id', async (req, res) => {
 app.post("/api/centro-ayuda", async (req, res) => {
   const { perfil, tipoSolicitud, rol, asunto, descripcion } = req.body;
 
-  // Validación de sesión
-  if (!perfil || typeof perfil !== "number") {
+  console.log('📩 Solicitud de centro de ayuda recibida:', { perfil, tipoSolicitud, rol, asunto });
+
+  // Validación de datos
+  if (!perfil) {
+    console.log('⚠️ Perfil no proporcionado');
     return res.status(401).json({ error: "Debes iniciar sesión para hacer esta solicitud." });
   }
 
   // Validación de rol
   const rolesValidos = ["Usuario Natural", "Comerciante", "PrestadorServicio"];
   if (!rolesValidos.includes(rol)) {
+    console.log('⚠️ Rol inválido:', rol);
     return res.status(400).json({ error: "Rol inválido. Selecciona una opción válida." });
   }
 
@@ -2386,11 +2704,12 @@ app.post("/api/centro-ayuda", async (req, res) => {
       INSERT INTO centroayuda (Perfil, TipoSolicitud, Rol, Asunto, Descripcion)
       VALUES (?, ?, ?, ?, ?)
     `;
-    const [result] = await pool.execute(sql, [perfil, tipoSolicitud, rol, asunto, descripcion]);
+    await queryPromise(sql, [perfil, tipoSolicitud, rol, asunto, descripcion]);
 
+    console.log('✅ Solicitud de ayuda registrada exitosamente');
     res.status(200).json({ message: "Solicitud registrada con éxito." });
   } catch (error) {
-    console.error("Error al insertar solicitud:", error);
+    console.error("❌ Error al insertar solicitud de ayuda:", error);
     res.status(500).json({ error: "Error al guardar la solicitud." });
   }
 });
@@ -2409,10 +2728,12 @@ app.get('/api/perfil-prestador', async (req, res) => {
   }
 
   try {
+    console.log("📊 Cargando perfil del prestador:", usuarioSesion.id);
+
     // 🔍 Datos del usuario
-    const [userRows] = await pool.query(
+    const userRows = await queryPromise(
       `SELECT u.IdUsuario, u.Nombre, u.Documento, u.FotoPerfil
-       FROM Usuario u
+       FROM usuario u
        WHERE u.IdUsuario = ?`,
       [usuarioSesion.id]
     );
@@ -2429,8 +2750,8 @@ app.get('/api/perfil-prestador', async (req, res) => {
       tipoCarpeta = "PrestadorServicios"; // ✅ Corrección de nombre de carpeta
     }
 
-    const rutaCarpeta = path.join(__dirname, 'public', 'Imagen', tipoCarpeta, user.Documento.toString());
-    let fotoRutaFinal = '/image/imagen_perfil.png'; // por defecto
+    const rutaCarpeta = path.join(__dirname, 'public', 'imagen', tipoCarpeta, user.Documento.toString());
+    let fotoRutaFinal = '/imagen/imagen_perfil.png'; // por defecto
 
     if (fs.existsSync(rutaCarpeta)) {
       const archivos = fs.readdirSync(rutaCarpeta);
@@ -2438,39 +2759,83 @@ app.get('/api/perfil-prestador', async (req, res) => {
         f => f.includes(user.FotoPerfil) || f.match(/\.(jpg|jpeg|png|webp)$/i)
       );
       if (archivoFoto) {
-        fotoRutaFinal = `/Imagen/${tipoCarpeta}/${user.Documento}/${archivoFoto}`;
+        fotoRutaFinal = `/imagen/${tipoCarpeta}/${user.Documento}/${archivoFoto}`;
       }
     } else {
       console.warn(`⚠️ Carpeta de usuario no encontrada: ${rutaCarpeta}`);
     }
 
-    // 📊 Estadísticas reales
-    const [statsRows] = await pool.query(
+    // 📊 Obtener IdServicio del prestador
+    const servicioRows = await queryPromise(
+      `SELECT IdServicio FROM prestadorservicio WHERE Usuario = ?`,
+      [usuarioSesion.id]
+    );
+
+    let idServicio = null;
+    if (servicioRows.length > 0) {
+      idServicio = servicioRows[0].IdServicio;
+    }
+
+    // 📊 Calcular estadísticas desde OpinionesGrua
+    let valoracionPromedio = "N/A";
+    let totalOpiniones = 0;
+
+    if (idServicio) {
+      const opinionesRows = await queryPromise(
+        `SELECT AVG(og.Calificacion) AS promedio, COUNT(*) AS total
+         FROM opinionesgrua og
+         JOIN publicaciongrua pg ON og.PublicacionGrua = pg.IdPublicacionGrua
+         WHERE pg.Servicio = ?`,
+        [idServicio]
+      );
+
+      if (opinionesRows.length > 0 && opinionesRows[0].promedio) {
+        valoracionPromedio = parseFloat(opinionesRows[0].promedio).toFixed(1);
+        totalOpiniones = opinionesRows[0].total;
+      }
+    }
+
+    // 📋 Contar servicios agendados (pendientes, aceptados y completados)
+    let pendientes = 0;
+    let aceptados = 0;
+    let completados = 0;
+
+    if (idServicio) {
+      const agendaRows = await queryPromise(
+        `SELECT 
+           SUM(CASE WHEN cas.Estado = 'Pendiente' THEN 1 ELSE 0 END) AS pendientes,
+           SUM(CASE WHEN cas.Estado = 'Aceptado' THEN 1 ELSE 0 END) AS aceptados,
+           SUM(CASE WHEN cas.Estado = 'Terminado' THEN 1 ELSE 0 END) AS completados
+         FROM controlagendaservicios cas
+         JOIN publicaciongrua pg ON cas.PublicacionGrua = pg.IdPublicacionGrua
+         WHERE pg.Servicio = ?`,
+        [idServicio]
+      );
+
+      if (agendaRows.length > 0) {
+        pendientes = agendaRows[0].pendientes || 0;
+        aceptados = agendaRows[0].aceptados || 0;
+        completados = agendaRows[0].completados || 0;
+      }
+    }
+
+    // 📋 Últimas solicitudes de agenda de grúa
+    const solicitudesRows = idServicio ? await queryPromise(
       `SELECT 
-         COUNT(*) AS total,
-         SUM(CASE WHEN Estado = 'Pendiente' THEN 1 ELSE 0 END) AS pendientes,
-         SUM(CASE WHEN Estado = 'Finalizado' THEN 1 ELSE 0 END) AS completados,
-         AVG(Valoracion) AS valoracion
-       FROM Solicitudes
-       WHERE Prestador = ?`,
-      [usuarioSesion.id]
-    );
-
-    const stats = statsRows[0] || {
-      pendientes: 0,
-      completados: 0,
-      valoracion: 0
-    };
-
-    // 📋 Últimas solicitudes
-    const [solicitudesRows] = await pool.query(
-      `SELECT IdSolicitud, Cliente, Origen, Destino, Fecha, Estado
-       FROM Solicitudes
-       WHERE Prestador = ?
-       ORDER BY Fecha DESC
+         cas.IdSolicitudServicio,
+         u.Nombre AS Cliente,
+         cas.DireccionRecogida AS Origen,
+         cas.Destino AS Destino,
+         cas.FechaServicio AS Fecha,
+         cas.Estado
+       FROM controlagendaservicios cas
+       JOIN publicaciongrua pg ON cas.PublicacionGrua = pg.IdPublicacionGrua
+       JOIN usuario u ON cas.UsuarioNatural = u.IdUsuario
+       WHERE pg.Servicio = ?
+       ORDER BY cas.FechaServicio DESC
        LIMIT 5`,
-      [usuarioSesion.id]
-    );
+      [idServicio]
+    ) : [];
 
     // ✅ Respuesta
     res.json({
@@ -2478,12 +2843,16 @@ app.get('/api/perfil-prestador', async (req, res) => {
       foto: fotoRutaFinal,
       descripcion: "Prestador de servicio de grúa 24/7",
       estadisticas: {
-        pendientes: stats.pendientes || 0,
-        completados: stats.completados || 0,
-        valoracion: stats.valoracion ? parseFloat(stats.valoracion).toFixed(1) : "N/A"
+        totalServicios: pendientes + aceptados + completados,
+        pendientes: pendientes,
+        aceptados: aceptados,
+        completados: completados,
+        valoracion: valoracionPromedio
       },
       solicitudes: solicitudesRows
     });
+
+    console.log("✅ Perfil del prestador cargado correctamente");
 
   } catch (err) {
     console.error("❌ Error en perfil del prestador:", err);
@@ -2538,7 +2907,7 @@ app.post('/api/publicar-grua', uploadPublicacionPrestador.array('imagenesGrua', 
   try {
     // 🔹 Obtener ID del servicio del prestador
     const [rowsServicio] = await pool.query(
-      'SELECT IdServicio FROM prestadorservicio WHERE Usuario = ? LIMIT 1',
+      'SELECT IdServicio FROM prestadorservicio WHERE usuario = ? LIMIT 1',
       [usuario.id]
     );
 
@@ -2617,7 +2986,7 @@ app.get('/api/publicaciones-grua', async (req, res) => {
     }
 
     const [servicio] = await pool.query(
-      'SELECT IdServicio FROM prestadorservicio WHERE Usuario = ? LIMIT 1',
+      'SELECT IdServicio FROM prestadorservicio WHERE usuario = ? LIMIT 1',
       [usuario.id]
     );
 
@@ -2661,7 +3030,7 @@ app.delete('/api/publicaciones-grua/:id', async (req, res) => {
 
     // 🔹 1️⃣ Obtener el ID del servicio del prestador
     const [servicio] = await pool.query(
-      'SELECT IdServicio FROM prestadorservicio WHERE Usuario = ? LIMIT 1',
+      'SELECT IdServicio FROM prestadorservicio WHERE usuario = ? LIMIT 1',
       [usuario.id]
     );
 
@@ -2729,8 +3098,8 @@ app.delete('/api/publicaciones-grua/:id', async (req, res) => {
 
 
 
-//APARTADO DE EDITAR PUBLICACION GRUA
-app.get('/api/publicaciones-grua/:id', async (req, res) => {
+//APARTADO DE EDITAR PUBLICACION GRUA - OBTENER DATOS PARA EDICIÓN
+app.get('/api/publicaciones-grua/editar/:id', async (req, res) => {
   console.log("📥 Solicitud recibida para editar publicación");
   console.log("🔐 Usuario en sesión:", req.session.usuario);
   console.log("🔍 ID solicitado:", req.params.id);
@@ -2743,7 +3112,7 @@ app.get('/api/publicaciones-grua/:id', async (req, res) => {
       return res.status(403).json({ error: 'Acceso no autorizado.' });
     }
 
-    const [servicioRows] = await pool.query(
+    const servicioRows = await queryPromise(
       'SELECT IdServicio FROM prestadorservicio WHERE Usuario = ? LIMIT 1',
       [usuario.id]
     );
@@ -2754,7 +3123,7 @@ app.get('/api/publicaciones-grua/:id', async (req, res) => {
 
     const idServicio = servicioRows[0].IdServicio;
 
-    const [publicacionRows] = await pool.query(
+    const publicacionRows = await queryPromise(
       `SELECT 
         pg.IdPublicacionGrua,
         pg.TituloPublicacion,
@@ -2806,7 +3175,7 @@ app.put('/api/publicaciones-grua/:id', uploadPublicacionPrestador.array('imagene
 
   try {
     const [servicioRows] = await pool.query(
-      'SELECT IdServicio FROM prestadorservicio WHERE Usuario = ? LIMIT 1',
+      'SELECT IdServicio FROM prestadorservicio WHERE usuario = ? LIMIT 1',
       [usuario.id]
     );
 
@@ -2949,7 +3318,7 @@ app.put("/api/actualizarPerfilPrestador/:idUsuario", uploadPublicacionPrestador.
 
       // Obtener ruta anterior desde prestadorservicio
       const [servicioRows] = await pool.query(
-        "SELECT IdServicio, Certificado FROM prestadorservicio WHERE Usuario = ? LIMIT 1",
+        "SELECT IdServicio, Certificado FROM prestadorservicio WHERE usuario = ? LIMIT 1",
         [idUsuario]
       );
 
@@ -3008,7 +3377,7 @@ app.get("/api/historial-servicios/:idPrestador", async (req, res) => {
 
   try {
     const [servicioRows] = await pool.query(
-      "SELECT IdServicio FROM prestadorservicio WHERE Usuario = ? LIMIT 1",
+      "SELECT IdServicio FROM prestadorservicio WHERE usuario = ? LIMIT 1",
       [idPrestador]
     );
 
@@ -3048,8 +3417,8 @@ app.get("/api/solicitudes-grua/:idPrestador", async (req, res) => {
   const { idPrestador } = req.params;
 
   try {
-    const [servicioRows] = await pool.query(
-      "SELECT IdServicio FROM prestadorservicio WHERE Usuario = ? LIMIT 1",
+    const servicioRows = await queryPromise(
+      "SELECT IdServicio FROM prestadorservicio WHERE usuario = ? LIMIT 1",
       [idPrestador]
     );
 
@@ -3059,7 +3428,7 @@ app.get("/api/solicitudes-grua/:idPrestador", async (req, res) => {
 
     const idServicio = servicioRows[0].IdServicio;
 
-    const [solicitudes] = await pool.query(
+    const solicitudes = await queryPromise(
       `SELECT 
          cas.IdSolicitudServicio,
          u.Nombre AS Cliente,
@@ -3080,6 +3449,51 @@ app.get("/api/solicitudes-grua/:idPrestador", async (req, res) => {
   } catch (err) {
     console.error("❌ Error al obtener solicitudes:", err);
     res.status(500).json({ error: "Error interno del servidor" });
+  }
+});
+
+// ===============================
+//  ACTUALIZAR ESTADO DE SOLICITUD DE GRÚA - PRESTADOR
+// ===============================
+app.put('/api/solicitudes-grua/estado/:id', async (req, res) => {
+  const { id } = req.params;
+  const { estado } = req.body;
+
+  // Validar que el estado sea válido
+  const estadosValidos = ['Aceptado', 'Rechazado', 'Cancelado'];
+  
+  if (!estadosValidos.includes(estado)) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Estado no válido. Debe ser: Aceptado, Rechazado o Cancelado' 
+    });
+  }
+
+  try {
+    // Verificar que la solicitud existe
+    const solicitud = await queryPromise(
+      'SELECT IdSolicitudServicio, Estado FROM controlagendaservicios WHERE IdSolicitudServicio = ?',
+      [id]
+    );
+
+    if (!solicitud || solicitud.length === 0) {
+      return res.status(404).json({ success: false, message: 'Solicitud no encontrada.' });
+    }
+
+    // Actualizar el estado
+    await queryPromise(
+      'UPDATE controlagendaservicios SET Estado = ? WHERE IdSolicitudServicio = ?',
+      [estado, id]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Solicitud #${id} ${estado.toLowerCase()} correctamente.`
+    });
+
+  } catch (error) {
+    console.error('❌ Error al actualizar estado de solicitud:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor.' });
   }
 });
 
@@ -3108,12 +3522,13 @@ app.get("/api/marketplace-gruas", async (req, res) => {
 });
 
 ///DETALLE O VISUALIZACION DE EL DETALLE DE LA PUBLICACION DE GRUAS/// 
+// 🔹 DETALLE PÚBLICO DE PUBLICACIÓN DE GRÚA (para usuarios naturales)
 app.get("/api/publicaciones-grua/:id", async (req, res) => {
   const { id } = req.params;
   console.log("📥 Solicitud recibida con ID:", id);
 
   try {
-    const [rows] = await pool.query(
+    const rows = await queryPromise(
       `SELECT 
          pg.IdPublicacionGrua,
          pg.TituloPublicacion,
@@ -3175,9 +3590,9 @@ app.get('/api/opiniones-grua/:idPublicacionGrua', async (req, res) => {
   const { idPublicacionGrua } = req.params;
 
   try {
-    const [opiniones] = await pool.query(
+    const opiniones = await queryPromise(
       `SELECT NombreUsuario, Comentario, Calificacion, Fecha
-       FROM OpinionesGrua
+       FROM opinionesgrua
        WHERE PublicacionGrua = ?
        ORDER BY Fecha DESC`,
       [idPublicacionGrua]
@@ -3187,5 +3602,84 @@ app.get('/api/opiniones-grua/:idPublicacionGrua', async (req, res) => {
   } catch (error) {
     console.error('❌ Error al obtener opiniones de grúa:', error);
     res.status(500).json({ error: 'Error en el servidor al consultar opiniones.' });
+  }
+});
+
+// ===============================
+// 🔹 Agendar Servicio de Grúa
+// ===============================
+app.post('/api/agendar-grua', async (req, res) => {
+  try {
+    const { usuarioId, idPublicacionGrua, fecha, hora, direccion, destino, detalle } = req.body;
+
+    console.log("📅 Agendando servicio de grúa:", req.body);
+
+    if (!usuarioId || !idPublicacionGrua || !fecha || !hora || !direccion) {
+      return res.status(400).json({ error: 'Faltan datos obligatorios para agendar el servicio.' });
+    }
+
+    await queryPromise(
+      `INSERT INTO controlagendaservicios 
+       (UsuarioNatural, PublicacionGrua, FechaServicio, HoraServicio, DireccionRecogida, Destino, ComentariosAdicionales, Estado)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'Pendiente')`,
+      [usuarioId, idPublicacionGrua, fecha, hora, direccion, destino || null, detalle || null]
+    );
+
+    console.log("✅ Servicio agendado correctamente");
+    res.json({ success: true, message: 'Servicio agendado con éxito.' });
+
+  } catch (error) {
+    console.error('❌ Error al agendar servicio de grúa:', error);
+    res.status(500).json({ error: 'Error en el servidor al agendar el servicio.' });
+  }
+});
+
+// ===============================
+// 🔹 Historial de Servicios del Prestador
+// ===============================
+app.get('/api/historial-servicios-prestador/:usuarioId', async (req, res) => {
+  const { usuarioId } = req.params;
+
+  try {
+    console.log("📊 Cargando historial de servicios para prestador:", usuarioId);
+
+    // Obtener el IdServicio del prestador
+    const servicioRows = await queryPromise(
+      'SELECT IdServicio FROM prestadorservicio WHERE Usuario = ?',
+      [usuarioId]
+    );
+
+    if (servicioRows.length === 0) {
+      console.log("⚠️ No se encontró servicio asociado al prestador");
+      return res.json([]);
+    }
+
+    const idServicio = servicioRows[0].IdServicio;
+
+    // Obtener todos los servicios agendados
+    const servicios = await queryPromise(
+      `SELECT 
+         cas.IdSolicitudServicio,
+         u.Nombre AS Cliente,
+         pg.TituloPublicacion AS Servicio,
+         cas.DireccionRecogida AS Origen,
+         cas.Destino,
+         cas.FechaServicio AS Fecha,
+         cas.HoraServicio AS Hora,
+         cas.Estado
+       FROM controlagendaservicios cas
+       JOIN publicaciongrua pg ON cas.PublicacionGrua = pg.IdPublicacionGrua
+       JOIN usuario u ON cas.UsuarioNatural = u.IdUsuario
+       WHERE pg.Servicio = ?
+       ORDER BY cas.FechaServicio DESC`,
+      [idServicio]
+    );
+
+    console.log(`✅ ${servicios.length} servicios encontrados`);
+    res.json(servicios);
+
+  } catch (error) {
+    console.error('❌ Error al obtener historial de servicios:', error);
+    res.status(500).json({ error: 'Error en el servidor al consultar historial.' });
   }
 });

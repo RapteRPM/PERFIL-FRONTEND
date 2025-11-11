@@ -11,7 +11,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ✅ Obtener usuario activo
   const usuarioActivo = JSON.parse(localStorage.getItem("usuarioActivo"));
   if (!usuarioActivo || usuarioActivo.tipo !== "Natural") {
-    console.warn("⚠️ Usuario no válido o no es de tipo Natural");
+    console.warn("⚠️ Usuario no válido o no es de tipo Natural. Redirigiendo...");
+    alert("⚠️ Debes iniciar sesión para acceder a esta página");
+    window.location.href = "/General/Ingreso.html";
     return;
   }
   const usuarioId = usuarioActivo.id;

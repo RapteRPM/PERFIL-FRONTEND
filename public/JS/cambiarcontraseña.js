@@ -1,5 +1,16 @@
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.querySelector("form");
+  const tituloElement = document.querySelector(".contenedor-cambiar h2");
+  const descripcionElement = document.querySelector(".contenedor-cambiar p");
+
+  // Detectar si viene de registro nuevo
+  const usuarioRecuperacion = JSON.parse(localStorage.getItem("usuarioRecuperacion"));
+  const esNuevoRegistro = usuarioRecuperacion?.esNuevoRegistro;
+
+  if (esNuevoRegistro) {
+    tituloElement.innerHTML = '<i class="fa-solid fa-key"></i> Crear Contraseña';
+    descripcionElement.textContent = 'Bienvenido. Crea tu contraseña para acceder a tu cuenta.';
+  }
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -12,8 +23,13 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    // Validar longitud mínima
+    if (nueva.length < 6) {
+      alert("❌ La contraseña debe tener al menos 6 caracteres.");
+      return;
+    }
+
     // Detectar si viene de recuperación o sesión activa
-    const usuarioRecuperacion = JSON.parse(localStorage.getItem("usuarioRecuperacion"));
     const usuarioActivo = JSON.parse(localStorage.getItem("usuarioActivo"));
     const idUsuario = usuarioRecuperacion?.id || usuarioActivo?.id;
 
@@ -31,10 +47,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const result = await response.json();
       if (response.ok) {
-        alert("✅ Contraseña actualizada con éxito.");
+        if (esNuevoRegistro) {
+          alert("✅ Contraseña creada con éxito. Ya puedes iniciar sesión.");
+        } else {
+          alert("✅ Contraseña actualizada con éxito.");
+        }
         form.reset();
-        localStorage.removeItem("usuarioRecuperacion"); // Limpieza de recuperación
-        window.location.href = "ingreso.html";
+        localStorage.removeItem("usuarioRecuperacion"); // Limpieza
+        window.location.href = "Ingreso.html";
       } else {
         alert(`❌ Error: ${result.msg || "No se pudo actualizar la contraseña."}`);
       }

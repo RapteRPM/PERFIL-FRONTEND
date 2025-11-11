@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Mostrar datos en el header
     nombreUsuario.textContent = data.nombre || 'Usuario';
-    fotoUsuario.src = data.foto || '/image/imagen_perfil.png';
+    fotoUsuario.src = data.foto || '/imagen/imagen_perfil.png';
 
     // 🧩 Guardar usuario en localStorage para usarlo en otras páginas
     localStorage.setItem('usuarioActivo', JSON.stringify({
@@ -30,6 +30,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     localStorage.removeItem('usuarioActivo');
 
     nombreUsuario.textContent = 'Invitado';
-    fotoUsuario.src = '/image/imagen_perfil.png';
+    fotoUsuario.src = '/imagen/imagen_perfil.png';
   }
 });

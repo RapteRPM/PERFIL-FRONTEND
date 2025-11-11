@@ -28,7 +28,7 @@
       <!-- Perfil -->
       <div class="dropdown">
         <button class="flex items-center bg-transparent border-0 text-white" id="perfilDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-          <img id="foto-usuario" src="../image/imagen_perfil.png" alt="Usuario" class="w-16 h-16 object-cover rounded-full border-2 border-white mr-2"/>
+          <img id="foto-usuario" src="../imagen/imagen_perfil.png" alt="Usuario" class="w-16 h-16 object-cover rounded-full border-2 border-white mr-2"/>
           <span id="nombre-usuario" class="font-semibold text-lg">Cargando...</span>
         </button>
         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="perfilDropdown">
@@ -71,8 +71,8 @@
   </div>
 
   <!-- Dashboard de estadísticas -->
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10" id="estadisticasPrestador">
-    <!-- Se llenará dinámicamente con tarjetas de pendientes, completados y valoración -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10" id="estadisticasPrestador">
+    <!-- Se llenará dinámicamente con tarjetas de total, pendientes, completados y valoración -->
   </div>
 
   <!-- Tabla de últimas solicitudes -->
@@ -130,6 +130,7 @@
 </footer>
 <script src="../JS/perfil_usuario.js"></script>
 <script src="../JS/UsuarioSesion.js"></script>
+<script src="../JS/Prestador/PerfilPrestador.js"></script>
 </body>
 </html>
 
