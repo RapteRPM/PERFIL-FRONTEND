@@ -35,6 +35,16 @@
 
       <button type="button" class="button3" onclick="window.location.href='RecuperarContraseña.html'">¿Olvidó su contraseña?</button>
       <p id="mensaje-error"></p>
+      
+      <hr style="margin: 15px 0; border: none; border-top: 1px solid #ccc;">
+      
+      <!-- 🧪 MODO DEMO -->
+      <p style="font-size: 12px; color: #999; margin: 10px 0;">🧪 Demo (sin BD):</p>
+      <div class="btn" style="gap: 5px;">
+        <button type="button" class="button1" style="font-size: 12px; padding: 8px;" onclick="loginDemo('usuario1', '123456')">Usuario Natural</button>
+        <button type="button" class="button1" style="font-size: 12px; padding: 8px;" onclick="loginDemo('comerciante1', '123456')">Comerciante</button>
+        <button type="button" class="button1" style="font-size: 12px; padding: 8px;" onclick="loginDemo('prestador1', '123456')">Prestador</button>
+      </div>
     </form>
 
     <div style="text-align: center;">
@@ -43,6 +53,52 @@
       </button>
     </div>
   </div>
+
+  <script>
+    // 🧪 Función para login demo
+    async function loginDemo(username, password) {
+      const mensajeError = document.getElementById('mensaje-error');
+      mensajeError.textContent = '⏳ Ingresando (modo demo)...';
+      
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const response = await fetch('/api/login/demo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+        const data = await response.json();
+
+        if (data.success) {
+          localStorage.setItem("usuarioActivo", JSON.stringify({
+            id: data.idUsuario,
+            nombre: data.usuario,
+            tipo: data.tipo
+          }));
+
+          if (data.tipo === 'Natural') {
+            window.location.href = '/Natural/perfil_usuario.html';
+          } else if (data.tipo === 'Comerciante') {
+            window.location.href = '/Comerciante/perfil_comerciante.html';
+          } else if (data.tipo === 'PrestadorServicio') {
+            window.location.href = '/PrestadorServicios/perfil_servicios.html';
+          } else {
+            window.location.href = '/General/index.html';
+          }
+        } else {
+          mensajeError.textContent = data.error || 'Error en login demo';
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        mensajeError.textContent = 'Error al conectar';
+      }
+    }
+  </script>
 
   <script src="../JS/app.js"></script>
 </body>

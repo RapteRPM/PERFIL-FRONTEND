@@ -53,6 +53,51 @@ app.use((req, res, next) => {
   next();
 });
 
+// ===============================
+// 🏠 Ruta raíz - Redireccionar al índice
+// ===============================
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/General/index.html'));
+});
+
+// ===============================
+// 🧪 MODO DEMO - Login sin BD (para pruebas)
+// ===============================
+app.post('/api/login/demo', (req, res) => {
+  const { username, password } = req.body;
+  
+  // Usuarios de demo
+  const usuariosDemo = {
+    'usuario1': { password: '123456', tipo: 'Natural', id: 1001, nombre: 'Juan Usuario' },
+    'comerciante1': { password: '123456', tipo: 'Comerciante', id: 2001, nombre: 'Tienda ABC' },
+    'prestador1': { password: '123456', tipo: 'PrestadorServicio', id: 3001, nombre: 'Grúa Express' }
+  };
+  
+  const usuario = usuariosDemo[username];
+  
+  if (!usuario) {
+    return res.status(401).json({ error: 'Usuario no encontrado (demo)' });
+  }
+  
+  if (usuario.password !== password) {
+    return res.status(401).json({ error: 'Contraseña incorrecta (demo)' });
+  }
+  
+  // Simular sesión
+  req.session.usuario = {
+    id: usuario.id,
+    nombre: usuario.nombre,
+    tipo: usuario.tipo
+  };
+  
+  res.json({
+    success: true,
+    message: 'Login demo exitoso',
+    tipo: usuario.tipo,
+    usuario: usuario.nombre,
+    idUsuario: usuario.id
+  });
+});
 
 // ===============================
 // 🔑 Login
@@ -68,8 +113,8 @@ app.post('/api/login', async (req, res) => {
 
     const query = `
       SELECT c.*, u.TipoUsuario
-      FROM Credenciales c
-      JOIN Usuario u ON u.IdUsuario = c.Usuario
+      FROM credenciales c
+      JOIN usuario u ON u.IdUsuario = c.Usuario
       WHERE TRIM(c.NombreUsuario) = TRIM(?)
     `;
 
@@ -124,7 +169,7 @@ app.get('/api/usuario-actual', verificarSesion, async (req, res) => {
     // 🔍 Obtenemos los datos del usuario
     const [userRows] = await pool.query(
       `SELECT u.IdUsuario, u.TipoUsuario, u.Nombre, u.Documento, u.FotoPerfil
-       FROM Usuario u
+       FROM usuario u
        INNER JOIN Credenciales c ON c.Usuario = u.IdUsuario
        WHERE u.IdUsuario = ?`,
       [usuarioSesion.id]
@@ -140,7 +185,7 @@ app.get('/api/usuario-actual', verificarSesion, async (req, res) => {
     // 🏪 Si es comerciante, obtener nombre del comercio
     if (user.TipoUsuario === "Comerciante") {
       const [comercioRows] = await pool.query(
-        `SELECT NombreComercio FROM Comerciante WHERE Comercio = ?`,
+        `SELECT NombreComercio FROM comerciante WHERE Comercio = ?`,
         [usuarioSesion.id]
       );
       if (comercioRows.length > 0) {
@@ -159,8 +204,8 @@ app.get('/api/usuario-actual', verificarSesion, async (req, res) => {
       tipoCarpeta = "PrestadorServicios";
     }
 
-    const rutaCarpeta = path.join(__dirname, 'public', 'Imagen', tipoCarpeta, documento.toString());
-    let fotoRutaFinal = '/image/imagen_perfil.png'; // por defecto
+    const rutaCarpeta = path.join(__dirname, 'public', 'imagen', tipoCarpeta, documento.toString());
+    let fotoRutaFinal = '/imagen/imagen_perfil.png'; // por defecto
 
     if (fs.existsSync(rutaCarpeta)) {
       const archivos = fs.readdirSync(rutaCarpeta);
@@ -168,7 +213,7 @@ app.get('/api/usuario-actual', verificarSesion, async (req, res) => {
         f => f.includes(fotoGuardada) || f.match(/\.(jpg|jpeg|png|webp)$/i)
       );
       if (archivoFoto) {
-        fotoRutaFinal = `/Imagen/${tipoCarpeta}/${documento}/${archivoFoto}`;
+        fotoRutaFinal = `/imagen/${tipoCarpeta}/${documento}/${archivoFoto}`;
       }
     } else {
       console.warn(`⚠️ Carpeta de usuario no encontrada: ${rutaCarpeta}`);
@@ -224,7 +269,7 @@ app.put('/api/usuarios/:id/contrasena', async (req, res) => {
     const hash = await bcrypt.hash(nuevaContrasena, 10);
 
     const [result] = await pool.query(
-      'UPDATE credenciales SET Contrasena = ? WHERE Usuario = ?',
+      'UPDATE credenciales SET Contrasena = ? WHERE usuario = ?',
       [hash, id]
     );
 
@@ -308,10 +353,10 @@ app.get('/api/historial', async (req, res) => {
           ELSE df.Estado
         END AS estado,
         f.IdFactura AS idFactura
-      FROM DetalleFactura df
-      LEFT JOIN Factura f ON df.Factura = f.IdFactura
-      INNER JOIN Publicacion pub ON df.Publicacion = pub.IdPublicacion
-      INNER JOIN Categoria c ON pub.Categoria = c.IdCategoria
+      FROM detallefactura df
+      LEFT JOIN factura f ON df.Factura = f.IdFactura
+      INNER JOIN publicacion pub ON df.Publicacion = pub.IdPublicacion
+      INNER JOIN categoria c ON pub.Categoria = c.IdCategoria
       WHERE 1 = 1
         AND df.VisibleUsuario = TRUE
     `;
@@ -370,7 +415,7 @@ app.put('/api/historial/estado/:id', async (req, res) => {
     // 3️⃣ Si se marcó como Finalizado, verificar si toda la factura está finalizada
     if (estado === 'Finalizado') {
       const [detalle] = await pool.query(
-        'SELECT Factura FROM DetalleFactura WHERE IdDetalleFactura = ?',
+        'SELECT Factura FROM detallefactura WHERE IdDetalleFactura = ?',
         [id]
       );
 
@@ -378,7 +423,7 @@ app.put('/api/historial/estado/:id', async (req, res) => {
         const facturaId = detalle[0].Factura;
 
         const [pendientes] = await pool.query(
-          'SELECT COUNT(*) AS pendientes FROM DetalleFactura WHERE Factura = ? AND Estado != "Finalizado"',
+          'SELECT COUNT(*) AS pendientes FROM detallefactura WHERE factura = ? AND Estado != "Finalizado"',
           [facturaId]
         );
 
@@ -408,7 +453,7 @@ app.delete('/api/historial/eliminar/:idFactura', async (req, res) => {
   const { idFactura } = req.params;
 
   try {
-    await pool.query(`UPDATE DetalleFactura SET VisibleUsuario = FALSE WHERE Factura = ?`, [idFactura]);
+    await pool.query(`UPDATE DetalleFactura SET VisibleUsuario = FALSE WHERE factura = ?`, [idFactura]);
     res.json({ success: true, message: "Registro ocultado correctamente." });
   } catch (err) {
     console.error("❌ Error al ocultar registro:", err);
@@ -437,10 +482,10 @@ app.get('/api/historial/excel', async (req, res) => {
         ELSE f.Estado
       END AS estado,
       f.IdFactura AS idFactura
-    FROM DetalleFactura df
-    LEFT JOIN Factura f ON df.Factura = f.IdFactura
-    INNER JOIN Publicacion pub ON df.Publicacion = pub.IdPublicacion
-    INNER JOIN Categoria c ON pub.Categoria = c.IdCategoria
+    FROM detallefactura df
+    LEFT JOIN factura f ON df.Factura = f.IdFactura
+    INNER JOIN publicacion pub ON df.Publicacion = pub.IdPublicacion
+    INNER JOIN categoria c ON pub.Categoria = c.IdCategoria
     WHERE 1 = 1
       AND df.VisibleUsuario = TRUE
   `;
@@ -542,11 +587,11 @@ app.get('/api/historial-ventas', async (req, res) => {
       df.Cantidad AS cantidad,
       f.MetodoPago AS metodoPago,
       df.Estado AS estado
-    FROM DetalleFactura df
-    JOIN Factura f ON df.Factura = f.IdFactura
-    JOIN Publicacion pub ON df.Publicacion = pub.IdPublicacion
-    JOIN Categoria c ON pub.Categoria = c.IdCategoria
-    LEFT JOIN Usuario u ON f.Usuario = u.IdUsuario
+    FROM detallefactura df
+    JOIN factura f ON df.Factura = f.IdFactura
+    JOIN publicacion pub ON df.Publicacion = pub.IdPublicacion
+    JOIN categoria c ON pub.Categoria = c.IdCategoria
+    LEFT JOIN usuario u ON f.Usuario = u.IdUsuario
     WHERE pub.Comerciante = ?
   `;
 
@@ -607,12 +652,12 @@ let query = `
     df.Total AS total,
     f.MetodoPago AS metodoPago,
     f.Estado AS estado
-  FROM DetalleFacturacomercio df
-  JOIN Factura f ON df.Factura = f.IdFactura
+  FROM detallefacturacomercio df
+  JOIN factura f ON df.Factura = f.IdFactura
   JOIN Producto p ON df.Producto = p.IdProducto
-  JOIN Publicacion pub ON pub.IdPublicacion = p.PublicacionComercio
-  JOIN Categoria c ON p.IdCategoria = c.IdCategoria
-  LEFT JOIN Usuario u ON f.Usuario = u.IdUsuario
+  JOIN publicacion pub ON pub.IdPublicacion = p.PublicacionComercio
+  JOIN categoria c ON p.IdCategoria = c.IdCategoria
+  LEFT JOIN usuario u ON f.Usuario = u.IdUsuario
   WHERE pub.Comerciante = ?
 `;
 
@@ -710,7 +755,7 @@ app.post("/api/confirmar-recibido", async (req, res) => {
       await conn.query(`
         UPDATE detallefactura
         SET Estado = 'Finalizado'
-        WHERE Factura = ?
+        WHERE factura = ?
       `, [detalle.Factura]);
     }
 
@@ -1057,7 +1102,7 @@ app.post('/api/publicar', uploadPublicacion.array('imagenesProducto', 5), async 
   try {
     // 🔹 Obtener NIT del comerciante asociado
     const [rowsComercio] = await connection.query(
-      'SELECT NitComercio FROM Comerciante WHERE Comercio = ? LIMIT 1',
+      'SELECT NitComercio FROM comerciante WHERE Comercio = ? LIMIT 1',
       [usuario.id]
     );
 
@@ -1070,7 +1115,7 @@ app.post('/api/publicar', uploadPublicacion.array('imagenesProducto', 5), async 
 
     // 🔹 Buscar categoría
     const [rowsCategoria] = await connection.query(
-      'SELECT IdCategoria FROM Categoria WHERE LOWER(NombreCategoria) = LOWER(?) LIMIT 1',
+      'SELECT IdCategoria FROM categoria WHERE LOWER(NombreCategoria) = LOWER(?) LIMIT 1',
       [categoriaProducto]
     );
 
@@ -1157,7 +1202,7 @@ app.get('/api/publicaciones', async (req, res) => {
 
     // 🔹 1. Buscar el NIT del comercio asociado al usuario
     const [comercio] = await pool.query(
-      'SELECT NitComercio FROM Comerciante WHERE Comercio = ? LIMIT 1',
+      'SELECT NitComercio FROM comerciante WHERE Comercio = ? LIMIT 1',
       [usuario.id]
     );
 
@@ -1171,8 +1216,8 @@ app.get('/api/publicaciones', async (req, res) => {
     const [publicaciones] = await pool.query(
       `
         SELECT IdPublicacion, NombreProducto, Precio, ImagenProducto
-        FROM Publicacion
-        WHERE Comerciante = ?
+        FROM publicacion
+        WHERE comerciante = ?
         ORDER BY IdPublicacion DESC
       `,
       [nitComercio]
@@ -1200,7 +1245,7 @@ app.delete('/api/publicaciones/:id', async (req, res) => {
 
     // 🔹 1️⃣ Obtener el NIT del comercio asociado al usuario
     const [comercio] = await pool.query(
-      'SELECT NitComercio FROM Comerciante WHERE Comercio = ? LIMIT 1',
+      'SELECT NitComercio FROM comerciante WHERE Comercio = ? LIMIT 1',
       [usuario.id]
     );
 
@@ -1212,7 +1257,7 @@ app.delete('/api/publicaciones/:id', async (req, res) => {
 
     // 🔹 2️⃣ Verificar que la publicación exista y obtener las imágenes
     const [publicacion] = await pool.query(
-      'SELECT ImagenProducto FROM Publicacion WHERE IdPublicacion = ? AND Comerciante = ?',
+      'SELECT ImagenProducto FROM publicacion WHERE IdPublicacion = ? AND Comerciante = ?',
       [idPublicacion, nitComercio]
     );
 
@@ -1228,10 +1273,10 @@ app.delete('/api/publicaciones/:id', async (req, res) => {
     }
 
     // 🔹 3️⃣ Eliminar productos asociados
-    await pool.query('DELETE FROM Producto WHERE PublicacionComercio = ?', [idPublicacion]);
+    await pool.query('DELETE FROM producto WHERE PublicacionComercio = ?', [idPublicacion]);
 
     // 🔹 4️⃣ Eliminar la publicación
-    await pool.query('DELETE FROM Publicacion WHERE IdPublicacion = ? AND Comerciante = ?', [
+    await pool.query('DELETE FROM publicacion WHERE IdPublicacion = ? AND Comerciante = ?', [
       idPublicacion,
       nitComercio
     ]);
@@ -1281,7 +1326,7 @@ app.get('/api/publicaciones/:id', async (req, res) => {
 
     // 🔹 1️⃣ Obtener el NIT del comercio asociado al usuario
     const [comercio] = await pool.query(
-      'SELECT NitComercio FROM Comerciante WHERE Comercio = ? LIMIT 1',
+      'SELECT NitComercio FROM comerciante WHERE Comercio = ? LIMIT 1',
       [usuario.id]
     );
 
@@ -1298,10 +1343,10 @@ app.get('/api/publicaciones/:id', async (req, res) => {
         NombreProducto,
         Descripcion,
         Categoria AS IdCategoria,
-        (SELECT NombreCategoria FROM Categoria WHERE IdCategoria = Publicacion.Categoria) AS NombreCategoria,
+        (SELECT NombreCategoria FROM categoria WHERE IdCategoria = Publicacion.Categoria) AS NombreCategoria,
         Precio,
         ImagenProducto
-      FROM Publicacion
+      FROM publicacion
       WHERE IdPublicacion = ? AND Comerciante = ?
       LIMIT 1
     `;
@@ -1335,7 +1380,7 @@ app.get('/api/publicaciones/:id', async (req, res) => {
 app.get('/api/categorias', async (req, res) => {
   try {
     const [categorias] = await pool.query(
-      'SELECT IdCategoria, NombreCategoria FROM Categoria ORDER BY NombreCategoria ASC'
+      'SELECT IdCategoria, NombreCategoria FROM categoria ORDER BY NombreCategoria ASC'
     );
 
     // 🔹 Filtramos categorías que contengan "grua"
@@ -1389,7 +1434,7 @@ app.put('/api/publicaciones/:id', uploadEditar.array('imagenesNuevas', 10), asyn
 
     // 🔹 1️⃣ Obtener NIT del comerciante
     const [comercio] = await pool.query(
-      'SELECT NitComercio FROM Comerciante WHERE Comercio = ? LIMIT 1',
+      'SELECT NitComercio FROM comerciante WHERE Comercio = ? LIMIT 1',
       [usuario.id]
     );
 
@@ -1406,7 +1451,7 @@ app.put('/api/publicaciones/:id', uploadEditar.array('imagenesNuevas', 10), asyn
 
     // 🔹 3️⃣ Obtener imágenes anteriores para eliminar las que ya no están
     const [resultPub] = await pool.query(
-      'SELECT ImagenProducto FROM Publicacion WHERE IdPublicacion = ? AND Comerciante = ?',
+      'SELECT ImagenProducto FROM publicacion WHERE IdPublicacion = ? AND Comerciante = ?',
       [idPublicacion, nitComercio]
     );
 
@@ -1467,7 +1512,7 @@ app.get('/api/dashboard/comerciante', async (req, res) => {
 
     // 🔍 Obtener el NIT del comerciante logueado
     const [comercianteRows] = await pool.query(
-      'SELECT NitComercio FROM Comerciante WHERE Comercio = ?',
+      'SELECT NitComercio FROM comerciante WHERE Comercio = ?',
       [idUsuario]
     );
 
@@ -1486,11 +1531,11 @@ app.get('/api/dashboard/comerciante', async (req, res) => {
         COUNT(f.IdFactura) AS totalVentas,
         SUM(f.TotalPago) AS totalRecaudado,
         DATE(f.FechaCompra) AS fechaCompra
-      FROM Factura f
+      FROM factura f
       INNER JOIN Carrito ca ON f.Carrito = ca.IdCarrito
-      INNER JOIN Publicacion p ON ca.Publicacion = p.IdPublicacion
-      INNER JOIN Categoria cat ON p.Categoria = cat.IdCategoria
-      INNER JOIN Comerciante c ON p.Comerciante = c.NitComercio
+      INNER JOIN publicacion p ON ca.Publicacion = p.IdPublicacion
+      INNER JOIN categoria cat ON p.Categoria = cat.IdCategoria
+      INNER JOIN comerciante c ON p.Comerciante = c.NitComercio
       WHERE c.NitComercio = ?
       GROUP BY cat.NombreCategoria, p.NombreProducto, fechaCompra
       ORDER BY fechaCompra DESC
@@ -1673,8 +1718,8 @@ app.get("/api/perfilComerciante/:idUsuario", async (req, res) => {
         c.DiasAtencion,
         c.HoraInicio,
         c.HoraFin
-      FROM Usuario u
-      LEFT JOIN Comerciante c ON u.IdUsuario = c.Comercio
+      FROM usuario u
+      LEFT JOIN comerciante c ON u.IdUsuario = c.Comercio
       WHERE u.IdUsuario = ?
       `,
       [idUsuario]
@@ -1813,7 +1858,7 @@ app.get("/api/perfilNatural/:idUsuario", async (req, res) => {
          u.FotoPerfil,
          pn.Direccion,
          pn.Barrio
-       FROM Usuario u
+       FROM usuario u
        LEFT JOIN perfilnatural pn ON u.IdUsuario = pn.UsuarioNatural
        WHERE u.IdUsuario = ?`,
       [idUsuario]
@@ -1842,9 +1887,9 @@ app.get('/api/publicaciones_publicas', async (req, res) => {
         p.IdPublicacion,
         p.NombreProducto AS nombreProducto,
         p.Precio,
-        (SELECT NombreCategoria FROM Categoria WHERE IdCategoria = p.Categoria) AS categoria,
+        (SELECT NombreCategoria FROM categoria WHERE IdCategoria = p.Categoria) AS categoria,
         p.ImagenProducto
-      FROM Publicacion p
+      FROM publicacion p
       WHERE 1
     `;
 
@@ -1852,7 +1897,7 @@ app.get('/api/publicaciones_publicas', async (req, res) => {
 
     // 🔹 Filtro opcional por categoría
     if (categoria && categoria.toLowerCase() !== 'todos') {
-      query += ` AND p.Categoria = (SELECT IdCategoria FROM Categoria WHERE LOWER(NombreCategoria) = LOWER(?))`;
+      query += ` AND p.Categoria = (SELECT IdCategoria FROM categoria WHERE LOWER(NombreCategoria) = LOWER(?))`;
       params.push(categoria);
     }
 
@@ -1934,9 +1979,9 @@ app.get('/api/detallePublicacion/:id', async (req, res) => {
                 u.Nombre AS NombreUsuario,
                 u.Apellido AS ApellidoUsuario,
                 IFNULL(AVG(o.Calificacion), 0) AS CalificacionPromedio
-            FROM Publicacion p
-            JOIN Comerciante c ON p.Comerciante = c.NitComercio
-            JOIN Usuario u ON c.Comercio = u.IdUsuario
+            FROM publicacion p
+            JOIN comerciante c ON p.Comerciante = c.NitComercio
+            JOIN usuario u ON c.Comercio = u.IdUsuario
             LEFT JOIN Opiniones o ON o.Publicacion = p.IdPublicacion
             WHERE p.IdPublicacion = ?
             GROUP BY p.IdPublicacion, c.NombreComercio, u.Nombre, u.Apellido`,
@@ -1957,7 +2002,7 @@ app.get('/api/detallePublicacion/:id', async (req, res) => {
                 u.Nombre, 
                 u.Apellido
             FROM Opiniones o
-            JOIN Usuario u ON o.UsuarioNatural = u.IdUsuario
+            JOIN usuario u ON o.UsuarioNatural = u.IdUsuario
             WHERE o.Publicacion = ?
             ORDER BY o.FechaOpinion DESC`,
             [idPublicacion]
@@ -2020,7 +2065,7 @@ app.post('/api/carrito', async (req, res) => {
 
         // 🔹 Consultar el precio del producto desde la publicación
         const [producto] = await pool.query(
-            `SELECT Precio FROM Publicacion WHERE IdPublicacion = ?`,
+            `SELECT Precio FROM publicacion WHERE IdPublicacion = ?`,
             [idPublicacion]
         );
 
@@ -2086,7 +2131,7 @@ app.get('/api/carrito', async (req, res) => {
         c.Cantidad,
         (p.Precio * c.Cantidad) AS Total
       FROM Carrito c
-      JOIN Publicacion p ON c.Publicacion = p.IdPublicacion
+      JOIN publicacion p ON c.Publicacion = p.IdPublicacion
       WHERE c.UsuarioNat = ? AND c.Estado = 'Pendiente'
     `, [usuario.id]);
 
@@ -2156,9 +2201,9 @@ app.get('/api/proceso-compra', async (req, res) => {
          u.Nombre AS NombreUsuarioComercio,
          u.Apellido AS ApellidoUsuarioComercio
        FROM Carrito c
-       JOIN Publicacion p ON c.Publicacion = p.IdPublicacion
-       JOIN Comerciante cm ON p.Comerciante = cm.NitComercio
-       JOIN Usuario u ON cm.Comercio = u.IdUsuario
+       JOIN publicacion p ON c.Publicacion = p.IdPublicacion
+       JOIN comerciante cm ON p.Comerciante = cm.NitComercio
+       JOIN usuario u ON cm.Comercio = u.IdUsuario
        WHERE c.UsuarioNat = ? AND c.Estado = 'Pendiente'`,
       [idUsuarioNat]
     );
@@ -2218,7 +2263,7 @@ app.post("/api/finalizar-compra", async (req, res) => {
         (pub.Precio * c.Cantidad) AS Subtotal,
         pub.Comerciante AS Comercio
       FROM Carrito c
-      JOIN Publicacion pub ON c.Publicacion = pub.IdPublicacion
+      JOIN publicacion pub ON c.Publicacion = pub.IdPublicacion
       WHERE c.UsuarioNat = ? AND c.Estado = 'Pendiente'
     `, [usuarioId]);
 
@@ -2326,8 +2371,8 @@ app.get('/api/factura/:id', async (req, res) => {
         u.Apellido AS ApellidoUsuario,
         u.Telefono,
         u.Correo
-      FROM Factura f
-      LEFT JOIN Usuario u ON f.Usuario = u.IdUsuario
+      FROM factura f
+      LEFT JOIN usuario u ON f.Usuario = u.IdUsuario
       WHERE f.IdFactura = ?
     `, [id]);
 
@@ -2344,8 +2389,8 @@ app.get('/api/factura/:id', async (req, res) => {
       df.Cantidad,
       df.PrecioUnitario,
       df.Total
-      FROM DetalleFactura df
-      JOIN Publicacion p ON df.Publicacion = p.IdPublicacion
+      FROM detallefactura df
+      JOIN publicacion p ON df.Publicacion = p.IdPublicacion
       WHERE df.Factura = ?
     `, [id]);
 
@@ -2412,7 +2457,7 @@ app.get('/api/perfil-prestador', async (req, res) => {
     // 🔍 Datos del usuario
     const [userRows] = await pool.query(
       `SELECT u.IdUsuario, u.Nombre, u.Documento, u.FotoPerfil
-       FROM Usuario u
+       FROM usuario u
        WHERE u.IdUsuario = ?`,
       [usuarioSesion.id]
     );
@@ -2538,7 +2583,7 @@ app.post('/api/publicar-grua', uploadPublicacionPrestador.array('imagenesGrua', 
   try {
     // 🔹 Obtener ID del servicio del prestador
     const [rowsServicio] = await pool.query(
-      'SELECT IdServicio FROM prestadorservicio WHERE Usuario = ? LIMIT 1',
+      'SELECT IdServicio FROM prestadorservicio WHERE usuario = ? LIMIT 1',
       [usuario.id]
     );
 
@@ -2617,7 +2662,7 @@ app.get('/api/publicaciones-grua', async (req, res) => {
     }
 
     const [servicio] = await pool.query(
-      'SELECT IdServicio FROM prestadorservicio WHERE Usuario = ? LIMIT 1',
+      'SELECT IdServicio FROM prestadorservicio WHERE usuario = ? LIMIT 1',
       [usuario.id]
     );
 
@@ -2661,7 +2706,7 @@ app.delete('/api/publicaciones-grua/:id', async (req, res) => {
 
     // 🔹 1️⃣ Obtener el ID del servicio del prestador
     const [servicio] = await pool.query(
-      'SELECT IdServicio FROM prestadorservicio WHERE Usuario = ? LIMIT 1',
+      'SELECT IdServicio FROM prestadorservicio WHERE usuario = ? LIMIT 1',
       [usuario.id]
     );
 
@@ -2744,7 +2789,7 @@ app.get('/api/publicaciones-grua/:id', async (req, res) => {
     }
 
     const [servicioRows] = await pool.query(
-      'SELECT IdServicio FROM prestadorservicio WHERE Usuario = ? LIMIT 1',
+      'SELECT IdServicio FROM prestadorservicio WHERE usuario = ? LIMIT 1',
       [usuario.id]
     );
 
@@ -2806,7 +2851,7 @@ app.put('/api/publicaciones-grua/:id', uploadPublicacionPrestador.array('imagene
 
   try {
     const [servicioRows] = await pool.query(
-      'SELECT IdServicio FROM prestadorservicio WHERE Usuario = ? LIMIT 1',
+      'SELECT IdServicio FROM prestadorservicio WHERE usuario = ? LIMIT 1',
       [usuario.id]
     );
 
@@ -2949,7 +2994,7 @@ app.put("/api/actualizarPerfilPrestador/:idUsuario", uploadPublicacionPrestador.
 
       // Obtener ruta anterior desde prestadorservicio
       const [servicioRows] = await pool.query(
-        "SELECT IdServicio, Certificado FROM prestadorservicio WHERE Usuario = ? LIMIT 1",
+        "SELECT IdServicio, Certificado FROM prestadorservicio WHERE usuario = ? LIMIT 1",
         [idUsuario]
       );
 
@@ -3008,7 +3053,7 @@ app.get("/api/historial-servicios/:idPrestador", async (req, res) => {
 
   try {
     const [servicioRows] = await pool.query(
-      "SELECT IdServicio FROM prestadorservicio WHERE Usuario = ? LIMIT 1",
+      "SELECT IdServicio FROM prestadorservicio WHERE usuario = ? LIMIT 1",
       [idPrestador]
     );
 
@@ -3049,7 +3094,7 @@ app.get("/api/solicitudes-grua/:idPrestador", async (req, res) => {
 
   try {
     const [servicioRows] = await pool.query(
-      "SELECT IdServicio FROM prestadorservicio WHERE Usuario = ? LIMIT 1",
+      "SELECT IdServicio FROM prestadorservicio WHERE usuario = ? LIMIT 1",
       [idPrestador]
     );
 

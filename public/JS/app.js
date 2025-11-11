@@ -8,11 +8,18 @@ document.getElementById('loginForm').addEventListener('submit', async (event) =>
   const mensajeError = document.getElementById('mensaje-error');
 
   try {
+    // 🔄 Crear timeout de 5 segundos
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
     const response = await fetch('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ username, password }),
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
 
     const data = await response.json();
 
@@ -41,6 +48,10 @@ document.getElementById('loginForm').addEventListener('submit', async (event) =>
     }
   } catch (error) {
     console.error('❌ Error al conectar con el servidor:', error);
-    mensajeError.textContent = 'Error en el servidor. Intenta más tarde.';
+    if (error.name === 'AbortError') {
+      mensajeError.textContent = '⚠️ El servidor no responde. Intenta más tarde.';
+    } else {
+      mensajeError.textContent = 'Error en el servidor. Intenta más tarde.';
+    }
   }
 });
