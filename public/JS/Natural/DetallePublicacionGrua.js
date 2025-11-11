@@ -134,16 +134,48 @@ async function cargarOpiniones() {
   });
 
   // 🔹 Manejo del formulario de agendamiento
-  document.getElementById("formAgendar").addEventListener("submit", function (e) {
+  document.getElementById("formAgendar").addEventListener("submit", async function (e) {
     e.preventDefault();
+    
     const fecha = document.getElementById("fecha").value;
     const hora = document.getElementById("hora").value;
     const direccion = document.getElementById("direccion").value;
+    const destino = document.getElementById("destino").value;
     const detalle = document.getElementById("detalle").value;
 
-    alert(`✅ Servicio agendado:\n📅 ${fecha} ${hora}\n📍 ${direccion}\n📝 ${detalle}`);
-    const modal = bootstrap.Modal.getInstance(document.getElementById("modalAgendar"));
-    modal.hide();
-    this.reset();
+    if (!usuarioActivo) {
+      alert("⚠️ Debes iniciar sesión para agendar un servicio.");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/agendar-grua", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          usuarioId: usuarioActivo.id,
+          idPublicacionGrua: idPublicacion,
+          fecha,
+          hora,
+          direccion,
+          destino,
+          detalle
+        })
+      });
+
+      const result = await res.json();
+
+      if (res.ok) {
+        alert(`✅ Servicio agendado con éxito!\n📅 ${fecha} ${hora}\n📍 ${direccion}\n🏁 ${destino}`);
+        const modal = bootstrap.Modal.getInstance(document.getElementById("modalAgendar"));
+        modal.hide();
+        this.reset();
+      } else {
+        alert("❌ " + (result.error || "No se pudo agendar el servicio."));
+      }
+    } catch (err) {
+      console.error("❌ Error al agendar servicio:", err);
+      alert("Error de conexión con el servidor.");
+    }
   });
 });

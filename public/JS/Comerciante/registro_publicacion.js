@@ -20,7 +20,7 @@
               <p class="text-green-400 font-semibold">$${Number(pub.Precio).toLocaleString()}</p>
             </div>
             <div class="flex justify-between mt-4">
-              <a href="editar_publicacion.html?id=${pub.IdPublicacion}" class="btn btn-outline-primary btn-sm">Editar</a>
+              <a href="Editar_publicacion.html?id=${pub.IdPublicacion}" class="btn btn-outline-primary btn-sm">Editar</a>
               <button class="btn btn-outline-danger btn-sm" onclick="eliminarPublicacion(${pub.IdPublicacion})">Eliminar</button>
             </div>
           </div>

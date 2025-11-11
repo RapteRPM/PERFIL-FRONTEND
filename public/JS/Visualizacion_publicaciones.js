@@ -211,14 +211,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 🔹 Mostrar visualizaciones recientes si el usuario está logueado
   const usuarioActivo = JSON.parse(localStorage.getItem('usuarioActivo'));
-  if (!usuarioActivo || !usuarioActivo.id) return;
+  if (!usuarioActivo || !usuarioActivo.id) {
+    console.log("ℹ️ No hay usuario logueado, omitiendo visualizaciones");
+    return;
+  }
 
   try {
     const res = await fetch(`/api/visualizaciones/${usuarioActivo.id}`);
-    if (!res.ok) throw new Error("Respuesta no válida del servidor");
+    
+    // Si el endpoint no existe o falla, no hacer nada (sin error)
+    if (!res.ok) {
+      console.log("ℹ️ No hay visualizaciones disponibles o endpoint no configurado");
+      return;
+    }
 
     const publicaciones = await res.json();
-    if (!Array.isArray(publicaciones) || publicaciones.length === 0) return;
+    
+    // Validar que la respuesta sea un array
+    if (!Array.isArray(publicaciones)) {
+      console.log("ℹ️ Respuesta no es un array, omitiendo visualizaciones");
+      return;
+    }
+    
+    if (publicaciones.length === 0) {
+      console.log("ℹ️ No hay visualizaciones recientes");
+      return;
+    }
 
     const contenedor = document.createElement('section');
     contenedor.className = 'mb-12';
@@ -249,7 +267,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       `;
       grid.appendChild(tarjeta);
     });
+    
+    console.log(`✅ ${publicaciones.length} visualizaciones cargadas`);
   } catch (err) {
-    console.error('❌ Error cargando visualizaciones:', err);
+    console.log("ℹ️ No se pudieron cargar visualizaciones (esto es normal si no hay endpoint configurado):", err.message);
   }
 });

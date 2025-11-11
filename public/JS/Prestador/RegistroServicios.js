@@ -45,7 +45,7 @@ async function cargarPublicacionesGrua() {
             <p class="text-gray-300 text-sm mt-1">Cobertura: ${pub.ZonaCobertura}</p>
           </div>
           <div class="flex justify-between mt-4">
-            <a href="editar_publicacionServicio.html?id=${id}" class="btn btn-outline-primary btn-sm">Editar</a>
+            <a href="Editar_publicacionServicio.html?id=${id}" class="btn btn-outline-primary btn-sm">Editar</a>
             <button class="btn btn-outline-danger btn-sm" onclick="eliminarPublicacionGrua(${id})">Eliminar</button>
           </div>
         </div>

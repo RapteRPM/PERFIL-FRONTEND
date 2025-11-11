@@ -25,7 +25,7 @@ export async function crearCredenciales(idUsuario, correoDestino) {
 
     // 💾 Insertar credenciales
     const sql = `
-      INSERT INTO Credenciales (Usuario, NombreUsuario, Contrasena)
+      INSERT INTO credenciales (Usuario, NombreUsuario, Contrasena)
       VALUES (?, ?, ?)
     `;
     await pool.query(sql, [docStr, docStr, hash]);

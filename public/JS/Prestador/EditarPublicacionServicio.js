@@ -17,7 +17,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // 🔹 Cargar datos de la publicación
   try {
-    const res = await fetch(`/api/publicaciones-grua/${idPublicacion}`, {
+    const res = await fetch(`/api/publicaciones-grua/editar/${idPublicacion}`, {
       credentials: 'include'
     });
 

@@ -266,20 +266,23 @@ app.put('/api/usuarios/:id/contrasena', async (req, res) => {
   }
 
   try {
+    console.log(`🔐 Actualizando contraseña para usuario: ${id}`);
     const hash = await bcrypt.hash(nuevaContrasena, 10);
 
-    const [result] = await pool.query(
-      'UPDATE credenciales SET Contrasena = ? WHERE usuario = ?',
+    const result = await queryPromise(
+      'UPDATE credenciales SET Contrasena = ? WHERE Usuario = ?',
       [hash, id]
     );
 
-    if (result.affectedRows === 0) {
+    if (result.changes === 0) {
+      console.log(`⚠️ No se encontró el usuario ${id} en credenciales`);
       return res.status(404).json({ msg: 'Usuario no encontrado.' });
     }
 
+    console.log(`✅ Contraseña actualizada para usuario: ${id}`);
     res.json({ msg: 'Contraseña actualizada correctamente.' });
   } catch (error) {
-    console.error('Error actualizando contraseña:', error);
+    console.error('❌ Error actualizando contraseña:', error);
     res.status(500).json({ msg: 'Error del servidor.' });
   }
 });
@@ -298,7 +301,7 @@ app.get('/logout', (req, res) => {
     res.clearCookie('connect.sid', { path: '/' });
 
     // 🔄 Redirige al login
-    res.redirect('/General/ingreso.html');
+    res.redirect('/General/Ingreso.html');
   });
 });
 
@@ -400,39 +403,42 @@ app.put('/api/historial/estado/:id', async (req, res) => {
   const { estado } = req.body;
 
   try {
-    // 1️⃣ Actualizar DetalleFactura
-    await pool.query(
-      'UPDATE DetalleFactura SET Estado = ? WHERE IdDetalleFactura = ?',
+    // 1️⃣ Obtener información del detalle para actualizar ambas tablas
+    const detalle = await queryPromise(
+      'SELECT Factura, Publicacion FROM detallefactura WHERE IdDetalleFactura = ?',
+      [id]
+    );
+
+    if (!detalle || detalle.length === 0) {
+      return res.status(404).json({ success: false, message: 'Detalle no encontrado.' });
+    }
+
+    const { Factura, Publicacion } = detalle[0];
+
+    // 2️⃣ Actualizar detallefactura
+    await queryPromise(
+      'UPDATE detallefactura SET Estado = ? WHERE IdDetalleFactura = ?',
       [estado, id]
     );
 
-    // 2️⃣ Actualizar DetalleFacturaComercio correspondiente
-    await pool.query(
-      'UPDATE DetalleFacturaComercio SET Estado = ? WHERE DetFacturacomercio = ?',
-      [estado, id]
+    // 3️⃣ Actualizar detallefacturacomercio correspondiente (por Factura y Publicacion)
+    await queryPromise(
+      'UPDATE detallefacturacomercio SET Estado = ? WHERE Factura = ? AND Publicacion = ?',
+      [estado, Factura, Publicacion]
     );
 
-    // 3️⃣ Si se marcó como Finalizado, verificar si toda la factura está finalizada
+    // 4️⃣ Si se marcó como Finalizado, verificar si toda la factura está finalizada
     if (estado === 'Finalizado') {
-      const [detalle] = await pool.query(
-        'SELECT Factura FROM detallefactura WHERE IdDetalleFactura = ?',
-        [id]
+      const pendientes = await queryPromise(
+        'SELECT COUNT(*) AS pendientes FROM detallefactura WHERE Factura = ? AND Estado != ?',
+        [Factura, 'Finalizado']
       );
 
-      if (detalle.length) {
-        const facturaId = detalle[0].Factura;
-
-        const [pendientes] = await pool.query(
-          'SELECT COUNT(*) AS pendientes FROM detallefactura WHERE factura = ? AND Estado != "Finalizado"',
-          [facturaId]
+      if (pendientes && pendientes[0] && pendientes[0].pendientes === 0) {
+        await queryPromise(
+          'UPDATE factura SET Estado = ? WHERE IdFactura = ?',
+          ['Pago exitoso', Factura]
         );
-
-        if (pendientes[0].pendientes === 0) {
-          await pool.query(
-            'UPDATE Factura SET Estado = ? WHERE IdFactura = ?',
-            ['Pago exitoso', facturaId]
-          );
-        }
       }
     }
 
@@ -774,7 +780,8 @@ app.post("/api/confirmar-recibido", async (req, res) => {
 // RUTA PARA OBTENER LOS TALLERES 
 // ----------------------
 app.get('/api/talleres', async (req, res) => {
-    const [rows] = await pool.query(`
+  try {
+    const rows = await queryPromise(`
       SELECT
         U.Nombre AS NombreVendedor,
         C.NombreComercio,
@@ -785,13 +792,10 @@ app.get('/api/talleres', async (req, res) => {
         C.DiasAtencion,
         C.Barrio
       FROM comerciante C
-      INNER JOIN usuario U ON C.Comercio = U.IdUsuario;
-    `);
-
-
-  try {
-    const [results] = await pool.query(sql);
-    res.json(results);
+      INNER JOIN usuario U ON C.Comercio = U.IdUsuario
+    `, []);
+    
+    res.json(rows);
   } catch (err) {
     console.error('❌ Error al obtener ubicaciones:', err);
     res.status(500).json({ error: 'Error al obtener ubicaciones' });
@@ -867,11 +871,13 @@ app.post(
 
       // Verificar si ya existe
       const usuarioExistente = await queryPromise(
-        'SELECT IdUsuario FROM Usuario WHERE IdUsuario = ?',
+        'SELECT IdUsuario FROM usuario WHERE IdUsuario = ?',
         [idUsuarioValue]
       );
-      if (usuarioExistente.length > 0)
-        return res.status(400).json({ mensaje: 'El usuario ya está registrado.' });
+      if (usuarioExistente.length > 0) {
+        console.log(`⚠️ Usuario ${idUsuarioValue} ya existe en la base de datos`);
+        return res.status(409).json({ error: 'El usuario ya está registrado. Por favor, utilice otro número de documento.' });
+      }
 
       // Insertar en Usuario
       const insertUsuarioSQL = `
@@ -921,11 +927,13 @@ app.post(
 
       // Insertar perfil correspondiente
       if (tipoKey === 'natural') {
+        console.log('📝 Insertando perfil natural...');
         await queryPromise(
-          `INSERT INTO \`PerfilNatural\` (UsuarioNatural, Direccion, Barrio)
+          `INSERT INTO PerfilNatural (UsuarioNatural, Direccion, Barrio)
            VALUES (?, ?, ?)`,
           [idUsuarioValue, data.Direccion || null, data.Barrio || null]
         );
+        console.log('✅ Perfil natural creado');
 
       } else if (tipoKey === 'comerciante') {
         // 🗺️ 1. Armar dirección completa para geocodificar
@@ -958,25 +966,32 @@ app.post(
         }
 
         // 🏪 2. Insertar registro del comerciante
-        await queryPromise(
-          `INSERT INTO Comerciante
-            (NitComercio, Comercio, NombreComercio, Direccion, Barrio, RedesSociales, DiasAtencion, HoraInicio, HoraFin, Latitud, Longitud)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `,
-          [
-            data.NitComercio || null,
-            idUsuarioValue,
-            data.NombreComercio || null,
-            data.Direccion || null,
-            data.Barrio || null,
-            data.RedesSociales || null,
-            data.DiasAtencion || null,
-            data.HoraInicio || null,
-            data.HoraFin || null,
-            latitud,
-            longitud,
-          ]
-        );
+        console.log('📝 Insertando comerciante en la base de datos...');
+        try {
+          await queryPromise(
+            `INSERT INTO comerciante
+              (NitComercio, Comercio, NombreComercio, Direccion, Barrio, RedesSociales, DiasAtencion, HoraInicio, HoraFin, Latitud, Longitud)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `,
+            [
+              data.NitComercio || null,
+              idUsuarioValue,
+              data.NombreComercio || null,
+              data.Direccion || null,
+              data.Barrio || null,
+              data.RedesSociales || null,
+              data.DiasAtencion || null,
+              data.HoraInicio || null,
+              data.HoraFin || null,
+              latitud,
+              longitud,
+            ]
+          );
+          console.log('✅ Comerciante creado exitosamente');
+        } catch (insertError) {
+          console.error('❌ Error al insertar comerciante:', insertError);
+          throw insertError;
+        }
 
         console.log(`✅ Comerciante registrado con coordenadas: ${latitud}, ${longitud}`);
 
@@ -1200,20 +1215,24 @@ app.get('/api/publicaciones', async (req, res) => {
       return res.status(403).json({ error: 'Acceso no autorizado. Solo comerciantes pueden ver sus publicaciones.' });
     }
 
+    console.log(`📋 Obteniendo publicaciones para comerciante: ${usuario.id}`);
+
     // 🔹 1. Buscar el NIT del comercio asociado al usuario
-    const [comercio] = await pool.query(
+    const comercio = await queryPromise(
       'SELECT NitComercio FROM comerciante WHERE Comercio = ? LIMIT 1',
       [usuario.id]
     );
 
     if (!comercio || comercio.length === 0) {
+      console.log(`⚠️ No se encontró comercio para usuario: ${usuario.id}`);
       return res.status(404).json({ error: 'No se encontró el comercio asociado a este usuario.' });
     }
 
     const nitComercio = comercio[0].NitComercio;
+    console.log(`✅ NIT del comercio: ${nitComercio}`);
 
     // 🔹 2. Obtener publicaciones del comerciante
-    const [publicaciones] = await pool.query(
+    const publicaciones = await queryPromise(
       `
         SELECT IdPublicacion, NombreProducto, Precio, ImagenProducto
         FROM publicacion
@@ -1223,6 +1242,7 @@ app.get('/api/publicaciones', async (req, res) => {
       [nitComercio]
     );
 
+    console.log(`✅ ${publicaciones.length} publicaciones encontradas`);
     res.json(publicaciones);
   } catch (err) {
     console.error('❌ Error al obtener las publicaciones:', err);
@@ -1701,7 +1721,9 @@ app.get("/api/perfilComerciante/:idUsuario", async (req, res) => {
   const { idUsuario } = req.params;
 
   try {
-    const [rows] = await pool.query(
+    console.log(`📖 Obteniendo perfil comerciante para usuario: ${idUsuario}`);
+    
+    const rows = await queryPromise(
       `
       SELECT 
         u.IdUsuario,
@@ -1725,10 +1747,12 @@ app.get("/api/perfilComerciante/:idUsuario", async (req, res) => {
       [idUsuario]
     );
 
-    if (rows.length === 0) {
+    if (!rows || rows.length === 0) {
+      console.log(`⚠️ Comerciante no encontrado: ${idUsuario}`);
       return res.status(404).json({ error: "Comerciante no encontrado" });
     }
 
+    console.log(`✅ Perfil comerciante encontrado:`, rows[0]);
     res.json(rows[0]);
   } catch (error) {
     console.error("❌ Error al obtener perfil del comerciante:", error);
@@ -1782,18 +1806,22 @@ app.put("/api/actualizarPerfilNatural/:idUsuario", upload.single("FotoPerfil"), 
   const nuevaFoto = req.file || null;
 
   try {
-    const [usuarioRows] = await pool.query(
-      "SELECT FotoPerfil FROM Usuario WHERE IdUsuario = ?",
+    console.log(`📝 Actualizando perfil natural para usuario: ${idUsuario}`);
+    
+    const usuarioRows = await queryPromise(
+      "SELECT FotoPerfil FROM usuario WHERE IdUsuario = ?",
       [idUsuario]
     );
 
-    if (usuarioRows.length === 0) {
+    if (!usuarioRows || usuarioRows.length === 0) {
+      console.log(`⚠️ Usuario no encontrado: ${idUsuario}`);
       return res.status(404).json({ error: "Usuario no encontrado" });
     }
 
     let rutaFotoFinal = usuarioRows[0].FotoPerfil;
 
     if (nuevaFoto) {
+      console.log(`📸 Nueva foto detectada: ${nuevaFoto.originalname}`);
       const tipoFolder = "Natural";
       const userFolder = path.join(__dirname, "public", "imagen", tipoFolder, idUsuario);
       fs.mkdirSync(userFolder, { recursive: true });
@@ -1802,6 +1830,7 @@ app.put("/api/actualizarPerfilNatural/:idUsuario", upload.single("FotoPerfil"), 
         const rutaFotoAnterior = path.join(__dirname, "public", rutaFotoFinal);
         if (fs.existsSync(rutaFotoAnterior)) {
           fs.unlinkSync(rutaFotoAnterior);
+          console.log(`🗑️ Foto anterior eliminada`);
         }
       }
 
@@ -1811,11 +1840,12 @@ app.put("/api/actualizarPerfilNatural/:idUsuario", upload.single("FotoPerfil"), 
 
       rutaFotoFinal = path.join("imagen", tipoFolder, idUsuario, nuevoNombreFoto).replace(/\\/g, "/");
 
-      await pool.query("UPDATE Usuario SET FotoPerfil = ? WHERE IdUsuario = ?", [rutaFotoFinal, idUsuario]);
+      await queryPromise("UPDATE usuario SET FotoPerfil = ? WHERE IdUsuario = ?", [rutaFotoFinal, idUsuario]);
+      console.log(`✅ Foto actualizada: ${rutaFotoFinal}`);
     }
 
-    await pool.query(
-      `UPDATE Usuario 
+    await queryPromise(
+      `UPDATE usuario 
        SET Nombre = ?, Apellido = ?, Telefono = ?, Correo = ?
        WHERE IdUsuario = ?`,
       [
@@ -1826,13 +1856,27 @@ app.put("/api/actualizarPerfilNatural/:idUsuario", upload.single("FotoPerfil"), 
         idUsuario,
       ]
     );
+    console.log(`✅ Datos de usuario actualizados`);
 
-    await pool.query(
-      `INSERT INTO perfilnatural (UsuarioNatural, Direccion, Barrio)
-       VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE Direccion = VALUES(Direccion), Barrio = VALUES(Barrio)`,
-      [idUsuario, data.Direccion || null, data.Barrio || null]
+    // SQLite compatible: verificar si existe y luego UPDATE o INSERT
+    const perfilExiste = await queryPromise(
+      `SELECT UsuarioNatural FROM perfilnatural WHERE UsuarioNatural = ?`,
+      [idUsuario]
     );
+
+    if (perfilExiste && perfilExiste.length > 0) {
+      await queryPromise(
+        `UPDATE perfilnatural SET Direccion = ?, Barrio = ? WHERE UsuarioNatural = ?`,
+        [data.Direccion || null, data.Barrio || null, idUsuario]
+      );
+      console.log(`✅ Perfil natural actualizado`);
+    } else {
+      await queryPromise(
+        `INSERT INTO perfilnatural (UsuarioNatural, Direccion, Barrio) VALUES (?, ?, ?)`,
+        [idUsuario, data.Direccion || null, data.Barrio || null]
+      );
+      console.log(`✅ Perfil natural creado`);
+    }
 
     res.json({ mensaje: "✅ Perfil actualizado correctamente", fotoPerfil: rutaFotoFinal });
   } catch (error) {
@@ -1848,7 +1892,9 @@ app.get("/api/perfilNatural/:idUsuario", async (req, res) => {
   const { idUsuario } = req.params;
 
   try {
-    const [rows] = await pool.query(
+    console.log(`📖 Obteniendo perfil natural para usuario: ${idUsuario}`);
+    
+    const rows = await queryPromise(
       `SELECT 
          u.IdUsuario,
          u.Nombre,
@@ -1864,10 +1910,12 @@ app.get("/api/perfilNatural/:idUsuario", async (req, res) => {
       [idUsuario]
     );
 
-    if (rows.length === 0) {
+    if (!rows || rows.length === 0) {
+      console.log(`⚠️ Perfil no encontrado para usuario: ${idUsuario}`);
       return res.status(404).json({ error: "Usuario no encontrado" });
     }
 
+    console.log(`✅ Perfil encontrado para: ${rows[0].Nombre} ${rows[0].Apellido}`);
     res.json(rows[0]);
   } catch (error) {
     console.error("❌ Error al obtener perfil natural:", error);
@@ -2234,7 +2282,6 @@ app.get('/api/proceso-compra', async (req, res) => {
 //PROCESO DE COMPRA//
 
 app.post("/api/finalizar-compra", async (req, res) => {
-  const conn = await pool.getConnection();
   try {
     console.log("📦 Finalizando compra...");
 
@@ -2242,18 +2289,20 @@ app.post("/api/finalizar-compra", async (req, res) => {
     const usuarioId = (usuarioSesion && usuarioSesion.id) || req.body.usuarioId || null;
     const metodoPago = req.body.metodoPago;
 
+    console.log(`👤 Usuario: ${usuarioId}, 💳 Método: ${metodoPago}`);
+
     if (!usuarioId || !metodoPago) {
+      console.log("⚠️ Faltan datos: usuario o método de pago");
       return res.status(400).json({ message: "Faltan datos del usuario o método de pago." });
     }
 
     if (!['contraentrega', 'recoger'].includes(metodoPago)) {
+      console.log(`⚠️ Método de pago no válido: ${metodoPago}`);
       return res.status(400).json({ message: "Método de pago no válido." });
     }
 
-    await conn.beginTransaction();
-
     // 1️⃣ Obtener productos pendientes del carrito
-    const [carritoRows] = await conn.query(`
+    const carritoRows = await queryPromise(`
       SELECT 
         c.IdCarrito, 
         c.Cantidad, 
@@ -2262,15 +2311,17 @@ app.post("/api/finalizar-compra", async (req, res) => {
         pub.Precio, 
         (pub.Precio * c.Cantidad) AS Subtotal,
         pub.Comerciante AS Comercio
-      FROM Carrito c
+      FROM carrito c
       JOIN publicacion pub ON c.Publicacion = pub.IdPublicacion
       WHERE c.UsuarioNat = ? AND c.Estado = 'Pendiente'
     `, [usuarioId]);
 
-    if (!carritoRows.length) {
-      await conn.rollback();
+    if (!carritoRows || carritoRows.length === 0) {
+      console.log("⚠️ No hay productos en el carrito");
       return res.status(400).json({ message: "No hay productos pendientes en el carrito." });
     }
+
+    console.log(`📋 ${carritoRows.length} productos en el carrito`);
 
     // 2️⃣ Preparar detalles
     let totalCompra = 0;
@@ -2287,30 +2338,33 @@ app.post("/api/finalizar-compra", async (req, res) => {
       });
     }
 
+    console.log(`💰 Total de la compra: $${totalCompra}`);
+
     // 3️⃣ Insertar factura con estado "Proceso pendiente"
-    const [insertFactura] = await conn.query(
-      `INSERT INTO Factura (Usuario, TotalPago, MetodoPago, Estado, FechaCompra)
-       VALUES (?, ?, ?, ?, NOW())`,
+    const insertFactura = await queryPromise(
+      `INSERT INTO factura (Usuario, TotalPago, MetodoPago, Estado, FechaCompra)
+       VALUES (?, ?, ?, ?, datetime('now'))`,
       [usuarioId, totalCompra, metodoPago, 'Proceso pendiente']
     );
 
-    const facturaId = insertFactura.insertId;
+    const facturaId = insertFactura.lastID || insertFactura.insertId;
+    console.log(`✅ Factura creada con ID: ${facturaId}`);
 
     // 4️⃣ Insertar detalles con estado "Pendiente"
     for (const detalle of detallesParaInsertar) {
-      await conn.query(
-        `INSERT INTO DetalleFactura (Factura, Publicacion, Cantidad, PrecioUnitario, Total, Estado)
+      await queryPromise(
+        `INSERT INTO detallefactura (Factura, Publicacion, Cantidad, PrecioUnitario, Total, Estado)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [facturaId, detalle.publicacion, detalle.cantidad, detalle.precioUnitario, detalle.total, 'Pendiente']
       );
 
-      const [insertDetalleComercio] = await conn.query(
-        `INSERT INTO DetalleFacturaComercio (Factura, Publicacion, Cantidad, PrecioUnitario, Total, Estado)
+      const insertDetalleComercio = await queryPromise(
+        `INSERT INTO detallefacturacomercio (Factura, Publicacion, Cantidad, PrecioUnitario, Total, Estado)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [facturaId, detalle.publicacion, detalle.cantidad, detalle.precioUnitario, detalle.total, 'Pendiente']
       );
 
-      const detalleComercioId = insertDetalleComercio.insertId;
+      const detalleComercioId = insertDetalleComercio.lastID || insertDetalleComercio.insertId;
 
       let modoServicio = metodoPago === "recoger" ? "Visita al taller" : "Domicilio";
       let tipoServicio = metodoPago === "recoger" ? 1 : 2;
@@ -2318,8 +2372,8 @@ app.post("/api/finalizar-compra", async (req, res) => {
       let hora = req.body.horaRecoger || null;
       let comentarios = req.body.comentariosRecoger || null;
 
-      await conn.query(
-        `INSERT INTO ControlAgendaComercio 
+      await queryPromise(
+        `INSERT INTO controlagendacomercio 
          (Comercio, DetFacturacomercio, TipoServicio, ModoServicio, FechaServicio, HoraServicio, ComentariosAdicionales)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [detalle.comercio, detalleComercioId, tipoServicio, modoServicio, fecha, hora, comentarios]
@@ -2327,9 +2381,9 @@ app.post("/api/finalizar-compra", async (req, res) => {
     }
 
     // 5️⃣ Vaciar carrito
-    await conn.query(`DELETE FROM Carrito WHERE UsuarioNat = ?`, [usuarioId]);
+    await queryPromise(`DELETE FROM carrito WHERE UsuarioNat = ?`, [usuarioId]);
+    console.log("🗑️ Carrito vaciado");
 
-    await conn.commit();
     console.log("✅ Compra registrada con método:", metodoPago);
 
     // 6️⃣ Mensaje final
@@ -2345,11 +2399,8 @@ app.post("/api/finalizar-compra", async (req, res) => {
     return res.json({ success: true, message, redirect });
 
   } catch (err) {
-    await conn.rollback();
     console.error("❌ Error al finalizar compra:", err);
     res.status(500).json({ message: "Error al finalizar la compra", error: err.message });
-  } finally {
-    conn.release();
   }
 });
 
@@ -2415,14 +2466,18 @@ app.get('/api/factura/:id', async (req, res) => {
 app.post("/api/centro-ayuda", async (req, res) => {
   const { perfil, tipoSolicitud, rol, asunto, descripcion } = req.body;
 
-  // Validación de sesión
-  if (!perfil || typeof perfil !== "number") {
+  console.log('📩 Solicitud de centro de ayuda recibida:', { perfil, tipoSolicitud, rol, asunto });
+
+  // Validación de datos
+  if (!perfil) {
+    console.log('⚠️ Perfil no proporcionado');
     return res.status(401).json({ error: "Debes iniciar sesión para hacer esta solicitud." });
   }
 
   // Validación de rol
   const rolesValidos = ["Usuario Natural", "Comerciante", "PrestadorServicio"];
   if (!rolesValidos.includes(rol)) {
+    console.log('⚠️ Rol inválido:', rol);
     return res.status(400).json({ error: "Rol inválido. Selecciona una opción válida." });
   }
 
@@ -2431,11 +2486,12 @@ app.post("/api/centro-ayuda", async (req, res) => {
       INSERT INTO centroayuda (Perfil, TipoSolicitud, Rol, Asunto, Descripcion)
       VALUES (?, ?, ?, ?, ?)
     `;
-    const [result] = await pool.execute(sql, [perfil, tipoSolicitud, rol, asunto, descripcion]);
+    await queryPromise(sql, [perfil, tipoSolicitud, rol, asunto, descripcion]);
 
+    console.log('✅ Solicitud de ayuda registrada exitosamente');
     res.status(200).json({ message: "Solicitud registrada con éxito." });
   } catch (error) {
-    console.error("Error al insertar solicitud:", error);
+    console.error("❌ Error al insertar solicitud de ayuda:", error);
     res.status(500).json({ error: "Error al guardar la solicitud." });
   }
 });
@@ -2454,8 +2510,10 @@ app.get('/api/perfil-prestador', async (req, res) => {
   }
 
   try {
+    console.log("📊 Cargando perfil del prestador:", usuarioSesion.id);
+
     // 🔍 Datos del usuario
-    const [userRows] = await pool.query(
+    const userRows = await queryPromise(
       `SELECT u.IdUsuario, u.Nombre, u.Documento, u.FotoPerfil
        FROM usuario u
        WHERE u.IdUsuario = ?`,
@@ -2474,8 +2532,8 @@ app.get('/api/perfil-prestador', async (req, res) => {
       tipoCarpeta = "PrestadorServicios"; // ✅ Corrección de nombre de carpeta
     }
 
-    const rutaCarpeta = path.join(__dirname, 'public', 'Imagen', tipoCarpeta, user.Documento.toString());
-    let fotoRutaFinal = '/image/imagen_perfil.png'; // por defecto
+    const rutaCarpeta = path.join(__dirname, 'public', 'imagen', tipoCarpeta, user.Documento.toString());
+    let fotoRutaFinal = '/imagen/imagen_perfil.png'; // por defecto
 
     if (fs.existsSync(rutaCarpeta)) {
       const archivos = fs.readdirSync(rutaCarpeta);
@@ -2483,39 +2541,80 @@ app.get('/api/perfil-prestador', async (req, res) => {
         f => f.includes(user.FotoPerfil) || f.match(/\.(jpg|jpeg|png|webp)$/i)
       );
       if (archivoFoto) {
-        fotoRutaFinal = `/Imagen/${tipoCarpeta}/${user.Documento}/${archivoFoto}`;
+        fotoRutaFinal = `/imagen/${tipoCarpeta}/${user.Documento}/${archivoFoto}`;
       }
     } else {
       console.warn(`⚠️ Carpeta de usuario no encontrada: ${rutaCarpeta}`);
     }
 
-    // 📊 Estadísticas reales
-    const [statsRows] = await pool.query(
+    // 📊 Obtener IdServicio del prestador
+    const servicioRows = await queryPromise(
+      `SELECT IdServicio FROM prestadorservicio WHERE Usuario = ?`,
+      [usuarioSesion.id]
+    );
+
+    let idServicio = null;
+    if (servicioRows.length > 0) {
+      idServicio = servicioRows[0].IdServicio;
+    }
+
+    // 📊 Calcular estadísticas desde OpinionesGrua
+    let valoracionPromedio = "N/A";
+    let totalOpiniones = 0;
+
+    if (idServicio) {
+      const opinionesRows = await queryPromise(
+        `SELECT AVG(og.Calificacion) AS promedio, COUNT(*) AS total
+         FROM opinionesgrua og
+         JOIN publicaciongrua pg ON og.PublicacionGrua = pg.IdPublicacionGrua
+         WHERE pg.Servicio = ?`,
+        [idServicio]
+      );
+
+      if (opinionesRows.length > 0 && opinionesRows[0].promedio) {
+        valoracionPromedio = parseFloat(opinionesRows[0].promedio).toFixed(1);
+        totalOpiniones = opinionesRows[0].total;
+      }
+    }
+
+    // 📋 Contar servicios agendados (pendientes y completados)
+    let pendientes = 0;
+    let completados = 0;
+
+    if (idServicio) {
+      const agendaRows = await queryPromise(
+        `SELECT 
+           SUM(CASE WHEN cas.Estado = 'Pendiente' THEN 1 ELSE 0 END) AS pendientes,
+           SUM(CASE WHEN cas.Estado = 'Finalizado' THEN 1 ELSE 0 END) AS completados
+         FROM controlagendaservicios cas
+         JOIN publicaciongrua pg ON cas.PublicacionGrua = pg.IdPublicacionGrua
+         WHERE pg.Servicio = ?`,
+        [idServicio]
+      );
+
+      if (agendaRows.length > 0) {
+        pendientes = agendaRows[0].pendientes || 0;
+        completados = agendaRows[0].completados || 0;
+      }
+    }
+
+    // 📋 Últimas solicitudes de agenda de grúa
+    const solicitudesRows = idServicio ? await queryPromise(
       `SELECT 
-         COUNT(*) AS total,
-         SUM(CASE WHEN Estado = 'Pendiente' THEN 1 ELSE 0 END) AS pendientes,
-         SUM(CASE WHEN Estado = 'Finalizado' THEN 1 ELSE 0 END) AS completados,
-         AVG(Valoracion) AS valoracion
-       FROM Solicitudes
-       WHERE Prestador = ?`,
-      [usuarioSesion.id]
-    );
-
-    const stats = statsRows[0] || {
-      pendientes: 0,
-      completados: 0,
-      valoracion: 0
-    };
-
-    // 📋 Últimas solicitudes
-    const [solicitudesRows] = await pool.query(
-      `SELECT IdSolicitud, Cliente, Origen, Destino, Fecha, Estado
-       FROM Solicitudes
-       WHERE Prestador = ?
-       ORDER BY Fecha DESC
+         cas.IdSolicitudServicio,
+         u.Nombre AS Cliente,
+         cas.DireccionRecogida AS Origen,
+         cas.Destino AS Destino,
+         cas.FechaServicio AS Fecha,
+         cas.Estado
+       FROM controlagendaservicios cas
+       JOIN publicaciongrua pg ON cas.PublicacionGrua = pg.IdPublicacionGrua
+       JOIN usuario u ON cas.UsuarioNatural = u.IdUsuario
+       WHERE pg.Servicio = ?
+       ORDER BY cas.FechaServicio DESC
        LIMIT 5`,
-      [usuarioSesion.id]
-    );
+      [idServicio]
+    ) : [];
 
     // ✅ Respuesta
     res.json({
@@ -2523,12 +2622,14 @@ app.get('/api/perfil-prestador', async (req, res) => {
       foto: fotoRutaFinal,
       descripcion: "Prestador de servicio de grúa 24/7",
       estadisticas: {
-        pendientes: stats.pendientes || 0,
-        completados: stats.completados || 0,
-        valoracion: stats.valoracion ? parseFloat(stats.valoracion).toFixed(1) : "N/A"
+        pendientes: pendientes,
+        completados: completados,
+        valoracion: valoracionPromedio
       },
       solicitudes: solicitudesRows
     });
+
+    console.log("✅ Perfil del prestador cargado correctamente");
 
   } catch (err) {
     console.error("❌ Error en perfil del prestador:", err);
@@ -2774,8 +2875,8 @@ app.delete('/api/publicaciones-grua/:id', async (req, res) => {
 
 
 
-//APARTADO DE EDITAR PUBLICACION GRUA
-app.get('/api/publicaciones-grua/:id', async (req, res) => {
+//APARTADO DE EDITAR PUBLICACION GRUA - OBTENER DATOS PARA EDICIÓN
+app.get('/api/publicaciones-grua/editar/:id', async (req, res) => {
   console.log("📥 Solicitud recibida para editar publicación");
   console.log("🔐 Usuario en sesión:", req.session.usuario);
   console.log("🔍 ID solicitado:", req.params.id);
@@ -2788,8 +2889,8 @@ app.get('/api/publicaciones-grua/:id', async (req, res) => {
       return res.status(403).json({ error: 'Acceso no autorizado.' });
     }
 
-    const [servicioRows] = await pool.query(
-      'SELECT IdServicio FROM prestadorservicio WHERE usuario = ? LIMIT 1',
+    const servicioRows = await queryPromise(
+      'SELECT IdServicio FROM prestadorservicio WHERE Usuario = ? LIMIT 1',
       [usuario.id]
     );
 
@@ -2799,7 +2900,7 @@ app.get('/api/publicaciones-grua/:id', async (req, res) => {
 
     const idServicio = servicioRows[0].IdServicio;
 
-    const [publicacionRows] = await pool.query(
+    const publicacionRows = await queryPromise(
       `SELECT 
         pg.IdPublicacionGrua,
         pg.TituloPublicacion,
@@ -3153,12 +3254,13 @@ app.get("/api/marketplace-gruas", async (req, res) => {
 });
 
 ///DETALLE O VISUALIZACION DE EL DETALLE DE LA PUBLICACION DE GRUAS/// 
+// 🔹 DETALLE PÚBLICO DE PUBLICACIÓN DE GRÚA (para usuarios naturales)
 app.get("/api/publicaciones-grua/:id", async (req, res) => {
   const { id } = req.params;
   console.log("📥 Solicitud recibida con ID:", id);
 
   try {
-    const [rows] = await pool.query(
+    const rows = await queryPromise(
       `SELECT 
          pg.IdPublicacionGrua,
          pg.TituloPublicacion,
@@ -3220,9 +3322,9 @@ app.get('/api/opiniones-grua/:idPublicacionGrua', async (req, res) => {
   const { idPublicacionGrua } = req.params;
 
   try {
-    const [opiniones] = await pool.query(
+    const opiniones = await queryPromise(
       `SELECT NombreUsuario, Comentario, Calificacion, Fecha
-       FROM OpinionesGrua
+       FROM opinionesgrua
        WHERE PublicacionGrua = ?
        ORDER BY Fecha DESC`,
       [idPublicacionGrua]
@@ -3232,5 +3334,34 @@ app.get('/api/opiniones-grua/:idPublicacionGrua', async (req, res) => {
   } catch (error) {
     console.error('❌ Error al obtener opiniones de grúa:', error);
     res.status(500).json({ error: 'Error en el servidor al consultar opiniones.' });
+  }
+});
+
+// ===============================
+// 🔹 Agendar Servicio de Grúa
+// ===============================
+app.post('/api/agendar-grua', async (req, res) => {
+  try {
+    const { usuarioId, idPublicacionGrua, fecha, hora, direccion, destino, detalle } = req.body;
+
+    console.log("📅 Agendando servicio de grúa:", req.body);
+
+    if (!usuarioId || !idPublicacionGrua || !fecha || !hora || !direccion) {
+      return res.status(400).json({ error: 'Faltan datos obligatorios para agendar el servicio.' });
+    }
+
+    await queryPromise(
+      `INSERT INTO controlagendaservicios 
+       (UsuarioNatural, PublicacionGrua, FechaServicio, HoraServicio, DireccionRecogida, Destino, ComentariosAdicionales, Estado)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'Pendiente')`,
+      [usuarioId, idPublicacionGrua, fecha, hora, direccion, destino || null, detalle || null]
+    );
+
+    console.log("✅ Servicio agendado correctamente");
+    res.json({ success: true, message: 'Servicio agendado con éxito.' });
+
+  } catch (error) {
+    console.error('❌ Error al agendar servicio de grúa:', error);
+    res.status(500).json({ error: 'Error en el servidor al agendar el servicio.' });
   }
 });

@@ -82,7 +82,7 @@ document.getElementById("formAyuda").addEventListener("submit", async function (
   };
 
   try {
-    const res = await fetch("http://localhost:3000/api/centro-ayuda", {
+    const res = await fetch("/api/centro-ayuda", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(solicitud)
