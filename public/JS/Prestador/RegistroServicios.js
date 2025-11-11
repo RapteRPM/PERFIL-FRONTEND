@@ -38,15 +38,22 @@ async function cargarPublicacionesGrua() {
 
       tarjeta.innerHTML = `
         ${carrusel}
-        <div class="p-5 flex flex-col justify-between h-48">
+        <div class="p-5 flex flex-col justify-between h-auto">
           <div>
             <h5 class="text-xl font-bold mb-1">${titulo}</h5>
             <p class="text-green-400 font-semibold">$${Number(pub.TarifaBase).toLocaleString()}</p>
             <p class="text-gray-300 text-sm mt-1">Cobertura: ${pub.ZonaCobertura}</p>
           </div>
-          <div class="flex justify-between mt-4">
-            <a href="Editar_publicacionServicio.html?id=${id}" class="btn btn-outline-primary btn-sm">Editar</a>
-            <button class="btn btn-outline-danger btn-sm" onclick="eliminarPublicacionGrua(${id})">Eliminar</button>
+          <div class="flex flex-wrap gap-2 mt-4">
+            <a href="../Natural/detalle_publicaciongrua.html?id=${id}&prestador=true" class="btn btn-outline-info btn-sm flex-1">
+              <i class="fas fa-eye"></i> Ver Detalles
+            </a>
+            <a href="Editar_publicacionServicio.html?id=${id}" class="btn btn-outline-primary btn-sm flex-1">
+              <i class="fas fa-edit"></i> Editar
+            </a>
+            <button class="btn btn-outline-danger btn-sm flex-1" onclick="eliminarPublicacionGrua(${id})">
+              <i class="fas fa-trash"></i> Eliminar
+            </button>
           </div>
         </div>
       `;

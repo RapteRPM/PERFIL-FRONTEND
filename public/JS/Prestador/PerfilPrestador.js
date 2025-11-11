@@ -35,16 +35,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 📊 Estadísticas
     estadisticasEl.innerHTML = `
       <div class="card text-center py-6">
-        <h5 class="text-lg font-semibold text-yellow-400"><i class="fas fa-exclamation-triangle"></i> Pendientes</h5>
-        <p class="text-4xl font-bold text-yellow-400 mt-2">${data.estadisticas.pendientes}</p>
+        <h5 class="text-lg font-semibold text-purple-400"><i class="fas fa-tasks"></i> Total Servicios</h5>
+        <p class="text-4xl font-bold text-purple-400 mt-2">${data.estadisticas.totalServicios || 0}</p>
+      </div>
+      <div class="card text-center py-6">
+        <h5 class="text-lg font-semibold text-yellow-400"><i class="fas fa-clock"></i> Pendientes</h5>
+        <p class="text-4xl font-bold text-yellow-400 mt-2">${data.estadisticas.pendientes || 0}</p>
       </div>
       <div class="card text-center py-6">
         <h5 class="text-lg font-semibold text-green-400"><i class="fas fa-check-circle"></i> Completados</h5>
-        <p class="text-4xl font-bold text-green-400 mt-2">${data.estadisticas.completados}</p>
+        <p class="text-4xl font-bold text-green-400 mt-2">${data.estadisticas.completados || 0}</p>
       </div>
       <div class="card text-center py-6">
         <h5 class="text-lg font-semibold text-blue-400"><i class="fas fa-star"></i> Valoración</h5>
-        <p class="text-4xl font-bold text-blue-400 mt-2">${data.estadisticas.valoracion}</p>
+        <p class="text-4xl font-bold text-blue-400 mt-2">${data.estadisticas.valoracion || 'N/A'}</p>
       </div>
     `;
 
@@ -73,8 +77,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 function estadoColor(estado) {
   switch (estado) {
     case "Pendiente": return "bg-warning text-dark";
-    case "Finalizado": return "bg-success";
-    case "Aceptado": return "bg-primary";
+    case "Terminado": return "bg-success";
+    case "Aceptado": return "bg-info text-dark";
+    case "Rechazado": return "bg-danger";
+    case "Cancelado": return "bg-secondary";
     default: return "bg-secondary";
   }
 }

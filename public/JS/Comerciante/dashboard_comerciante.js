@@ -1,6 +1,8 @@
 document.addEventListener('DOMContentLoaded', async () => {
   try {
-    const res = await fetch('/api/dashboard/comerciante');
+    const res = await fetch('/api/dashboard/comerciante', {
+      credentials: 'include'
+    });
     const data = await res.json();
 
     if (data.error) {

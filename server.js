@@ -341,7 +341,12 @@ app.listen(port, () => {
 app.get('/api/historial', async (req, res) => {
   const { fechaInicio, fechaFin, tipoProducto, ordenPrecio, usuarioId } = req.query;
 
-    let query = `
+  try {
+    const paramsProductos = [];
+    const paramsGruas = [];
+
+    // Query para productos/servicios de comerciantes
+    let queryProductos = `
       SELECT
         df.IdDetalleFactura AS idDetalleFactura,
         pub.NombreProducto AS producto,
@@ -355,42 +360,99 @@ app.get('/api/historial', async (req, res) => {
           WHEN df.Estado = 'Pendiente' THEN 'Pendiente'
           ELSE df.Estado
         END AS estado,
-        f.IdFactura AS idFactura
+        f.IdFactura AS idFactura,
+        'producto' AS tipo
       FROM detallefactura df
       LEFT JOIN factura f ON df.Factura = f.IdFactura
       INNER JOIN publicacion pub ON df.Publicacion = pub.IdPublicacion
       INNER JOIN categoria c ON pub.Categoria = c.IdCategoria
-      WHERE 1 = 1
-        AND df.VisibleUsuario = TRUE
+      WHERE df.VisibleUsuario = 1
     `;
 
+    // Query para servicios de grúa
+    let queryGruas = `
+      SELECT
+        cas.IdSolicitudServicio AS idDetalleFactura,
+        pg.TituloPublicacion AS producto,
+        'Servicio de grua' AS categoria,
+        cas.FechaServicio AS fecha,
+        CAST(pg.TarifaBase AS REAL) AS precio,
+        'Servicio' AS metodoPago,
+        cas.Estado AS estado,
+        NULL AS idFactura,
+        'grua' AS tipo
+      FROM controlagendaservicios cas
+      INNER JOIN publicaciongrua pg ON cas.PublicacionGrua = pg.IdPublicacionGrua
+      WHERE 1 = 1
+    `;
 
-  const params = [];
+    // Aplicar filtros para productos
+    if (usuarioId) {
+      queryProductos += ' AND f.Usuario = ?';
+      paramsProductos.push(usuarioId);
+      queryGruas += ' AND cas.UsuarioNatural = ?';
+      paramsGruas.push(usuarioId);
+    }
+    
+    if (fechaInicio) {
+      queryProductos += ' AND f.FechaCompra >= ?';
+      paramsProductos.push(fechaInicio);
+      queryGruas += ' AND cas.FechaServicio >= ?';
+      paramsGruas.push(fechaInicio);
+    }
+    
+    if (fechaFin) {
+      queryProductos += ' AND f.FechaCompra <= ?';
+      paramsProductos.push(fechaFin);
+      queryGruas += ' AND cas.FechaServicio <= ?';
+      paramsGruas.push(fechaFin);
+    }
 
-  if (usuarioId) {
-    query += ' AND f.Usuario = ?';
-    params.push(usuarioId);
-  }
-  if (fechaInicio) {
-    query += ' AND f.FechaCompra >= ?';
-    params.push(fechaInicio);
-  }
-  if (fechaFin) {
-    query += ' AND f.FechaCompra <= ?';
-    params.push(fechaFin);
-  }
-  if (tipoProducto) {
-    query += ' AND LOWER(c.NombreCategoria) = ?';
-    params.push(tipoProducto.toLowerCase());
-  }
+    // Filtro de tipo de producto
+    let incluirProductos = true;
+    let incluirGruas = true;
 
-  if (ordenPrecio === 'asc') query += ' ORDER BY df.Total ASC';
-  else if (ordenPrecio === 'desc') query += ' ORDER BY df.Total DESC';
-  else query += ' ORDER BY f.FechaCompra DESC, df.IdDetalleFactura DESC';
+    if (tipoProducto) {
+      if (tipoProducto.toLowerCase() === 'servicio de grua') {
+        incluirProductos = false;
+      } else {
+        incluirGruas = false;
+        queryProductos += ' AND LOWER(c.NombreCategoria) = ?';
+        paramsProductos.push(tipoProducto.toLowerCase());
+      }
+    }
 
-  try {
-    const [results] = await pool.query(query, params);
+    // Obtener resultados
+    let results = [];
+    
+    if (incluirProductos && incluirGruas) {
+      const resultadosProductos = await queryPromise(queryProductos, paramsProductos);
+      const resultadosGruas = await queryPromise(queryGruas, paramsGruas);
+      results = [...resultadosProductos, ...resultadosGruas];
+    } else if (incluirProductos) {
+      results = await queryPromise(queryProductos, paramsProductos);
+    } else {
+      results = await queryPromise(queryGruas, paramsGruas);
+    }
+
+    // Ordenamiento
+    if (ordenPrecio === 'asc') {
+      results.sort((a, b) => (a.precio || 0) - (b.precio || 0));
+    } else if (ordenPrecio === 'desc') {
+      results.sort((a, b) => (b.precio || 0) - (a.precio || 0));
+    } else {
+      results.sort((a, b) => {
+        const fechaA = new Date(a.fecha || 0);
+        const fechaB = new Date(b.fecha || 0);
+        if (fechaB - fechaA !== 0) return fechaB - fechaA;
+        return (b.idDetalleFactura || 0) - (a.idDetalleFactura || 0);
+      });
+    }
+
+    console.log("📊 Consultando historial para usuario:", usuarioId);
+    console.log(`✅ ${results.length} registros encontrados`);
     res.json(results);
+
   } catch (err) {
     console.error('❌ Error en la consulta de historial:', err);
     res.status(500).json({ error: 'Error en la consulta de historial' });
@@ -453,13 +515,58 @@ app.put('/api/historial/estado/:id', async (req, res) => {
   }
 });
 
+// ===============================
+//  ACTUALIZAR ESTADO DE SOLICITUD DE GRÚA
+// ===============================
+app.put('/api/historial/grua/estado/:id', async (req, res) => {
+  const { id } = req.params;
+  const { estado } = req.body;
+
+  try {
+    // Verificar que la solicitud existe y obtener su estado actual
+    const solicitud = await queryPromise(
+      'SELECT IdSolicitudServicio, Estado FROM controlagendaservicios WHERE IdSolicitudServicio = ?',
+      [id]
+    );
+
+    if (!solicitud || solicitud.length === 0) {
+      return res.status(404).json({ success: false, message: 'Solicitud de grúa no encontrada.' });
+    }
+
+    const estadoActual = solicitud[0].Estado;
+
+    // Validar que solo se pueda marcar como "Terminado" si está "Aceptado"
+    if (estado === 'Terminado' && estadoActual !== 'Aceptado') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Solo puedes marcar como terminado un servicio que ha sido aceptado por el prestador.' 
+      });
+    }
+
+    // Actualizar estado de la solicitud de grúa
+    await queryPromise(
+      'UPDATE controlagendaservicios SET Estado = ? WHERE IdSolicitudServicio = ?',
+      [estado, id]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Estado de la solicitud de grúa #${id} actualizado a '${estado}'.`
+    });
+
+  } catch (error) {
+    console.error('❌ Error al actualizar estado de grúa:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+  }
+});
+
 
 //ACTUALIZAR ESTADO VISIBLES
 app.delete('/api/historial/eliminar/:idFactura', async (req, res) => {
   const { idFactura } = req.params;
 
   try {
-    await pool.query(`UPDATE DetalleFactura SET VisibleUsuario = FALSE WHERE factura = ?`, [idFactura]);
+    await queryPromise('UPDATE DetalleFactura SET VisibleUsuario = 0 WHERE factura = ?', [idFactura]);
     res.json({ success: true, message: "Registro ocultado correctamente." });
   } catch (err) {
     console.error("❌ Error al ocultar registro:", err);
@@ -474,55 +581,112 @@ app.delete('/api/historial/eliminar/:idFactura', async (req, res) => {
 app.get('/api/historial/excel', async (req, res) => {
   const { fechaInicio, fechaFin, tipoProducto, ordenPrecio, usuarioId } = req.query;
 
-  let query = `
-    SELECT
-      df.IdDetalleFactura AS idDetalleFactura,
-      pub.NombreProducto AS producto,
-      c.NombreCategoria AS categoria,
-      f.FechaCompra AS fecha,
-      df.Total AS total,
-      COALESCE(f.MetodoPago, 'Sin registro') AS metodoPago,
-      CASE
-        WHEN f.Estado = 'Pago exitoso' THEN 'Finalizado'
-        WHEN f.Estado = 'Proceso pendiente' AND df.Estado = 'Pendiente' THEN 'Pendiente'
-        ELSE f.Estado
-      END AS estado,
-      f.IdFactura AS idFactura
-    FROM detallefactura df
-    LEFT JOIN factura f ON df.Factura = f.IdFactura
-    INNER JOIN publicacion pub ON df.Publicacion = pub.IdPublicacion
-    INNER JOIN categoria c ON pub.Categoria = c.IdCategoria
-    WHERE 1 = 1
-      AND df.VisibleUsuario = TRUE
-  `;
-
-  const params = [];
-
-  if (usuarioId) {
-    query += ' AND f.Usuario = ?';
-    params.push(usuarioId);
-  }
-
-  if (fechaInicio) {
-    query += ' AND (f.FechaCompra >= ? OR f.FechaCompra IS NULL)';
-    params.push(fechaInicio);
-  }
-
-  if (fechaFin) {
-    query += ' AND (f.FechaCompra <= ? OR f.FechaCompra IS NULL)';
-    params.push(fechaFin);
-  }
-
-  if (tipoProducto) {
-    query += ' AND LOWER(c.NombreCategoria) = ?';
-    params.push(tipoProducto.toLowerCase());
-  }
-
-  if (ordenPrecio === 'asc') query += ' ORDER BY df.Total ASC';
-  else if (ordenPrecio === 'desc') query += ' ORDER BY df.Total DESC';
-
   try {
-    const [results] = await pool.query(query, params);
+    const paramsProductos = [];
+    const paramsGruas = [];
+
+    // Query para productos/servicios de comerciantes
+    let queryProductos = `
+      SELECT
+        df.IdDetalleFactura AS idDetalleFactura,
+        pub.NombreProducto AS producto,
+        c.NombreCategoria AS categoria,
+        f.FechaCompra AS fecha,
+        df.Total AS total,
+        COALESCE(f.MetodoPago, 'Sin registro') AS metodoPago,
+        CASE
+          WHEN f.Estado = 'Pago exitoso' THEN 'Finalizado'
+          WHEN f.Estado = 'Proceso pendiente' AND df.Estado = 'Pendiente' THEN 'Pendiente'
+          ELSE f.Estado
+        END AS estado,
+        f.IdFactura AS idFactura,
+        'producto' AS tipo
+      FROM detallefactura df
+      LEFT JOIN factura f ON df.Factura = f.IdFactura
+      INNER JOIN publicacion pub ON df.Publicacion = pub.IdPublicacion
+      INNER JOIN categoria c ON pub.Categoria = c.IdCategoria
+      WHERE df.VisibleUsuario = 1
+    `;
+
+    // Query para servicios de grúa
+    let queryGruas = `
+      SELECT
+        cas.IdSolicitudServicio AS idDetalleFactura,
+        pg.TituloPublicacion AS producto,
+        'Servicio de grua' AS categoria,
+        cas.FechaServicio AS fecha,
+        CAST(pg.TarifaBase AS REAL) AS total,
+        'Servicio' AS metodoPago,
+        cas.Estado AS estado,
+        NULL AS idFactura,
+        'grua' AS tipo
+      FROM controlagendaservicios cas
+      INNER JOIN publicaciongrua pg ON cas.PublicacionGrua = pg.IdPublicacionGrua
+      WHERE 1 = 1
+    `;
+
+    // Aplicar filtros
+    if (usuarioId) {
+      queryProductos += ' AND f.Usuario = ?';
+      paramsProductos.push(usuarioId);
+      queryGruas += ' AND cas.UsuarioNatural = ?';
+      paramsGruas.push(usuarioId);
+    }
+
+    if (fechaInicio) {
+      queryProductos += ' AND (f.FechaCompra >= ? OR f.FechaCompra IS NULL)';
+      paramsProductos.push(fechaInicio);
+      queryGruas += ' AND cas.FechaServicio >= ?';
+      paramsGruas.push(fechaInicio);
+    }
+
+    if (fechaFin) {
+      queryProductos += ' AND (f.FechaCompra <= ? OR f.FechaCompra IS NULL)';
+      paramsProductos.push(fechaFin);
+      queryGruas += ' AND cas.FechaServicio <= ?';
+      paramsGruas.push(fechaFin);
+    }
+
+    // Filtro de tipo de producto
+    let incluirProductos = true;
+    let incluirGruas = true;
+
+    if (tipoProducto) {
+      if (tipoProducto.toLowerCase() === 'servicio de grua') {
+        incluirProductos = false;
+      } else {
+        incluirGruas = false;
+        queryProductos += ' AND LOWER(c.NombreCategoria) = ?';
+        paramsProductos.push(tipoProducto.toLowerCase());
+      }
+    }
+
+    // Obtener resultados
+    let results = [];
+    
+    if (incluirProductos && incluirGruas) {
+      const resultadosProductos = await queryPromise(queryProductos, paramsProductos);
+      const resultadosGruas = await queryPromise(queryGruas, paramsGruas);
+      results = [...resultadosProductos, ...resultadosGruas];
+    } else if (incluirProductos) {
+      results = await queryPromise(queryProductos, paramsProductos);
+    } else {
+      results = await queryPromise(queryGruas, paramsGruas);
+    }
+
+    // Ordenamiento
+    if (ordenPrecio === 'asc') {
+      results.sort((a, b) => (a.total || 0) - (b.total || 0));
+    } else if (ordenPrecio === 'desc') {
+      results.sort((a, b) => (b.total || 0) - (a.total || 0));
+    } else {
+      results.sort((a, b) => {
+        const fechaA = new Date(a.fecha || 0);
+        const fechaB = new Date(b.fecha || 0);
+        if (fechaB - fechaA !== 0) return fechaB - fechaA;
+        return (b.idDetalleFactura || 0) - (a.idDetalleFactura || 0);
+      });
+    }
 
     if (results.length === 0) {
       console.warn('⚠️ No hay datos para generar el Excel.');
@@ -537,7 +701,7 @@ app.get('/api/historial/excel', async (req, res) => {
       { header: 'ID Detalle', key: 'idDetalleFactura', width: 10 },
       { header: 'Producto', key: 'producto', width: 25 },
       { header: 'Categoría', key: 'categoria', width: 20 },
-      { header: 'Fecha de Compra', key: 'fecha', width: 20 },
+      { header: 'Fecha', key: 'fecha', width: 20 },
       { header: 'Total Pagado', key: 'total', width: 15 },
       { header: 'Método de Pago', key: 'metodoPago', width: 20 },
       { header: 'Estado', key: 'estado', width: 15 },
@@ -563,7 +727,7 @@ app.get('/api/historial/excel', async (req, res) => {
 
     await workbook.xlsx.write(res);
     res.end();
-    console.log(`📦 Excel generado con ${results.length} registros`);
+    console.log(`📦 Excel generado con ${results.length} registros (productos + grúas)`);
 
   } catch (err) {
     console.error('❌ Error en consulta Excel:', err);
@@ -582,48 +746,60 @@ app.get('/api/historial-ventas', async (req, res) => {
     return res.status(403).json({ error: 'Acceso no autorizado. Solo disponible para comerciantes.' });
   }
 
-  let query = `
-    SELECT 
-      f.IdFactura AS idVenta,
-      pub.NombreProducto AS producto,
-      c.NombreCategoria AS categoria,
-      u.Nombre AS comprador,
-      f.FechaCompra AS fecha,
-      df.Total AS total,
-      df.Cantidad AS cantidad,
-      f.MetodoPago AS metodoPago,
-      df.Estado AS estado
-    FROM detallefactura df
-    JOIN factura f ON df.Factura = f.IdFactura
-    JOIN publicacion pub ON df.Publicacion = pub.IdPublicacion
-    JOIN categoria c ON pub.Categoria = c.IdCategoria
-    LEFT JOIN usuario u ON f.Usuario = u.IdUsuario
-    WHERE pub.Comerciante = ?
-  `;
-
-  const params = [usuario.id];
-
-  if (fechaInicio) {
-    query += ' AND f.FechaCompra >= ?';
-    params.push(fechaInicio);
-  }
-
-  if (fechaFin) {
-    query += ' AND f.FechaCompra <= ?';
-    params.push(fechaFin);
-  }
-
-  if (tipoProducto) {
-    query += ' AND LOWER(c.NombreCategoria) = ?';
-    params.push(tipoProducto.toLowerCase());
-  }
-
-  if (ordenPrecio === 'asc') query += ' ORDER BY df.Total ASC';
-  else if (ordenPrecio === 'desc') query += ' ORDER BY df.Total DESC';
-  else query += ' ORDER BY f.FechaCompra DESC, df.IdDetalleFactura DESC';
-
   try {
-    const [results] = await pool.query(query, params);
+    // 🔍 Obtener el NIT del comerciante logueado
+    const comercianteRows = await queryPromise(
+      'SELECT NitComercio FROM comerciante WHERE Comercio = ?',
+      [usuario.id]
+    );
+
+    if (comercianteRows.length === 0) {
+      return res.status(403).json({ error: 'No se encontró información del comerciante.' });
+    }
+
+    const nitComercio = comercianteRows[0].NitComercio;
+
+    let query = `
+      SELECT 
+        f.IdFactura AS idVenta,
+        pub.NombreProducto AS producto,
+        c.NombreCategoria AS categoria,
+        u.Nombre AS comprador,
+        f.FechaCompra AS fecha,
+        df.Total AS total,
+        df.Cantidad AS cantidad,
+        f.MetodoPago AS metodoPago,
+        df.Estado AS estado
+      FROM detallefactura df
+      JOIN factura f ON df.Factura = f.IdFactura
+      JOIN publicacion pub ON df.Publicacion = pub.IdPublicacion
+      JOIN categoria c ON pub.Categoria = c.IdCategoria
+      LEFT JOIN usuario u ON f.Usuario = u.IdUsuario
+      WHERE pub.Comerciante = ?
+    `;
+
+    const params = [nitComercio];
+
+    if (fechaInicio) {
+      query += ' AND f.FechaCompra >= ?';
+      params.push(fechaInicio);
+    }
+
+    if (fechaFin) {
+      query += ' AND f.FechaCompra <= ?';
+      params.push(fechaFin);
+    }
+
+    if (tipoProducto) {
+      query += ' AND LOWER(c.NombreCategoria) = ?';
+      params.push(tipoProducto.toLowerCase());
+    }
+
+    if (ordenPrecio === 'asc') query += ' ORDER BY df.Total ASC';
+    else if (ordenPrecio === 'desc') query += ' ORDER BY df.Total DESC';
+    else query += ' ORDER BY f.FechaCompra DESC, df.IdDetalleFactura DESC';
+
+    const results = await queryPromise(query, params);
     res.json(results);
   } catch (err) {
     console.error('❌ Error en historial ventas:', err);
@@ -644,49 +820,59 @@ app.get('/api/historial-ventas/excel', async (req, res) => {
     return res.status(403).send('Acceso no autorizado.');
   }
 
-  const idComerciante = usuario.id; // ID del comerciante de la sesión
-  const params = [idComerciante];
-
-let query = `
-  SELECT 
-    f.IdFactura AS idVenta,
-    p.NombreProducto AS producto,
-    c.NombreCategoria AS categoria,
-    u.Nombre AS comprador,
-    f.FechaCompra AS fecha,
-    df.Cantidad AS cantidad,
-    df.Total AS total,
-    f.MetodoPago AS metodoPago,
-    f.Estado AS estado
-  FROM detallefacturacomercio df
-  JOIN factura f ON df.Factura = f.IdFactura
-  JOIN Producto p ON df.Producto = p.IdProducto
-  JOIN publicacion pub ON pub.IdPublicacion = p.PublicacionComercio
-  JOIN categoria c ON p.IdCategoria = c.IdCategoria
-  LEFT JOIN usuario u ON f.Usuario = u.IdUsuario
-  WHERE pub.Comerciante = ?
-`;
-
-  // 🔹 Filtros opcionales
-  if (fechaInicio) {
-    query += ' AND f.FechaCompra >= ?';
-    params.push(fechaInicio);
-  }
-  if (fechaFin) {
-    query += ' AND f.FechaCompra <= ?';
-    params.push(fechaFin);
-  }
-  if (tipoProducto) {
-    query += ' AND LOWER(c.NombreCategoria) = ?';
-    params.push(tipoProducto.toLowerCase());
-  }
-
-  // 🔹 Orden
-  if (ordenPrecio === 'asc') query += ' ORDER BY df.Total ASC';
-  else if (ordenPrecio === 'desc') query += ' ORDER BY df.Total DESC';
-
   try {
-    const [results] = await pool.query(query, params);
+    // 🔍 Obtener el NIT del comerciante logueado
+    const comercianteRows = await queryPromise(
+      'SELECT NitComercio FROM comerciante WHERE Comercio = ?',
+      [usuario.id]
+    );
+
+    if (comercianteRows.length === 0) {
+      return res.status(403).json({ error: 'No se encontró información del comerciante.' });
+    }
+
+    const nitComercio = comercianteRows[0].NitComercio;
+    const params = [nitComercio];
+
+    let query = `
+      SELECT 
+        f.IdFactura AS idVenta,
+        pub.NombreProducto AS producto,
+        c.NombreCategoria AS categoria,
+        u.Nombre AS comprador,
+        f.FechaCompra AS fecha,
+        df.Cantidad AS cantidad,
+        df.Total AS total,
+        f.MetodoPago AS metodoPago,
+        df.Estado AS estado
+      FROM detallefactura df
+      JOIN factura f ON df.Factura = f.IdFactura
+      JOIN publicacion pub ON df.Publicacion = pub.IdPublicacion
+      JOIN categoria c ON pub.Categoria = c.IdCategoria
+      LEFT JOIN usuario u ON f.Usuario = u.IdUsuario
+      WHERE pub.Comerciante = ?
+    `;
+
+    // 🔹 Filtros opcionales
+    if (fechaInicio) {
+      query += ' AND f.FechaCompra >= ?';
+      params.push(fechaInicio);
+    }
+    if (fechaFin) {
+      query += ' AND f.FechaCompra <= ?';
+      params.push(fechaFin);
+    }
+    if (tipoProducto) {
+      query += ' AND LOWER(c.NombreCategoria) = ?';
+      params.push(tipoProducto.toLowerCase());
+    }
+
+    // 🔹 Orden
+    if (ordenPrecio === 'asc') query += ' ORDER BY df.Total ASC';
+    else if (ordenPrecio === 'desc') query += ' ORDER BY df.Total DESC';
+    else query += ' ORDER BY f.FechaCompra DESC';
+
+    const results = await queryPromise(query, params);
 
     if (results.length === 0) {
       return res.json({ success: false, mensaje: 'No hay datos para generar el Excel.' });
@@ -1524,14 +1710,15 @@ app.put('/api/publicaciones/:id', uploadEditar.array('imagenesNuevas', 10), asyn
 app.get('/api/dashboard/comerciante', async (req, res) => {
   try {
     // 🧩 Validar sesión activa
-    if (!req.session || !req.session.usuarioId) {
+    if (!req.session || !req.session.usuario) {
       return res.status(401).json({ error: 'No has iniciado sesión.' });
     }
 
-    const idUsuario = req.session.usuarioId;
+    const idUsuario = req.session.usuario.id;
+    console.log('📊 Cargando dashboard del comerciante:', idUsuario);
 
     // 🔍 Obtener el NIT del comerciante logueado
-    const [comercianteRows] = await pool.query(
+    const comercianteRows = await queryPromise(
       'SELECT NitComercio FROM comerciante WHERE Comercio = ?',
       [idUsuario]
     );
@@ -1542,18 +1729,18 @@ app.get('/api/dashboard/comerciante', async (req, res) => {
 
     const nitComercio = comercianteRows[0].NitComercio;
 
-    // 🧾 Consultar las ventas del comerciante
-    const [result] = await pool.query(`
+    // 🧾 Consultar las ventas del comerciante usando detallefactura
+    const result = await queryPromise(`
       SELECT 
         c.NombreComercio,
         cat.NombreCategoria,
         p.NombreProducto,
-        COUNT(f.IdFactura) AS totalVentas,
-        SUM(f.TotalPago) AS totalRecaudado,
+        COUNT(df.IdDetalleFactura) AS totalVentas,
+        SUM(df.Total) AS totalRecaudado,
         DATE(f.FechaCompra) AS fechaCompra
-      FROM factura f
-      INNER JOIN Carrito ca ON f.Carrito = ca.IdCarrito
-      INNER JOIN publicacion p ON ca.Publicacion = p.IdPublicacion
+      FROM detallefactura df
+      INNER JOIN factura f ON df.Factura = f.IdFactura
+      INNER JOIN publicacion p ON df.Publicacion = p.IdPublicacion
       INNER JOIN categoria cat ON p.Categoria = cat.IdCategoria
       INNER JOIN comerciante c ON p.Comerciante = c.NitComercio
       WHERE c.NitComercio = ?
@@ -1569,22 +1756,24 @@ app.get('/api/dashboard/comerciante', async (req, res) => {
 
     result.forEach(row => {
       totalVentas += row.totalVentas;
-      totalRecaudado += row.totalRecaudado;
+      totalRecaudado += row.totalRecaudado || 0;
       categorias.add(row.NombreCategoria);
-      ventasPorCategoria[row.NombreCategoria] = (ventasPorCategoria[row.NombreCategoria] || 0) + row.totalRecaudado;
+      ventasPorCategoria[row.NombreCategoria] = (ventasPorCategoria[row.NombreCategoria] || 0) + (row.totalRecaudado || 0);
     });
 
     // 📅 Ventas del día y de la semana
     const hoy = new Date().toISOString().split('T')[0];
-    const semanaPasada = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const semanaPasada = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     const ventasHoy = result
       .filter(r => r.fechaCompra === hoy)
-      .reduce((acc, r) => acc + r.totalRecaudado, 0);
+      .reduce((acc, r) => acc + (r.totalRecaudado || 0), 0);
 
     const ventasSemana = result
-      .filter(r => new Date(r.fechaCompra) >= semanaPasada)
-      .reduce((acc, r) => acc + r.totalRecaudado, 0);
+      .filter(r => r.fechaCompra >= semanaPasada)
+      .reduce((acc, r) => acc + (r.totalRecaudado || 0), 0);
+
+    console.log('✅ Dashboard del comerciante cargado correctamente');
 
     // 📤 Respuesta final
     res.json({
@@ -1763,32 +1952,61 @@ app.get("/api/perfilComerciante/:idUsuario", async (req, res) => {
 ///APARTADO DE CONTROL DE AGENDA - COMERCIANTE 
 
 app.get('/api/privado/citas', async (req, res) => {
-  const idUsuario = req.session?.usuario?.IdUsuario || 123;
+  const usuario = req.session?.usuario;
+
+  if (!usuario) {
+    return res.status(401).json({ error: 'No autenticado' });
+  }
 
   try {
-    const [comercioRows] = await pool.query(
+    // 🔍 Obtener el NIT del comerciante logueado
+    const comercianteRows = await queryPromise(
       'SELECT NitComercio FROM comerciante WHERE Comercio = ?',
-      [idUsuario]
+      [usuario.id]
     );
 
-    if (comercioRows.length === 0) {
+    if (comercianteRows.length === 0) {
       return res.status(404).json({ error: 'Comerciante no encontrado' });
     }
 
-    const nitComercio = comercioRows[0].NitComercio;
+    const nitComercio = comercianteRows[0].NitComercio;
 
-    const [citas] = await pool.query(`
+    // 🧾 Obtener las citas/pedidos del comerciante desde detallefactura
+    const citas = await queryPromise(`
       SELECT 
-        IdSolicitud AS id,
-        CONCAT(ModoServicio, ': ', ComentariosAdicionales) AS title,
-        FechaServicio AS start,
-        ComentariosAdicionales AS descripcion,
-        HoraServicio AS hora
-      FROM controlagendacomercio
-      WHERE Comercio = ?
+        df.IdDetalleFactura AS id,
+        p.NombreProducto AS title,
+        DATE(f.FechaCompra) AS start,
+        u.Nombre AS cliente,
+        df.Cantidad AS cantidad,
+        df.Total AS total,
+        df.Estado AS estado,
+        f.MetodoPago AS metodoPago
+      FROM detallefactura df
+      JOIN factura f ON df.Factura = f.IdFactura
+      JOIN publicacion p ON df.Publicacion = p.IdPublicacion
+      LEFT JOIN usuario u ON f.Usuario = u.IdUsuario
+      WHERE p.Comerciante = ?
+      ORDER BY f.FechaCompra DESC
     `, [nitComercio]);
 
-    res.json(citas);
+    // Formatear datos para FullCalendar
+    const eventosFormateados = citas.map(cita => ({
+      id: cita.id,
+      title: `${cita.title} - ${cita.cliente || 'Cliente'}`,
+      start: cita.start,
+      extendedProps: {
+        descripcion: `Cliente: ${cita.cliente || 'N/A'} | Cantidad: ${cita.cantidad} | Total: $${Number(cita.total || 0).toLocaleString()} | Estado: ${cita.estado}`,
+        hora: new Date(cita.start).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+        cliente: cita.cliente,
+        cantidad: cita.cantidad,
+        total: cita.total,
+        estado: cita.estado,
+        metodoPago: cita.metodoPago
+      }
+    }));
+
+    res.json(eventosFormateados);
   } catch (error) {
     console.error('Error al obtener citas:', error);
     res.status(500).json({ error: 'Error al obtener citas' });
@@ -2577,15 +2795,17 @@ app.get('/api/perfil-prestador', async (req, res) => {
       }
     }
 
-    // 📋 Contar servicios agendados (pendientes y completados)
+    // 📋 Contar servicios agendados (pendientes, aceptados y completados)
     let pendientes = 0;
+    let aceptados = 0;
     let completados = 0;
 
     if (idServicio) {
       const agendaRows = await queryPromise(
         `SELECT 
            SUM(CASE WHEN cas.Estado = 'Pendiente' THEN 1 ELSE 0 END) AS pendientes,
-           SUM(CASE WHEN cas.Estado = 'Finalizado' THEN 1 ELSE 0 END) AS completados
+           SUM(CASE WHEN cas.Estado = 'Aceptado' THEN 1 ELSE 0 END) AS aceptados,
+           SUM(CASE WHEN cas.Estado = 'Terminado' THEN 1 ELSE 0 END) AS completados
          FROM controlagendaservicios cas
          JOIN publicaciongrua pg ON cas.PublicacionGrua = pg.IdPublicacionGrua
          WHERE pg.Servicio = ?`,
@@ -2594,6 +2814,7 @@ app.get('/api/perfil-prestador', async (req, res) => {
 
       if (agendaRows.length > 0) {
         pendientes = agendaRows[0].pendientes || 0;
+        aceptados = agendaRows[0].aceptados || 0;
         completados = agendaRows[0].completados || 0;
       }
     }
@@ -2622,7 +2843,9 @@ app.get('/api/perfil-prestador', async (req, res) => {
       foto: fotoRutaFinal,
       descripcion: "Prestador de servicio de grúa 24/7",
       estadisticas: {
+        totalServicios: pendientes + aceptados + completados,
         pendientes: pendientes,
+        aceptados: aceptados,
         completados: completados,
         valoracion: valoracionPromedio
       },
@@ -3194,7 +3417,7 @@ app.get("/api/solicitudes-grua/:idPrestador", async (req, res) => {
   const { idPrestador } = req.params;
 
   try {
-    const [servicioRows] = await pool.query(
+    const servicioRows = await queryPromise(
       "SELECT IdServicio FROM prestadorservicio WHERE usuario = ? LIMIT 1",
       [idPrestador]
     );
@@ -3205,7 +3428,7 @@ app.get("/api/solicitudes-grua/:idPrestador", async (req, res) => {
 
     const idServicio = servicioRows[0].IdServicio;
 
-    const [solicitudes] = await pool.query(
+    const solicitudes = await queryPromise(
       `SELECT 
          cas.IdSolicitudServicio,
          u.Nombre AS Cliente,
@@ -3226,6 +3449,51 @@ app.get("/api/solicitudes-grua/:idPrestador", async (req, res) => {
   } catch (err) {
     console.error("❌ Error al obtener solicitudes:", err);
     res.status(500).json({ error: "Error interno del servidor" });
+  }
+});
+
+// ===============================
+//  ACTUALIZAR ESTADO DE SOLICITUD DE GRÚA - PRESTADOR
+// ===============================
+app.put('/api/solicitudes-grua/estado/:id', async (req, res) => {
+  const { id } = req.params;
+  const { estado } = req.body;
+
+  // Validar que el estado sea válido
+  const estadosValidos = ['Aceptado', 'Rechazado', 'Cancelado'];
+  
+  if (!estadosValidos.includes(estado)) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Estado no válido. Debe ser: Aceptado, Rechazado o Cancelado' 
+    });
+  }
+
+  try {
+    // Verificar que la solicitud existe
+    const solicitud = await queryPromise(
+      'SELECT IdSolicitudServicio, Estado FROM controlagendaservicios WHERE IdSolicitudServicio = ?',
+      [id]
+    );
+
+    if (!solicitud || solicitud.length === 0) {
+      return res.status(404).json({ success: false, message: 'Solicitud no encontrada.' });
+    }
+
+    // Actualizar el estado
+    await queryPromise(
+      'UPDATE controlagendaservicios SET Estado = ? WHERE IdSolicitudServicio = ?',
+      [estado, id]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Solicitud #${id} ${estado.toLowerCase()} correctamente.`
+    });
+
+  } catch (error) {
+    console.error('❌ Error al actualizar estado de solicitud:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor.' });
   }
 });
 
@@ -3363,5 +3631,55 @@ app.post('/api/agendar-grua', async (req, res) => {
   } catch (error) {
     console.error('❌ Error al agendar servicio de grúa:', error);
     res.status(500).json({ error: 'Error en el servidor al agendar el servicio.' });
+  }
+});
+
+// ===============================
+// 🔹 Historial de Servicios del Prestador
+// ===============================
+app.get('/api/historial-servicios-prestador/:usuarioId', async (req, res) => {
+  const { usuarioId } = req.params;
+
+  try {
+    console.log("📊 Cargando historial de servicios para prestador:", usuarioId);
+
+    // Obtener el IdServicio del prestador
+    const servicioRows = await queryPromise(
+      'SELECT IdServicio FROM prestadorservicio WHERE Usuario = ?',
+      [usuarioId]
+    );
+
+    if (servicioRows.length === 0) {
+      console.log("⚠️ No se encontró servicio asociado al prestador");
+      return res.json([]);
+    }
+
+    const idServicio = servicioRows[0].IdServicio;
+
+    // Obtener todos los servicios agendados
+    const servicios = await queryPromise(
+      `SELECT 
+         cas.IdSolicitudServicio,
+         u.Nombre AS Cliente,
+         pg.TituloPublicacion AS Servicio,
+         cas.DireccionRecogida AS Origen,
+         cas.Destino,
+         cas.FechaServicio AS Fecha,
+         cas.HoraServicio AS Hora,
+         cas.Estado
+       FROM controlagendaservicios cas
+       JOIN publicaciongrua pg ON cas.PublicacionGrua = pg.IdPublicacionGrua
+       JOIN usuario u ON cas.UsuarioNatural = u.IdUsuario
+       WHERE pg.Servicio = ?
+       ORDER BY cas.FechaServicio DESC`,
+      [idServicio]
+    );
+
+    console.log(`✅ ${servicios.length} servicios encontrados`);
+    res.json(servicios);
+
+  } catch (error) {
+    console.error('❌ Error al obtener historial de servicios:', error);
+    res.status(500).json({ error: 'Error en el servidor al consultar historial.' });
   }
 });

@@ -41,18 +41,27 @@
   </div>
 
   <!-- NAV -->
-  <nav class="nav text-white py-3 px-8 shadow-md mt-5 rounded-b-2xl">
+  <nav class="nav text-white py-3 px-8 shadow-md mt-5 rounded-b-2xl" id="navMenu">
     <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between w-full">
       <div class="flex items-center space-x-3">
         <i class="fas fa-truck-monster text-3xl text-white"></i>
         <h1 class="text-2xl font-bold tracking-wide">Detalle Servicio</h1>
       </div>
 
-      <div class="hidden md:flex items-center space-x-6">
-        <a href="..//General/marketplace_gruas.html" class="hover:text-gray-200 transition">Market Grua</a>
-        <a href="perfil_usuario.html" class="hover:text-gray-200 transition"> Perfil</a>
-        <a href="carrito_compras.html" class="hover:text-gray-200 transition"> Carrito</a>
-        <a href="../General/CentroAyuda.html" class="hover:text-gray-200 transition"> Centro de ayuda</a>
+      <!-- Menú para Usuario Natural -->
+      <div class="hidden md:flex items-center space-x-6" id="menuNatural">
+        <a href="../General/marketplace_gruas.html" class="hover:text-gray-200 transition">Market Grua</a>
+        <a href="perfil_usuario.html" class="hover:text-gray-200 transition">Perfil</a>
+        <a href="carrito_compras.html" class="hover:text-gray-200 transition">Carrito</a>
+        <a href="../General/CentroAyuda.html" class="hover:text-gray-200 transition">Centro de ayuda</a>
+      </div>
+
+      <!-- Menú para Prestador -->
+      <div class="hidden md:flex items-center space-x-6" id="menuPrestador" style="display: none !important;">
+        <a href="../PrestadorServicios/perfil_servicios.html" class="hover:text-gray-200 transition">Inicio</a>
+        <a href="../PrestadorServicios/Registro_servicios.html" class="hover:text-gray-200 transition">Mis Publicaciones</a>
+        <a href="../PrestadorServicios/agenda_gruas.html" class="hover:text-gray-200 transition">Agenda</a>
+        <a href="../General/CentroAyuda.html" class="hover:text-gray-200 transition">Centro de ayuda</a>
       </div>
     </div>
   </nav>

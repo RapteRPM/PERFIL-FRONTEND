@@ -19,7 +19,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         ordenPrecio
       });
 
-      const response = await fetch(`/api/historial-ventas?${params.toString()}`);
+      const response = await fetch(`/api/historial-ventas?${params.toString()}`, {
+        credentials: 'include'
+      });
       const data = await response.json();
 
       tablaBody.innerHTML = "";
@@ -77,6 +79,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         </tr>
       `;
     }
+  }
+
+  // Cargar ventas al inicio
+  cargarVentas();
+
+  // Aplicar filtros cuando el formulario cambia
+  if (filtrosForm) {
+    filtrosForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      cargarVentas();
+    });
   }
 
   // Descargar Excel

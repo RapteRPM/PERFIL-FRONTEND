@@ -1,9 +1,24 @@
 document.addEventListener("DOMContentLoaded", async () => {
   const params = new URLSearchParams(window.location.search);
   const idPublicacion = params.get("id");
+  const esPrestador = params.get("prestador") === "true";
   const usuarioActivo = JSON.parse(localStorage.getItem("usuarioActivo"));
 
   if (!idPublicacion) return;
+
+  // 🔹 Ocultar botón de agendar si es el prestador
+  if (esPrestador) {
+    const btnAgendar = document.querySelector('[data-bs-target="#modalAgendar"]');
+    if (btnAgendar) {
+      btnAgendar.style.display = "none";
+    }
+    
+    // Mostrar menú de prestador
+    const menuNatural = document.getElementById("menuNatural");
+    const menuPrestador = document.getElementById("menuPrestador");
+    if (menuNatural) menuNatural.style.display = "none";
+    if (menuPrestador) menuPrestador.style.display = "flex";
+  }
 
   // 🔹 Cargar detalle de la publicación    
   try {
@@ -83,6 +98,14 @@ async function cargarOpiniones() {
 }
 
   await cargarOpiniones();
+
+  // 🔹 Ocultar formulario de comentarios si es el prestador
+  if (esPrestador) {
+    const formComentario = document.getElementById("form-comentario");
+    if (formComentario) {
+      formComentario.parentElement.style.display = "none";
+    }
+  }
 
   // 🔹 Enviar nueva opinión
   const formComentario = document.querySelector("form");

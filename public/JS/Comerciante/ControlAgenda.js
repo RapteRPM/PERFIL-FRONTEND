@@ -24,7 +24,9 @@ document.addEventListener('DOMContentLoaded', async function () {
 
 async function cargarEventosDesdeServidor() {
   try {
-    const res = await fetch('/api/privado/citas');
+    const res = await fetch('/api/privado/citas', {
+      credentials: 'include'
+    });
     const data = await res.json();
 
     if (!Array.isArray(data)) {
@@ -35,8 +37,8 @@ async function cargarEventosDesdeServidor() {
     calendar.removeAllEvents();
     calendar.addEventSource(eventos.map(evento => ({
       ...evento,
-      backgroundColor: 'rgb(236, 11, 11)',
-      borderColor: 'rgb(236, 11, 11)',
+      backgroundColor: getColorByEstado(evento.extendedProps?.estado),
+      borderColor: getColorByEstado(evento.extendedProps?.estado),
       textColor: '#fff',
     })));
 
@@ -46,33 +48,73 @@ async function cargarEventosDesdeServidor() {
   }
 }
 
+// Función para asignar color según el estado
+function getColorByEstado(estado) {
+  switch (estado?.toLowerCase()) {
+    case 'pendiente':
+      return '#ffc107'; // Amarillo
+    case 'finalizado':
+      return '#28a745'; // Verde
+    case 'cancelado':
+      return '#dc3545'; // Rojo
+    default:
+      return '#6c757d'; // Gris
+  }
+}
+
 function cargarListaCitas() {
   const lista = document.getElementById('lista-citas');
   lista.innerHTML = '';
+  
+  if (eventos.length === 0) {
+    lista.innerHTML = '<p class="text-center text-muted">No hay citas registradas</p>';
+    return;
+  }
+
   eventos.forEach(evento => {
     const item = document.createElement('div');
-    item.className = 'cita-item';
-    item.style.backgroundColor = '#2c2c2c';
+    item.className = 'cita-item p-2 mb-2 rounded';
+    const backgroundColor = getColorByEstado(evento.extendedProps?.estado);
+    item.style.backgroundColor = backgroundColor;
     item.style.color = '#fff';
-    item.style.border = '1px solid rgb(236, 11, 11)';
+    item.style.cursor = 'pointer';
     item.style.transition = '0.3s';
-    item.innerText = `${evento.title} - ${evento.start}`;
-    item.onmouseenter = () => (item.style.backgroundColor = 'rgb(236, 11, 11)');
-    item.onmouseleave = () => (item.style.backgroundColor = '#2c2c2c');
+    
+    item.innerHTML = `
+      <strong>${evento.title}</strong><br>
+      <small>📅 ${evento.start}</small><br>
+      <small>💰 $${Number(evento.extendedProps?.total || 0).toLocaleString()}</small><br>
+      <small>📊 ${evento.extendedProps?.estado || 'Pendiente'}</small>
+    `;
+    
+    item.onmouseenter = () => {
+      item.style.opacity = '0.8';
+      item.style.transform = 'scale(1.02)';
+    };
+    item.onmouseleave = () => {
+      item.style.opacity = '1';
+      item.style.transform = 'scale(1)';
+    };
     item.onclick = () => {
       const eventoCalendario = calendar.getEventById(evento.id);
-      resaltarEvento(eventoCalendario);
-      mostrarModal(eventoCalendario);
+      if (eventoCalendario) {
+        resaltarEvento(eventoCalendario);
+        mostrarModal(eventoCalendario);
+      }
     };
     lista.appendChild(item);
   });
 }
 
 function resaltarEvento(evento) {
+  // Restaurar colores originales de todos los eventos
   calendar.getEvents().forEach(e => {
-    e.setProp('backgroundColor', 'rgb(236, 11, 11)');
-    e.setProp('borderColor', 'rgb(236, 11, 11)');
+    const colorOriginal = getColorByEstado(e.extendedProps?.estado);
+    e.setProp('backgroundColor', colorOriginal);
+    e.setProp('borderColor', colorOriginal);
   });
+  
+  // Resaltar el evento seleccionado
   evento.setProp('backgroundColor', '#00cc88');
   evento.setProp('borderColor', '#00aa77');
 }
