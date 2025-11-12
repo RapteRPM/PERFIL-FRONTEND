@@ -14,11 +14,11 @@ let mysqlPool = null;
 // Intentar conectar a MySQL primero
 try {
   mysqlPool = mysql.createPool({
-    host: process.env.MYSQL_HOST || 'localhost',
-    user: process.env.MYSQL_USER || 'root',
-    password: process.env.MYSQL_PASSWORD || 'root',
-    database: process.env.MYSQL_DATABASE || 'rpm_market',
-    port: process.env.MYSQL_PORT || 3306,
+    host: process.env.DB_HOST || process.env.MYSQL_HOST || 'localhost',
+    user: process.env.DB_USER || process.env.MYSQL_USER || 'root',
+    password: process.env.DB_PASSWORD || process.env.MYSQL_PASSWORD || 'root',
+    database: process.env.DB_NAME || process.env.MYSQL_DATABASE || 'rpm_market',
+    port: process.env.DB_PORT || process.env.MYSQL_PORT || 3306,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
