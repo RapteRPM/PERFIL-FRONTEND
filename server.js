@@ -1223,7 +1223,12 @@ app.post(
       console.error(error);
       console.error('='.repeat(60));
       console.error('');
-      return res.status(500).json({ error: 'Error al procesar registro' });
+      // Devolver detalles del error en la respuesta para debugging
+      return res.status(500).json({ 
+        error: 'Error al procesar registro',
+        details: process.env.NODE_ENV === 'production' ? error.message : error.stack,
+        code: error.code || 'UNKNOWN'
+      });
     }
   }
 );
