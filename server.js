@@ -1057,7 +1057,7 @@ app.post(
         return res.status(409).json({ error: 'El usuario ya está registrado. Por favor, utilice otro número de documento.' });
       }
 
-      // Insertar en Usuario
+      // Insertar en usuario (tabla en minúsculas para MySQL case-sensitive)
       const insertUsuarioSQL = `
         INSERT INTO usuario
           (IdUsuario, TipoUsuario, Nombre, Apellido, Documento, Telefono, Correo, FotoPerfil)
