@@ -37,13 +37,13 @@
     <!-- Perfil -->
     <div class="dropdown">
       <button class="perfil-btn dropdown-toggle" id="perfilDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-        <img src="image/imagen_perfil.png" alt="Usuario">
-        <span>Juan Pérez</span>
+        <img id="foto-usuario" src="../image/imagen_perfil.png" alt="Usuario">
+        <span id="nombre-usuario">Cargando...</span>
       </button>
       <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="perfilDropdown">
-        <li><a class="dropdown-item" href="Natural/Editar_perfil.html">Editar perfil</a></li>
+        <li><a class="dropdown-item" href="#" id="link-editar-perfil">Editar perfil</a></li>
         <li><hr class="dropdown-divider"></li>
-        <li><a class="dropdown-item text-danger" href="ingreso.html">Cerrar sesión</a></li>
+        <li><a class="dropdown-item text-danger" href="/logout">Cerrar sesión</a></li>
       </ul>
     </div>
   </div>
@@ -145,7 +145,27 @@
     </div>
   </footer>
 
-  <script src="JS/animacion.js"></script>
-  <script src="JS/mapa.js"></script>
+  <script src="../JS/UsuarioSesion.js"></script>
+  <script>
+    // Cargar usuario al cargar la página
+    document.addEventListener('DOMContentLoaded', async () => {
+      await cargarUsuarioHeader();
+      
+      // Configurar link de editar perfil según tipo de usuario
+      const usuario = await verificarSesion();
+      const linkEditarPerfil = document.getElementById('link-editar-perfil');
+      
+      if (usuario && linkEditarPerfil) {
+        if (usuario.tipo === 'Natural') {
+          linkEditarPerfil.href = '../Natural/Editar_perfil.html';
+        } else if (usuario.tipo === 'Comerciante') {
+          linkEditarPerfil.href = '../Comerciante/EditarPerfil_comerciante.html';
+        } else if (usuario.tipo === 'PrestadorServicio') {
+          linkEditarPerfil.href = '../PrestadorServicios/configuracion_prestador.html';
+        }
+      }
+    });
+  </script>
+  <script src="../JS/mapa.js"></script>
 </body>
 </html>
