@@ -301,16 +301,19 @@ button {
 
     /* Título del lado izquierdo */
     .navbar-title {
+      font-family: 'Poppins', sans-serif;
       font-weight: 700;
-      font-size: 1.5rem;
+      font-size: 1.25rem;
       color: white;
       margin: 0;
+      letter-spacing: 0.5px;
     }
 
     /* Enlaces del lado derecho */
     .navbar-links a {
       color: white;
-      font-weight: 600;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 400;
       text-decoration: none;
       margin-left: 25px;
       transition: all 0.3s ease;

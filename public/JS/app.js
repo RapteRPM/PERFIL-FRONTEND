@@ -33,7 +33,10 @@ document.getElementById('loginForm').addEventListener('submit', async (event) =>
 
 
       // ✅ Redirigir según tipo de usuario
-      if (data.tipo === 'Natural') {
+      if (data.redirect) {
+        // Redirección personalizada desde el backend (para Administrador)
+        window.location.href = data.redirect;
+      } else if (data.tipo === 'Natural') {
         window.location.href = '/Natural/perfil_usuario.html';
       } else if (data.tipo === 'Comerciante') {
         window.location.href = '/Comerciante/perfil_comerciante.html';

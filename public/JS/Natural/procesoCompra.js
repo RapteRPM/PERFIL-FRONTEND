@@ -12,7 +12,40 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 
-  // 🛒 Cargar productos del carrito desde la API
+  // 🛒 Verificar primero si hay compra directa desde localStorage
+  const productoDirecto = JSON.parse(localStorage.getItem('productoCompra'));
+  
+  if (productoDirecto) {
+    // **COMPRA DIRECTA** - Un solo producto
+    console.log("🛍️ Cargando compra directa:", productoDirecto);
+    
+    const cantidad = 1;
+    const precioUnitario = Number(productoDirecto.precio);
+    const total = precioUnitario * cantidad;
+
+    tabla.innerHTML = `
+      <tr class="text-center">
+        <td>${productoDirecto.nombre}</td>
+        <td>${cantidad}</td>
+        <td>$${precioUnitario.toLocaleString('es-CO')}</td>
+        <td>$${total.toLocaleString('es-CO')}</td>
+      </tr>
+    `;
+
+    totalGeneral.textContent = `$${total.toLocaleString('es-CO')}`;
+
+    // Mostrar info del comercio si existe
+    if (infoComercioDiv && productoDirecto.nombreComercio) {
+      infoComercioDiv.innerHTML = `
+        <strong>Comercio:</strong> ${productoDirecto.nombreComercio || 'No especificado'}<br>
+        <small>Dirección: ${productoDirecto.direccionComercio || 'No especificada'}</small>
+      `;
+    }
+    
+    return; // No cargar desde la API si hay compra directa
+  }
+
+  // 🛒 Si no hay compra directa, cargar productos del carrito desde la API
   let comercio = { nombre: '', direccion: '' };
   try {
     const resp = await fetch("/api/proceso-compra");
@@ -70,18 +103,34 @@ document.addEventListener("DOMContentLoaded", async () => {
     const metodoPago = document.querySelector("input[name='metodoPago']:checked")?.value;
     if (!metodoPago) return alert("Selecciona un método de pago.");
 
-    const usuarioId = localStorage.getItem("usuarioId") || null;
+    const usuarioActivo = JSON.parse(localStorage.getItem('usuarioActivo'));
+    const usuarioId = usuarioActivo?.id || null;
+
+    if (!usuarioId) {
+      alert("⚠️ Debes iniciar sesión para realizar una compra.");
+      window.location.href = "/General/Ingreso.html";
+      return;
+    }
+
+    // Verificar si es compra directa
+    const productoDirecto = JSON.parse(localStorage.getItem('productoCompra'));
 
     const datos = {
       usuarioId,
       metodoPago,
       fechaRecoger: document.getElementById("fechaRecoger")?.value || null,
       horaRecoger: document.getElementById("horaRecoger")?.value || null,
-      comentariosRecoger: document.getElementById("comentariosRecoger")?.value || null
+      comentariosRecoger: document.getElementById("comentariosRecoger")?.value || null,
+      // Agregar datos de compra directa si existen
+      compraDirecta: productoDirecto ? {
+        idPublicacion: productoDirecto.id,
+        nombre: productoDirecto.nombre,
+        precio: productoDirecto.precio,
+        cantidad: 1
+      } : null
     };
 
     // Validaciones básicas
-
     if (metodoPago === "recoger" && (!datos.fechaRecoger || !datos.horaRecoger)) {
       return alert("Debes seleccionar fecha y hora para recoger en comercio.");
     }
@@ -96,20 +145,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       const result = await response.json();
 
       if (response.ok && result.success) {
+        // Limpiar localStorage si fue compra directa
+        localStorage.removeItem('productoCompra');
+        
         if (result.redirect) {
           alert(result.message);
           window.location.href = result.redirect;
         } else {
-          const mensajeDiv = document.createElement("div");
-          mensajeDiv.className = "alert alert-success mt-4 text-center";
-          mensajeDiv.textContent = result.message;
-          document.querySelector("main.container").appendChild(mensajeDiv);
-
-          tabla.innerHTML = `<tr><td colspan="4" class="text-center text-muted">No hay productos en el carrito.</td></tr>`;
-          totalGeneral.textContent = "$0.00";
-
-          btnFinalizar.disabled = true;
-          btnFinalizar.textContent = "Compra registrada";
+          alert(result.message);
+          window.location.href = "/Natural/Historial_compras.html";
         }
       } else {
         alert("❌ " + (result.message || "Error al registrar la compra."));
@@ -119,39 +163,4 @@ document.addEventListener("DOMContentLoaded", async () => {
       alert("Error de conexión con el servidor.");
     }
   });
-});
-
-document.addEventListener('DOMContentLoaded', () => {
-  const producto = JSON.parse(localStorage.getItem('productoCompra'));
-
-  if (!producto) {
-    document.getElementById('tabla-productos').innerHTML = `
-      <tr><td colspan="4" class="text-center text-danger">No se encontró información del producto.</td></tr>
-    `;
-    return;
-  }
-
-  const cantidad = 1;
-  const precioUnitario = Number(producto.precio);
-  const total = precioUnitario * cantidad;
-
-  const filaHTML = `
-    <tr class="text-center">
-      <td>${producto.nombre}</td>
-      <td>${cantidad}</td>
-      <td>$${precioUnitario.toLocaleString('es-CO')}</td>
-      <td>$${total.toLocaleString('es-CO')}</td>
-    </tr>
-  `;
-
-  document.getElementById('tabla-productos').innerHTML = filaHTML;
-  document.getElementById('total-general').textContent = `$${total.toLocaleString('es-CO')}`;
-
-  // Si tienes datos del comercio, puedes mostrarlos aquí también
-  if (document.getElementById('nombreComercio')) {
-    document.getElementById('nombreComercio').textContent = producto.nombreComercio || 'No especificado';
-  }
-  if (document.getElementById('direccionComercio')) {
-    document.getElementById('direccionComercio').textContent = producto.direccionComercio || 'No especificada';
-  }
 });

@@ -141,12 +141,20 @@ app.post('/api/login', async (req, res) => {
     };
 
     console.log("✅ Usuario autenticado:", req.session.usuario);
+    
+    // Redirección automática para administradores
+    let redirect = null;
+    if (req.session.usuario.tipo === "Administrador") {
+      redirect = "/Administrador/panel_admin.html";
+    }
+    
     res.json({
       success: true,
       message: "Inicio de sesión exitoso",
       tipo: req.session.usuario.tipo,
       usuario: req.session.usuario.nombre,
-      idUsuario: req.session.usuario.id
+      idUsuario: req.session.usuario.id,
+      redirect: redirect
     });
 
   } catch (err) {
@@ -2566,8 +2574,10 @@ app.post("/api/finalizar-compra", async (req, res) => {
     const usuarioSesion = req.session && req.session.usuario;
     const usuarioId = (usuarioSesion && usuarioSesion.id) || req.body.usuarioId || null;
     const metodoPago = req.body.metodoPago;
+    const compraDirecta = req.body.compraDirecta; // Nueva: compra directa desde detalle
 
     console.log(`👤 Usuario: ${usuarioId}, 💳 Método: ${metodoPago}`);
+    console.log(`🛍️ Compra directa:`, compraDirecta ? 'SÍ' : 'NO');
 
     if (!usuarioId || !metodoPago) {
       console.log("⚠️ Faltan datos: usuario o método de pago");
@@ -2579,41 +2589,78 @@ app.post("/api/finalizar-compra", async (req, res) => {
       return res.status(400).json({ message: "Método de pago no válido." });
     }
 
-    // 1️⃣ Obtener productos pendientes del carrito
-    const carritoRows = await queryPromise(`
-      SELECT 
-        c.IdCarrito, 
-        c.Cantidad, 
-        pub.IdPublicacion,
-        pub.NombreProducto, 
-        pub.Precio, 
-        (pub.Precio * c.Cantidad) AS Subtotal,
-        pub.Comerciante AS Comercio
-      FROM carrito c
-      JOIN publicacion pub ON c.Publicacion = pub.IdPublicacion
-      WHERE c.UsuarioNat = ? AND c.Estado = 'Pendiente'
-    `, [usuarioId]);
-
-    if (!carritoRows || carritoRows.length === 0) {
-      console.log("⚠️ No hay productos en el carrito");
-      return res.status(400).json({ message: "No hay productos pendientes en el carrito." });
-    }
-
-    console.log(`📋 ${carritoRows.length} productos en el carrito`);
-
-    // 2️⃣ Preparar detalles
+    let detallesParaInsertar = [];
     let totalCompra = 0;
-    const detallesParaInsertar = [];
 
-    for (const item of carritoRows) {
-      totalCompra += Number(item.Subtotal);
+    // 🆕 CASO 1: Compra directa (desde detalle de producto)
+    if (compraDirecta && compraDirecta.idPublicacion) {
+      console.log(`🛍️ Procesando compra directa del producto ID: ${compraDirecta.idPublicacion}`);
+
+      // Obtener datos completos del producto y comercio
+      const productoRows = await queryPromise(`
+        SELECT 
+          pub.IdPublicacion,
+          pub.NombreProducto, 
+          pub.Precio, 
+          pub.Comerciante AS Comercio
+        FROM publicacion pub
+        WHERE pub.IdPublicacion = ?
+      `, [compraDirecta.idPublicacion]);
+
+      if (!productoRows || productoRows.length === 0) {
+        return res.status(404).json({ message: "Producto no encontrado." });
+      }
+
+      const producto = productoRows[0];
+      const cantidad = compraDirecta.cantidad || 1;
+      const subtotal = Number(producto.Precio) * cantidad;
+
+      totalCompra = subtotal;
       detallesParaInsertar.push({
-        publicacion: item.IdPublicacion,
-        cantidad: item.Cantidad,
-        precioUnitario: item.Precio,
-        total: item.Subtotal,
-        comercio: item.Comercio
+        publicacion: producto.IdPublicacion,
+        cantidad: cantidad,
+        precioUnitario: producto.Precio,
+        total: subtotal,
+        comercio: producto.Comercio
       });
+
+      console.log(`✅ Producto directo: ${producto.NombreProducto}, Total: $${subtotal}`);
+    } 
+    // CASO 2: Compra desde carrito
+    else {
+      console.log("🛒 Procesando compra desde carrito...");
+
+      const carritoRows = await queryPromise(`
+        SELECT 
+          c.IdCarrito, 
+          c.Cantidad, 
+          pub.IdPublicacion,
+          pub.NombreProducto, 
+          pub.Precio, 
+          (pub.Precio * c.Cantidad) AS Subtotal,
+          pub.Comerciante AS Comercio
+        FROM carrito c
+        JOIN publicacion pub ON c.Publicacion = pub.IdPublicacion
+        WHERE c.UsuarioNat = ? AND c.Estado = 'Pendiente'
+      `, [usuarioId]);
+
+      if (!carritoRows || carritoRows.length === 0) {
+        console.log("⚠️ No hay productos en el carrito");
+        return res.status(400).json({ message: "No hay productos pendientes en el carrito." });
+      }
+
+      console.log(`📋 ${carritoRows.length} productos en el carrito`);
+
+      for (const item of carritoRows) {
+        totalCompra += Number(item.Subtotal);
+        detallesParaInsertar.push({
+          publicacion: item.IdPublicacion,
+          cantidad: item.Cantidad,
+          precioUnitario: item.Precio,
+          total: item.Subtotal,
+          comercio: item.Comercio
+        });
+      }
     }
 
     console.log(`💰 Total de la compra: $${totalCompra}`);
@@ -2658,9 +2705,11 @@ app.post("/api/finalizar-compra", async (req, res) => {
       );
     }
 
-    // 5️⃣ Vaciar carrito
-    await queryPromise(`DELETE FROM carrito WHERE UsuarioNat = ?`, [usuarioId]);
-    console.log("🗑️ Carrito vaciado");
+    // 5️⃣ Vaciar carrito solo si NO fue compra directa
+    if (!compraDirecta) {
+      await queryPromise(`DELETE FROM carrito WHERE UsuarioNat = ?`, [usuarioId]);
+      console.log("🗑️ Carrito vaciado");
+    }
 
     console.log("✅ Compra registrada con método:", metodoPago);
 
@@ -3751,5 +3800,203 @@ app.get('/api/historial-servicios-prestador/:usuarioId', async (req, res) => {
   } catch (error) {
     console.error('❌ Error al obtener historial de servicios:', error);
     res.status(500).json({ error: 'Error en el servidor al consultar historial.' });
+  }
+});
+
+
+//----------///
+// SECCION DE ADMINISTRADOR //
+//-----------//
+
+// Middleware para verificar si es administrador
+function verificarAdmin(req, res, next) {
+  const usuarioSesion = req.session.usuario;
+  if (!usuarioSesion || usuarioSesion.tipo !== "Administrador") {
+    return res.status(403).json({ error: "Acceso denegado. Solo administradores." });
+  }
+  next();
+}
+
+// ===============================
+// Obtener estadísticas del panel de admin
+// ===============================
+app.get('/api/admin/estadisticas', verificarAdmin, async (req, res) => {
+  try {
+    console.log("📊 Cargando estadísticas del panel de administración");
+
+    // Total de usuarios
+    const totalUsuarios = await queryPromise(
+      'SELECT COUNT(*) as total FROM usuario'
+    );
+
+    // Total de publicaciones
+    const totalPublicaciones = await queryPromise(
+      'SELECT COUNT(*) as total FROM publicacion'
+    );
+
+    // Total de PQR pendientes (asumiendo que existe tabla centroayuda)
+    const totalPQR = await queryPromise(
+      'SELECT COUNT(*) as total FROM centroayuda'
+    );
+
+    // Ventas de hoy
+    const hoy = new Date().toISOString().split('T')[0];
+    const ventasHoy = await queryPromise(
+      'SELECT COUNT(*) as total FROM factura WHERE DATE(FechaCompra) = ?',
+      [hoy]
+    );
+
+    res.json({
+      totalUsuarios: totalUsuarios[0].total,
+      totalPublicaciones: totalPublicaciones[0].total,
+      totalPQR: totalPQR[0].total,
+      ventasHoy: ventasHoy[0].total
+    });
+
+  } catch (error) {
+    console.error('❌ Error al obtener estadísticas:', error);
+    res.status(500).json({ error: 'Error en el servidor al consultar estadísticas.' });
+  }
+});
+
+// ===============================
+// Obtener todos los usuarios
+// ===============================
+app.get('/api/admin/usuarios', verificarAdmin, async (req, res) => {
+  try {
+    console.log("👥 Cargando todos los usuarios");
+
+    const usuarios = await queryPromise(
+      `SELECT IdUsuario, TipoUsuario, Nombre, Apellido, Documento, 
+              Telefono, Correo, FotoPerfil, Estado 
+       FROM usuario 
+       ORDER BY IdUsuario DESC`
+    );
+
+    res.json({ usuarios });
+
+  } catch (error) {
+    console.error('❌ Error al obtener usuarios:', error);
+    res.status(500).json({ error: 'Error en el servidor al consultar usuarios.' });
+  }
+});
+
+// ===============================
+// Activar/Desactivar usuario
+// ===============================
+app.post('/api/admin/usuario/:id/toggle-estado', verificarAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { estado } = req.body;
+
+  if (!estado || !['Activo', 'Inactivo'].includes(estado)) {
+    return res.status(400).json({ error: 'Estado inválido. Debe ser Activo o Inactivo.' });
+  }
+
+  try {
+    console.log(`🔄 Cambiando estado del usuario ${id} a ${estado}`);
+
+    await queryPromise(
+      'UPDATE usuario SET Estado = ? WHERE IdUsuario = ?',
+      [estado, id]
+    );
+
+    res.json({ 
+      success: true, 
+      message: `Usuario ${estado === 'Activo' ? 'activado' : 'desactivado'} correctamente` 
+    });
+
+  } catch (error) {
+    console.error('❌ Error al cambiar estado del usuario:', error);
+    res.status(500).json({ error: 'Error en el servidor al actualizar estado.' });
+  }
+});
+
+// ===============================
+// Eliminar usuario
+// ===============================
+app.delete('/api/admin/usuario/:id', verificarAdmin, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    console.log(`🗑️ Eliminando usuario ${id}`);
+
+    // Verificar que el usuario existe
+    const usuario = await queryPromise(
+      'SELECT * FROM usuario WHERE IdUsuario = ?',
+      [id]
+    );
+
+    if (usuario.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Eliminar usuario (considerar eliminar en cascada o manejar referencias)
+    await queryPromise(
+      'DELETE FROM usuario WHERE IdUsuario = ?',
+      [id]
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Usuario eliminado correctamente' 
+    });
+
+  } catch (error) {
+    console.error('❌ Error al eliminar usuario:', error);
+    res.status(500).json({ error: 'Error en el servidor al eliminar usuario.' });
+  }
+});
+
+// ===============================
+// Obtener todas las publicaciones
+// ===============================
+app.get('/api/admin/publicaciones', verificarAdmin, async (req, res) => {
+  try {
+    console.log("📦 Cargando todas las publicaciones");
+
+    const publicaciones = await queryPromise(
+      `SELECT p.IdPublicacion, p.NombreProducto, p.Precio, p.ImagenProducto as ImagenPrincipal, 
+              p.Stock as Estado, 
+              COALESCE(u.Nombre || ' ' || u.Apellido, 'Doc: ' || p.Comerciante) as NombreComercio,
+              p.Comerciante
+       FROM publicacion p
+       LEFT JOIN usuario u ON p.Comerciante = u.Documento
+       ORDER BY p.IdPublicacion DESC`
+    );
+
+    res.json({ publicaciones });
+
+  } catch (error) {
+    console.error('❌ Error al obtener publicaciones:', error);
+    res.status(500).json({ error: 'Error en el servidor al consultar publicaciones.' });
+  }
+});
+
+// ===============================
+// Obtener todas las PQR (Centro de Ayuda)
+// ===============================
+app.get('/api/admin/pqr', verificarAdmin, async (req, res) => {
+  try {
+    console.log("📝 Cargando todas las PQR");
+
+    const pqrs = await queryPromise(
+      `SELECT ca.IdAyuda as IdCentroAyuda, 
+              u.Correo as Perfil,
+              ca.TipoSolicitud, 
+              ca.Rol, 
+              ca.Asunto, 
+              ca.Descripcion,
+              u.Nombre || ' ' || u.Apellido as NombreUsuario,
+              ca.FechaCreacion
+       FROM centroayuda ca
+       LEFT JOIN usuario u ON ca.Perfil = u.IdUsuario
+       ORDER BY ca.IdAyuda DESC`
+    );
+
+    res.json({ pqrs });
+
+  } catch (error) {
+    console.error('❌ Error al obtener PQR:', error);
+    res.status(500).json({ error: 'Error en el servidor al consultar PQR.' });
   }
 });

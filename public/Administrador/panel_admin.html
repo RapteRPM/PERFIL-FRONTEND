@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Panel Administrador - RPM</title>
+  <link rel="icon" type="image/jpg" href="../image/nuevo logo.jpeg"/>
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="../Natural/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+
+<!-- HEADER -->
+<header class="header text-white py-4 px-6">
+  <div class="max-w-7xl mx-auto flex items-center justify-between">
+    <!-- Logo + Eslogan -->
+    <div class="flex items-center space-x-4">
+      <img src="../General/IMAGENINGRESO/nuevo logo.jpeg" alt="RPM Logo" class="w-20 h-20 object-cover rounded-full shadow-lg"/>
+      <div class="flex flex-col">
+        <h1 class="text-4xl font-extrabold tracking-wide">RPM</h1>
+        <p class="text-lg text-gray-200 italic">Panel de Administración</p>
+      </div>
+    </div>
+
+    <!-- PERFIL EN HEADER -->
+    <div class="flex items-center space-x-4">
+      <div class="dropdown">
+        <button class="flex items-center bg-transparent border-0 text-white" id="perfilDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+          <img id="foto-usuario" src="../image/imagen_perfil.png" alt="Admin" class="w-20 h-20 object-cover rounded-full border-2 border-white mr-2"/>
+          <span class="font-semibold text-lg" id="nombre-usuario">Administrador</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="perfilDropdown">
+          <li><a class="dropdown-item" href="configuracion_admin.html">Configuración</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item text-danger" href="/logout">Cerrar sesión</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAVBAR -->
+  <nav class="nav2 text-white py-4 px-6 shadow-lg mt-6 sticky top-0 z-50" style="background-color: red, #004B87; border-radius:0 0 1rem 1rem;">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center">
+        <i class="fas fa-user-shield text-2xl mr-2"></i>
+        <h1 class="text-xl font-bold tracking-wide">Panel Administrador</h1>
+      </div>
+      <div class="hidden md:flex items-center space-x-6">
+        <a href="panel_admin.html" class="hover:text-gray-200 transition">Inicio</a>
+        <a href="gestion_usuarios.html" class="hover:text-gray-200 transition">Usuarios</a>
+        <a href="gestion_publicaciones.html" class="hover:text-gray-200 transition">Publicaciones</a>
+        <a href="gestion_pqr.html" class="hover:text-gray-200 transition">PQR</a>
+        <a href="../General/CentroAyuda.html" class="hover:text-gray-200 transition">Centro de ayuda</a>
+      </div>
+      <button class="md:hidden text-white"><i class="fas fa-bars text-xl"></i></button>
+    </div>
+  </nav>
+</header>
+
+<!-- MAIN -->
+<main class="max-w-7xl mx-auto mt-8 px-4">
+  <h2 class="text-3xl font-bold text-gray-800 mb-6">Resumen del Sistema</h2>
+
+  <!-- Tarjetas de estadísticas -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <!-- Usuarios -->
+    <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-gray-500 text-sm">Total Usuarios</p>
+          <p class="text-3xl font-bold text-blue-600" id="total-usuarios">0</p>
+        </div>
+        <i class="fas fa-users text-4xl text-blue-500"></i>
+      </div>
+    </div>
+
+    <!-- Publicaciones -->
+    <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-gray-500 text-sm">Publicaciones</p>
+          <p class="text-3xl font-bold text-green-600" id="total-publicaciones">0</p>
+        </div>
+        <i class="fas fa-box text-4xl text-green-500"></i>
+      </div>
+    </div>
+
+    <!-- PQR -->
+    <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-gray-500 text-sm">PQR Pendientes</p>
+          <p class="text-3xl font-bold text-orange-600" id="total-pqr">0</p>
+        </div>
+        <i class="fas fa-comments text-4xl text-orange-500"></i>
+      </div>
+    </div>
+
+    <!-- Ventas -->
+    <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-gray-500 text-sm">Ventas Hoy</p>
+          <p class="text-3xl font-bold text-red-600" id="total-ventas">0</p>
+        </div>
+        <i class="fas fa-shopping-cart text-4xl text-red-500"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- Accesos rápidos -->
+  <h3 class="text-2xl font-bold text-gray-800 mb-4">Accesos Rápidos</h3>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- Gestión de Usuarios -->
+    <a href="gestion_usuarios.html" class="bg-gradient-to-r from-blue-500 to-blue-700 text-white rounded-lg shadow-lg p-8 hover:shadow-xl transition transform hover:scale-105">
+      <i class="fas fa-users-cog text-5xl mb-4"></i>
+      <h4 class="text-xl font-bold mb-2">Gestión de Usuarios</h4>
+      <p class="text-sm opacity-90">Administrar, activar, desactivar y eliminar usuarios del sistema</p>
+    </a>
+
+    <!-- Gestión de Publicaciones -->
+    <a href="gestion_publicaciones.html" class="bg-gradient-to-r from-green-500 to-green-700 text-white rounded-lg shadow-lg p-8 hover:shadow-xl transition transform hover:scale-105">
+      <i class="fas fa-boxes text-5xl mb-4"></i>
+      <h4 class="text-xl font-bold mb-2">Gestión de Publicaciones</h4>
+      <p class="text-sm opacity-90">Ver y administrar todas las publicaciones de los comerciantes</p>
+    </a>
+
+    <!-- Gestión de PQR -->
+    <a href="gestion_pqr.html" class="bg-gradient-to-r from-orange-500 to-orange-700 text-white rounded-lg shadow-lg p-8 hover:shadow-xl transition transform hover:scale-105">
+      <i class="fas fa-headset text-5xl mb-4"></i>
+      <h4 class="text-xl font-bold mb-2">Gestión de PQR</h4>
+      <p class="text-sm opacity-90">Atender peticiones, quejas y reclamos de los usuarios</p>
+    </a>
+  </div>
+</main>
+
+<!-- FOOTER -->
+<footer class="footer text-white py-8 px-4 mt-10">
+  <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
+    <div class="text-center">
+      <img src="../General/IMAGENINGRESO/nuevo logo.jpeg" class="w-20 h-20 rounded-full mx-auto" alt="RPM Logo"/>
+      <h4 class="text-xl font-bold mt-2">RPM</h4>
+    </div>
+    <div>
+      <h4 class="text-lg font-bold mb-2">Atención al Cliente</h4>
+      <p>Email: infoRPM@gmail.com</p>
+      <p>Teléfono: 301 403 8181</p>
+    </div>
+    <div>
+      <h4 class="text-lg font-bold mb-2">Información</h4>
+      <ul class="space-y-1">
+        <li><a href="#" class="hover:text-gray-200">Política de Privacidad</a></li>
+        <li><a href="#" class="hover:text-gray-200">Términos y Condiciones</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4 class="text-lg font-bold mb-2">Síguenos</h4>
+      <div class="flex space-x-4">
+        <a href="#"><i class="fab fa-facebook-f"></i></a>
+        <a href="#"><i class="fab fa-instagram"></i></a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script src="../JS/Administrador/panelAdmin.js"></script>
+<script src="../JS/UsuarioSesion.js"></script>
+</body>
+</html>
