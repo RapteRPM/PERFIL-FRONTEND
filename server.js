@@ -2302,6 +2302,10 @@ app.get('/api/detallePublicacion/:id', async (req, res) => {
                 p.ImagenProducto,
                 p.FechaPublicacion,
                 c.NombreComercio,
+                c.Latitud,
+                c.Longitud,
+                c.Direccion,
+                c.Barrio,
                 u.Nombre AS NombreUsuario,
                 u.Apellido AS ApellidoUsuario,
                 IFNULL(AVG(o.Calificacion), 0) AS CalificacionPromedio
@@ -2310,7 +2314,7 @@ app.get('/api/detallePublicacion/:id', async (req, res) => {
             JOIN usuario u ON c.Comercio = u.IdUsuario
             LEFT JOIN Opiniones o ON o.Publicacion = p.IdPublicacion
             WHERE p.IdPublicacion = ?
-            GROUP BY p.IdPublicacion, c.NombreComercio, u.Nombre, u.Apellido`,
+            GROUP BY p.IdPublicacion, c.NombreComercio, c.Latitud, c.Longitud, c.Direccion, c.Barrio, u.Nombre, u.Apellido`,
             [idPublicacion]
         );
 
