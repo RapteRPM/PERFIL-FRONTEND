@@ -170,7 +170,7 @@ app.get('/api/usuario-actual', verificarSesion, async (req, res) => {
     const [userRows] = await pool.query(
       `SELECT u.IdUsuario, u.TipoUsuario, u.Nombre, u.Apellido, u.Documento, u.FotoPerfil
        FROM usuario u
-       INNER JOIN Credenciales c ON c.Usuario = u.IdUsuario
+       INNER JOIN credenciales c ON c.Usuario = u.IdUsuario
        WHERE u.IdUsuario = ?`,
       [usuarioSesion.id]
     );
@@ -559,7 +559,7 @@ app.delete('/api/historial/eliminar/:idFactura', async (req, res) => {
   const { idFactura } = req.params;
 
   try {
-    await queryPromise('UPDATE DetalleFactura SET VisibleUsuario = 0 WHERE factura = ?', [idFactura]);
+    await queryPromise('UPDATE detallefactura SET VisibleUsuario = 0 WHERE factura = ?', [idFactura]);
     res.json({ success: true, message: "Registro ocultado correctamente." });
   } catch (err) {
     console.error("❌ Error al ocultar registro:", err);
@@ -1107,7 +1107,7 @@ app.post(
       if (tipoKey === 'natural') {
         console.log('📝 Insertando perfil natural...');
         await queryPromise(
-          `INSERT INTO PerfilNatural (UsuarioNatural, Direccion, Barrio)
+          `INSERT INTO perfilnatural (UsuarioNatural, Direccion, Barrio)
            VALUES (?, ?, ?)`,
           [idUsuarioValue, data.Direccion || null, data.Barrio || null]
         );
@@ -1192,7 +1192,7 @@ app.post(
           .replace(/\\/g, '/');
 
         await queryPromise(
-          `INSERT INTO PrestadorServicio
+          `INSERT INTO prestadorservicio
             (Usuario, Direccion, Barrio, RedesSociales, Certificado, DiasAtencion, HoraInicio, HoraFin)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [
