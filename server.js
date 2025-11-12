@@ -1016,6 +1016,7 @@ app.post(
     { name: 'Certificado', maxCount: 1 },
   ]),
   async (req, res) => {
+    console.log('🚀 === INICIO REGISTRO === 🚀');
     try {
       const data = req.body || {};
       const files = req.files || {};
@@ -1215,7 +1216,13 @@ app.post(
       });
 
     } catch (error) {
-      console.error('❌ Error en /api/registro:', error);
+      console.error('');
+      console.error('='.repeat(60));
+      console.error('❌❌❌ ERROR EN /api/registro ❌❌❌');
+      console.error('='.repeat(60));
+      console.error(error);
+      console.error('='.repeat(60));
+      console.error('');
       return res.status(500).json({ error: 'Error al procesar registro' });
     }
   }
