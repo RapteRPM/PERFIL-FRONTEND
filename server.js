@@ -1059,7 +1059,7 @@ app.post(
 
       // Insertar en Usuario
       const insertUsuarioSQL = `
-        INSERT INTO Usuario
+        INSERT INTO usuario
           (IdUsuario, TipoUsuario, Nombre, Apellido, Documento, Telefono, Correo, FotoPerfil)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `;
@@ -1096,7 +1096,7 @@ app.post(
         .replace(/\\/g, '/');
 
       await queryPromise(
-        'UPDATE Usuario SET FotoPerfil = ? WHERE IdUsuario = ?',
+        'UPDATE usuario SET FotoPerfil = ? WHERE IdUsuario = ?',
         [fotoRuta, idUsuarioValue]
       );
 
@@ -1797,7 +1797,7 @@ app.put(
     try {
       // 1️⃣ Verificar si el usuario existe
       const [usuarioRows] = await pool.query(
-        "SELECT FotoPerfil FROM Usuario WHERE IdUsuario = ?",
+        "SELECT FotoPerfil FROM usuario WHERE IdUsuario = ?",
         [idUsuario]
       );
 
@@ -1846,14 +1846,14 @@ app.put(
 
         // Actualizar campo de la foto en la base de datos
         await pool.query(
-          "UPDATE Usuario SET FotoPerfil = ? WHERE IdUsuario = ?",
+          "UPDATE usuario SET FotoPerfil = ? WHERE IdUsuario = ?",
           [rutaFotoFinal, idUsuario]
         );
       }
 
       // 3️⃣ Actualizar información básica del usuario
       await pool.query(
-        `UPDATE Usuario 
+        `UPDATE usuario 
          SET Nombre = ?, Apellido = ?, Telefono = ?, Correo = ?
          WHERE IdUsuario = ?`,
         [
