@@ -28,13 +28,14 @@ document.addEventListener("DOMContentLoaded", () => {
     paginaData.forEach(item => {
       const li = document.createElement("li");
       li.className = "list-group-item list-group-item-action";
-      li.innerHTML = `<b>${item.Nombre}</b> - ${item.Barrio || ""}`;
+      li.innerHTML = `<b>${item.NombreComercio}</b> - ${item.Barrio || ""}`;
       li.addEventListener("click", () => {
-        const modalBody = document.getElementById("modal-body");
-        const modalElement = document.getElementById("detalleModal");
+        const modalBody = document.getElementById("detalleContenido");
+        const modalElement = document.getElementById("detalleTaller");
         if (modalBody && modalElement) {
           modalBody.innerHTML = `
-            <b>${item.Nombre}</b><br>
+            <b>${item.NombreComercio}</b><br>
+            <b>Vendedor:</b> ${item.NombreVendedor || "No especificado"}<br>
             <b>Barrio:</b> ${item.Barrio || "No especificado"}<br>
             <b>Días:</b> ${item.DiasAtencion || "No especificado"}<br>
             <b>Horario:</b> ${item.HoraInicio || ""} - ${item.HoraFin || ""}
@@ -97,7 +98,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const texto = input.value.toLowerCase();
     talleresFiltrados = talleres.filter(t =>
-      (t.Nombre && t.Nombre.toLowerCase().includes(texto)) ||
+      (t.NombreComercio && t.NombreComercio.toLowerCase().includes(texto)) ||
+      (t.NombreVendedor && t.NombreVendedor.toLowerCase().includes(texto)) ||
       (t.Barrio && t.Barrio.toLowerCase().includes(texto)) ||
       (t.DiasAtencion && t.DiasAtencion.toLowerCase().includes(texto))
     );
@@ -116,7 +118,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (texto) {
         coincideBusqueda =
-          (t.Nombre && t.Nombre.toLowerCase().includes(texto)) ||
+          (t.NombreComercio && t.NombreComercio.toLowerCase().includes(texto)) ||
+          (t.NombreVendedor && t.NombreVendedor.toLowerCase().includes(texto)) ||
           (t.Barrio && t.Barrio.toLowerCase().includes(texto));
       }
 
@@ -136,6 +139,33 @@ document.addEventListener("DOMContentLoaded", () => {
     inputBusqueda.addEventListener("input", buscarTaller);
   }
 
+  // Función para localizar al usuario
+  window.localizarUsuario = function() {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          map.setView([lat, lng], 15);
+          L.marker([lat, lng])
+            .addTo(map)
+            .bindPopup("<b>📍 Tu ubicación</b>")
+            .openPopup();
+        },
+        (error) => {
+          console.error("Error obteniendo ubicación:", error);
+          alert("No se pudo obtener tu ubicación. Verifica los permisos del navegador.");
+        }
+      );
+    } else {
+      alert("Tu navegador no soporta geolocalización.");
+    }
+  };
+
+  // Exponer funciones globalmente
+  window.buscarTaller = buscarTaller;
+  window.filtrarTalleres = filtrarTalleres;
+
   fetch('/api/talleres')
     .then(res => res.json())
     .then(data => {
@@ -148,7 +178,8 @@ document.addEventListener("DOMContentLoaded", () => {
           L.marker([item.Latitud, item.Longitud])
             .addTo(map)
             .bindPopup(`
-              <b>${item.Nombre || "Sin nombre"}</b><br>
+              <b>${item.NombreComercio || "Sin nombre"}</b><br>
+              <b>Vendedor:</b> ${item.NombreVendedor || "No especificado"}<br>
               <b>Barrio:</b> ${item.Barrio || "No especificado"}<br>
               <b>Días:</b> ${item.DiasAtencion || "No especificado"}<br>
               <b>Horario:</b> ${item.HoraInicio || ""} - ${item.HoraFin || ""}
