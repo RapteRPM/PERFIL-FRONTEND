@@ -1,5 +1,4 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const usuario = JSON.parse(localStorage.getItem("usuarioActivo"));
+document.addEventListener("DOMContentLoaded", async () => {
   const header = document.querySelector("header");
   const nav = document.querySelector("nav.nav2");
   
@@ -9,8 +8,21 @@ document.addEventListener("DOMContentLoaded", () => {
   // 🔍 Buscar el enlace de "Ingresar" en el nav por ID
   const linkIngresar = document.getElementById('link-ingresar');
 
+  // Verificar sesión en el servidor
+  let usuario = null;
+  try {
+    const res = await fetch("/api/verificar-sesion");
+    if (res.ok) {
+      usuario = await res.json();
+    }
+  } catch (error) {
+    console.log("ℹ️ No hay sesión activa en el servidor");
+  }
+
   if (!usuario || !usuario.id) {
-    // ⛔ No hay sesión: asegurar que el botón "Ingresar" esté visible
+    // ⛔ No hay sesión: limpiar localStorage y mostrar botón "Ingresar"
+    localStorage.removeItem("usuarioActivo");
+    
     if (linkIngresar) {
       linkIngresar.style.display = "block";
     }
@@ -23,6 +35,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   console.log("✅ Sesión activa:", usuario);
+  
+  // Actualizar localStorage con la sesión actual
+  localStorage.setItem("usuarioActivo", JSON.stringify(usuario));
 
   // ✅ Hay sesión: OCULTAR botón "Ingresar"
   if (linkIngresar) {

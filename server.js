@@ -3655,6 +3655,7 @@ app.get("/api/publicaciones-grua/:id", async (req, res) => {
          pg.ZonaCobertura,
          pg.TarifaBase,
          pg.FotoPublicacion,
+         ps.Usuario AS IdUsuario,
          u.Nombre AS NombrePrestador,
          u.Telefono,
          u.Correo

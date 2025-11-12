@@ -5,9 +5,30 @@ async function cargarPublicacionesGrua() {
 
     const contenedor = document.querySelector('.grid');
     contenedor.innerHTML = '';
+    
+    // Obtener el ID del usuario desde localStorage
+    const usuarioActivo = JSON.parse(localStorage.getItem('usuarioActivo'));
+    const idUsuario = usuarioActivo ? usuarioActivo.id : null;
+    
+    if (!idUsuario) {
+      console.error('No se encontró el ID del usuario en localStorage');
+      return;
+    }
 
     publicaciones.forEach(pub => {
-      const imagenes = JSON.parse(pub.FotoPublicacion || '[]');
+      // Parsear y normalizar imágenes
+      let imagenes = [];
+      try {
+        if (Array.isArray(pub.FotoPublicacion)) {
+          imagenes = pub.FotoPublicacion;
+        } else if (typeof pub.FotoPublicacion === 'string' && pub.FotoPublicacion.length > 0) {
+          imagenes = JSON.parse(pub.FotoPublicacion);
+        }
+      } catch (e) {
+        console.error('Error al parsear FotoPublicacion:', e);
+        imagenes = [];
+      }
+      
       const id = pub.IdPublicacionGrua;
       const titulo = pub.TituloPublicacion || 'Servicio registrado';
 
@@ -16,12 +37,32 @@ async function cargarPublicacionesGrua() {
 
       // 🖼️ Carrusel de imágenes
       const carruselId = `carrusel-${id}`;
-      const carrusel = `
+      
+      // Normalizar rutas de imágenes siguiendo la estructura real:
+      // /Imagen/PrestadorServicios/idUsuario/publicaciones/idPublicacion/nombreArchivo.ext
+      const imagenesNormalizadas = imagenes.map(img => {
+        let ruta = img.replace(/\\/g, '/').trim();
+        
+        // Si la imagen ya tiene la ruta completa con "Imagen/PrestadorServicios", usarla directamente
+        if (ruta.includes('Imagen/PrestadorServicios')) {
+          return ruta.startsWith('public/')
+            ? '/' + ruta.substring(7)
+            : (ruta.startsWith('/') ? ruta : '/' + ruta);
+        }
+        
+        // Extraer nombre de archivo y construir ruta correcta
+        const nombreArchivo = ruta.split('/').pop();
+        return `/Imagen/PrestadorServicios/${idUsuario}/publicaciones/${id}/${nombreArchivo}`;
+      });
+      
+      console.log('🖼️ Imágenes normalizadas para publicación', id, ':', imagenesNormalizadas);
+      
+      const carrusel = imagenes.length > 0 ? `
         <div id="${carruselId}" class="carousel slide" data-bs-ride="carousel">
           <div class="carousel-inner">
-            ${imagenes.map((ruta, index) => `
+            ${imagenesNormalizadas.map((ruta, index) => `
               <div class="carousel-item ${index === 0 ? 'active' : ''}">
-                <img src="/${ruta}" class="d-block w-full h-56 object-cover rounded-t-lg" alt="Imagen ${index + 1}">
+                <img src="${ruta}" class="d-block w-full h-56 object-cover rounded-t-lg" alt="Imagen ${index + 1}" onerror="this.src='../General/IMAGENINGRESO/Grua.png'">
               </div>
             `).join('')}
           </div>
@@ -33,6 +74,10 @@ async function cargarPublicacionesGrua() {
               <span class="carousel-control-next-icon"></span>
             </button>
           ` : ''}
+        </div>
+      ` : `
+        <div class="d-flex justify-center items-center h-56 bg-gray-700">
+          <img src="../General/IMAGENINGRESO/Grua.png" class="h-full object-cover" alt="Sin imagen">
         </div>
       `;
 

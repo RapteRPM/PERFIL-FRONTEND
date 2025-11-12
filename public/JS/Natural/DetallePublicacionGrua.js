@@ -48,19 +48,29 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
 
+    const idUsuario = data.IdUsuario;
+    const idPublicacion = data.IdPublicacionGrua;
+
     // Establecer la imagen
     const imgElement = document.getElementById("imagen-grua");
-    if (imgElement && imagenes.length > 0) {
-      let ruta = imagenes[0].replace(/\\/g, '/').trim();
+    if (imgElement && imagenes.length > 0 && idUsuario && idPublicacion) {
+      let primeraImagen = imagenes[0].replace(/\\/g, '/').trim();
       
-      // Eliminar "public/" si está al inicio
-      if (ruta.startsWith('public/')) {
-        ruta = ruta.substring(7); // Quitar "public/"
-      }
-      
-      // Si no empieza con /, agregarlo
-      if (!ruta.startsWith('/')) {
-        ruta = '/' + ruta;
+      let ruta;
+      // Si la imagen ya tiene la ruta completa con "Imagen/PrestadorServicios", usarla directamente
+      if (primeraImagen.includes('Imagen/PrestadorServicios')) {
+        ruta = primeraImagen;
+        if (ruta.startsWith('public/')) {
+          ruta = ruta.substring(7);
+        }
+        if (!ruta.startsWith('/')) {
+          ruta = '/' + ruta;
+        }
+      } else {
+        // Construir la ruta completa siguiendo la estructura real:
+        // /Imagen/PrestadorServicios/idUsuario/publicaciones/idPublicacion/nombreArchivo.ext
+        const nombreArchivo = primeraImagen.split('/').pop();
+        ruta = `/Imagen/PrestadorServicios/${idUsuario}/publicaciones/${idPublicacion}/${nombreArchivo}`;
       }
       
       console.log("🖼️ Cargando imagen:", ruta);
@@ -69,6 +79,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     } else {
       console.log("⚠️ No hay imágenes disponibles, usando imagen por defecto");
       console.log("⚠️ Data.FotoPublicacion:", data.FotoPublicacion);
+      console.log("⚠️ IdUsuario:", idUsuario);
     }
 
   } catch (err) {

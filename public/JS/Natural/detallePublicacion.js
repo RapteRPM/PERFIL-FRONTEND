@@ -138,6 +138,15 @@ document.addEventListener('DOMContentLoaded', () => {
 const btnComprar = document.querySelector('#btn-comprar-ahora');
 if (btnComprar) {
   btnComprar.addEventListener('click', () => {
+    // Verificar si hay sesión activa
+    const usuarioActivo = localStorage.getItem('usuarioActivo');
+    
+    if (!usuarioActivo) {
+      alert('Necesita iniciar sesión para hacer esta transacción');
+      window.location.href = '/General/Ingreso.html';
+      return;
+    }
+
     const producto = {
       id: p.IdPublicacion,
       nombre: p.NombreProducto,

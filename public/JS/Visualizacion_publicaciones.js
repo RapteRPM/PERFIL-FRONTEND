@@ -232,7 +232,7 @@ function mostrarProductos(productos) {
       <div class="card-body">
         <h5 class="card-title font-bold">${p.nombreProducto}</h5>
         <p class="text-gray-600">$${Number(p.precio).toLocaleString('es-CO')}</p>
-        <a href="Natural/Detalle_producto.html?id=${p.idPublicacion}" class="btn btn-danger">Ver Más</a>
+        <a href="/Natural/Detalle_producto.html?id=${p.idPublicacion}" class="btn btn-danger">Ver Más</a>
       </div>
     `;
     grid.appendChild(tarjeta);
@@ -281,7 +281,7 @@ function configurarBotonesCategorias() {
     btnServicios.addEventListener('click', () => {
       activarBoton(btnServicios);
       const filtrados = todosLosProductos.filter(p => 
-        p.categoria && p.categoria.toLowerCase() === 'servicios'
+        p.categoria && p.categoria.toLowerCase() === 'servicio mecanico'
       );
       mostrarProductos(filtrados.slice(0, 12));
     });
@@ -380,7 +380,7 @@ async function cargarVisualizacionesRecientes() {
         <div class="card-body">
           <h5 class="card-title font-bold">${p.NombreProducto}</h5>
           <p class="text-gray-600">$${Number(p.Precio).toLocaleString('es-CO')}</p>
-          <a href="Natural/Detalle_producto.html?id=${p.IdPublicacion}" class="btn btn-danger">Ver Más</a>
+          <a href="/Natural/Detalle_producto.html?id=${p.IdPublicacion}" class="btn btn-danger">Ver Más</a>
         </div>
       `;
       grid.appendChild(tarjeta);
