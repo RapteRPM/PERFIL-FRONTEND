@@ -41,6 +41,33 @@ app.get('/health', (req, res) => {
   });
 });
 
+// ===============================
+// 🔍 Diagnóstico DB para Railway
+// ===============================
+app.get('/api/db-status', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT COUNT(*) as total FROM usuario');
+    const [publicaciones] = await pool.query('SELECT COUNT(*) as total FROM publicacion');
+    const [gruas] = await pool.query('SELECT COUNT(*) as total FROM publicaciongrua');
+    
+    res.json({
+      status: 'connected',
+      database: process.env.DB_NAME || 'unknown',
+      host: process.env.DB_HOST || 'localhost',
+      usuarios: rows[0].total,
+      publicaciones: publicaciones[0].total,
+      gruas: gruas[0].total
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: 'error',
+      message: err.message,
+      database: process.env.DB_NAME || 'unknown',
+      host: process.env.DB_HOST || 'localhost'
+    });
+  }
+});
+
 
 // ===============================
 // 🔐 Configuración de sesiones
@@ -2239,6 +2266,7 @@ app.get("/api/perfilNatural/:idUsuario", async (req, res) => {
 app.get('/api/publicaciones_publicas', async (req, res) => {
   try {
     const { categoria, limite } = req.query;
+    console.log('📥 GET /api/publicaciones_publicas - categoria:', categoria, 'limite:', limite);
 
     let query = `
       SELECT 
@@ -2269,6 +2297,7 @@ app.get('/api/publicaciones_publicas', async (req, res) => {
     }
 
     const [rows] = await pool.query(query, params);
+    console.log(`✅ Encontradas ${rows.length} publicaciones`);
 
     // 🔹 Parsear imágenes y normalizar rutas
     const publicaciones = rows.map(pub => {
@@ -3644,6 +3673,7 @@ app.put('/api/solicitudes-grua/estado/:id', async (req, res) => {
 
 app.get("/api/marketplace-gruas", async (req, res) => {
   try {
+    console.log('📥 GET /api/marketplace-gruas');
     const [publicaciones] = await pool.query(
       `SELECT 
          pg.IdPublicacionGrua,
@@ -3656,6 +3686,7 @@ app.get("/api/marketplace-gruas", async (req, res) => {
        JOIN prestadorservicio ps ON pg.Servicio = ps.IdServicio
        ORDER BY pg.IdPublicacionGrua DESC`
     );
+    console.log(`✅ Encontradas ${publicaciones.length} grúas`);
 
     res.json(publicaciones);
   } catch (err) {

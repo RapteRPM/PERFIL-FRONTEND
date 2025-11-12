@@ -59,13 +59,20 @@ curl https://[tu-url].railway.app/health
 ```
 Debe responder: `{"status":"OK","timestamp":"...","port":...,"env":"production"}`
 
-### 2. Verificar logs en Railway
+### 2. Verificar Base de Datos
+```bash
+curl https://[tu-url].railway.app/api/db-status
+```
+Debe mostrar cuántos usuarios, publicaciones y grúas hay en la BD.
+Si todos están en 0, la base de datos está vacía y necesitas importar datos.
+
+### 3. Verificar logs en Railway
 - Dashboard → Service → "Deployments"
 - Click en el deployment activo
 - Ver "View Logs"
 - Buscar: `✅ Conectado a MySQL`
 
-### 3. Problemas comunes
+### 4. Problemas comunes
 
 **Error: "Cannot connect to MySQL"**
 - Verificar que las variables DB_HOST, DB_PORT, DB_USER, DB_PASSWORD estén configuradas
@@ -80,8 +87,22 @@ Debe responder: `{"status":"OK","timestamp":"...","port":...,"env":"production"}
 - Abrir https://[tu-url].railway.app/General/index.html
 - Verificar la consola del navegador (F12) para errores de CORS o API
 - Verificar que las rutas de las APIs estén respondiendo
+- **MUY IMPORTANTE**: Verificar `/api/db-status` - si todo está en 0, la BD está vacía
 
-### 4. Comandos útiles
+**Base de datos vacía (usuarios: 0, publicaciones: 0)**
+- Railway MySQL se creó vacío, solo tiene la estructura
+- Necesitas conectarte a Railway MySQL y ejecutar INSERTs manualmente
+- O usar Railway CLI para importar un dump SQL con datos
+```bash
+# Conectar a Railway MySQL
+railway connect mysql
+
+# Dentro de MySQL, verificar tablas
+SHOW TABLES;
+SELECT COUNT(*) FROM usuario;
+```
+
+### 5. Comandos útiles
 ```bash
 # Ver todas las publicaciones
 curl https://[tu-url].railway.app/api/publicaciones_publicas
