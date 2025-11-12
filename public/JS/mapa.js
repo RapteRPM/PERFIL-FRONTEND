@@ -107,33 +107,6 @@ document.addEventListener("DOMContentLoaded", () => {
     renderLista();
   }
 
-  function filtrarTalleres() {
-    const texto = document.getElementById("busquedaTaller")?.value.toLowerCase() || "";
-    const horaInicioFiltro = document.getElementById("horaInicioFiltro")?.value;
-    const horaFinFiltro = document.getElementById("horaFinFiltro")?.value;
-
-    talleresFiltrados = talleres.filter(t => {
-      let coincideBusqueda = true;
-      let coincideHora = true;
-
-      if (texto) {
-        coincideBusqueda =
-          (t.NombreComercio && t.NombreComercio.toLowerCase().includes(texto)) ||
-          (t.NombreVendedor && t.NombreVendedor.toLowerCase().includes(texto)) ||
-          (t.Barrio && t.Barrio.toLowerCase().includes(texto));
-      }
-
-      if (horaInicioFiltro && horaFinFiltro && t.HoraInicio && t.HoraFin) {
-        coincideHora = (horaInicioFiltro >= t.HoraInicio && horaFinFiltro <= t.HoraFin);
-      }
-
-      return coincideBusqueda && coincideHora;
-    });
-
-    paginaActual = 1;
-    renderLista();
-  }
-
   const inputBusqueda = document.getElementById("busquedaTaller");
   if (inputBusqueda) {
     inputBusqueda.addEventListener("input", buscarTaller);
@@ -164,7 +137,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Exponer funciones globalmente
   window.buscarTaller = buscarTaller;
-  window.filtrarTalleres = filtrarTalleres;
 
   fetch('/api/talleres')
     .then(res => res.json())

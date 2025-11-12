@@ -69,22 +69,8 @@
 
     <!-- Barra de búsqueda -->
     <div class="input-group mb-4 shadow-sm">
-      <input type="text" id="busquedaTaller" class="form-control" placeholder="🔍 Buscar taller por nombre o ubicación...">
+      <input type="text" id="busquedaTaller" class="form-control" placeholder="🔍 Buscar taller por nombre, vendedor o ubicación...">
       <button class="btn btn-primary" onclick="buscarTaller()">Buscar</button>
-    </div>
-
-    <!-- Filtros -->
-    <div class="row mb-4">
-      <div class="col-md-6">
-        <label class="form-label">Rango de horas</label>
-        <div class="d-flex gap-2">
-          <input type="time" id="horaInicioFiltro" class="form-control">
-          <input type="time" id="horaFinFiltro" class="form-control">
-        </div>
-      </div>
-      <div class="col-md-6 d-flex align-items-end">
-        <button class="btn btn-primary mt-2" onclick="filtrarTalleres()">Aplicar filtros</button>
-      </div>
     </div>
 
     <!-- Mapa y lista -->
