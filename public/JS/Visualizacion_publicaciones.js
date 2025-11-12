@@ -34,7 +34,13 @@ async function cargarPublicaciones(categoria = null, limite = null) {
       if (Array.isArray(p.imagenes)) {
         imagenes = p.imagenes.map(img => img.replace(/\\/g, '/').trim());
       } else if (typeof p.imagenes === 'string' && p.imagenes.length > 0) {
-        imagenes = p.imagenes.split(',').map(img => img.replace(/\\/g, '/').trim());
+        try {
+          // Intentar parsear como JSON primero (formato Railway: ["imagen/..."])
+          imagenes = JSON.parse(p.imagenes);
+        } catch {
+          // Si falla, intentar como string separado por comas
+          imagenes = p.imagenes.split(',').map(img => img.replace(/\\/g, '/').trim());
+        }
       } else {
         imagenes = ['imagen/placeholder.png'];
       }

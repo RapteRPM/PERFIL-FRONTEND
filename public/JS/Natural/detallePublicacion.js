@@ -27,7 +27,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (Array.isArray(p.ImagenProducto)) {
         imagenes = p.ImagenProducto.map(img => img.replace(/\\/g, '/').trim());
       } else if (typeof p.ImagenProducto === 'string') {
-        imagenes = p.ImagenProducto.split(',').map(img => img.replace(/\\/g, '/').trim());
+        try {
+          // Intentar parsear como JSON primero (formato Railway: ["imagen/..."])
+          imagenes = JSON.parse(p.ImagenProducto);
+        } catch {
+          // Si falla, intentar como string separado por comas
+          imagenes = p.ImagenProducto.split(',').map(img => img.replace(/\\/g, '/').trim());
+        }
       }
 
       // Si no hay imágenes válidas, usar una por defecto
