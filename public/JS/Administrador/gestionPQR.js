@@ -13,6 +13,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-limpiar-filtros').addEventListener('click', limpiarFiltros);
   document.getElementById('buscar-asunto').addEventListener('input', aplicarFiltros);
   document.getElementById('filtro-perfil').addEventListener('input', aplicarFiltros);
+  
+  // Listener para el checkbox de respondidas
+  const filtroRespondidas = document.getElementById('filtro-respondidas');
+  if (filtroRespondidas) {
+    filtroRespondidas.addEventListener('change', aplicarFiltros);
+  }
 });
 
 // Cargar todas las PQR desde el backend
@@ -41,6 +47,7 @@ function aplicarFiltros() {
   const rolFiltro = document.getElementById('filtro-rol').value;
   const perfilFiltro = document.getElementById('filtro-perfil').value.toLowerCase();
   const asuntoBusqueda = document.getElementById('buscar-asunto').value.toLowerCase();
+  const soloRespondidas = document.getElementById('filtro-respondidas') && document.getElementById('filtro-respondidas').checked;
   
   pqrFiltradas = pqrData.filter(pqr => {
     // Filtro por tipo de solicitud
@@ -54,13 +61,20 @@ function aplicarFiltros() {
     }
     
     // Filtro por perfil (email)
-    if (perfilFiltro && !pqr.Perfil.toLowerCase().includes(perfilFiltro)) {
+    if (perfilFiltro && !(pqr.Perfil || '').toLowerCase().includes(perfilFiltro)) {
       return false;
     }
     
     // Búsqueda por asunto
-    if (asuntoBusqueda && !pqr.Asunto.toLowerCase().includes(asuntoBusqueda)) {
+    if (asuntoBusqueda && !(pqr.Asunto || '').toLowerCase().includes(asuntoBusqueda)) {
       return false;
+    }
+    
+    // Filtro por respondidas
+    if (soloRespondidas) {
+      const val = pqr.Respondida;
+      const isRespondida = val === true || val === 1 || val === '1' || String(val).toLowerCase() === 'true';
+      if (!isRespondida) return false;
     }
     
     return true;
@@ -77,6 +91,9 @@ function limpiarFiltros() {
   document.getElementById('filtro-rol').value = '';
   document.getElementById('filtro-perfil').value = '';
   document.getElementById('buscar-asunto').value = '';
+  if (document.getElementById('filtro-respondidas')) {
+    document.getElementById('filtro-respondidas').checked = false;
+  }
   
   pqrFiltradas = [...pqrData];
   paginaActual = 1;
@@ -94,7 +111,7 @@ function actualizarTabla() {
   if (pqrPagina.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" class="text-center py-4 text-gray-500">
+        <td colspan="8" class="text-center py-4 text-gray-500">
           <i class="fas fa-inbox text-4xl mb-2"></i>
           <p>No se encontraron PQR</p>
         </td>
@@ -109,16 +126,24 @@ function actualizarTabla() {
     const badgeRol = getBadgeRol(pqr.Rol);
     const fecha = pqr.FechaCreacion && pqr.FechaCreacion !== 'N/A' ? formatearFecha(pqr.FechaCreacion) : 'No disponible';
     
+    // Verificar si está respondida
+    const val = pqr.Respondida;
+    const isRespondida = val === true || val === 1 || val === '1' || String(val).toLowerCase() === 'true';
+    const checkedAttr = isRespondida ? 'checked' : '';
+    
     return `
       <tr>
         <td>${pqr.IdCentroAyuda}</td>
         <td>${badgeTipo}</td>
         <td>${badgeRol}</td>
-        <td>${pqr.Perfil}</td>
-        <td class="text-truncate" style="max-width: 250px;" title="${pqr.Asunto}">
-          ${pqr.Asunto}
+        <td>${pqr.Perfil || ''}</td>
+        <td class="text-truncate" style="max-width: 250px;" title="${pqr.Asunto || ''}">
+          ${pqr.Asunto || ''}
         </td>
         <td>${fecha}</td>
+        <td class="text-center">
+          <input type="checkbox" disabled ${checkedAttr}>
+        </td>
         <td>
           <button class="btn btn-sm btn-info" onclick="verDetallesPQR(${pqr.IdCentroAyuda})" title="Ver detalles">
             <i class="fas fa-eye"></i>
@@ -177,6 +202,10 @@ function verDetallesPQR(idPQR) {
   const badgeRol = getBadgeRol(pqr.Rol);
   const fecha = pqr.FechaCreacion && pqr.FechaCreacion !== 'N/A' ? formatearFecha(pqr.FechaCreacion) : 'No disponible';
   
+  // Verificar si está respondida
+  const val = pqr.Respondida;
+  const isRespondida = val === true || val === 1 || val === '1' || String(val).toLowerCase() === 'true';
+  
   const detallesHTML = `
     <div class="mb-3">
       <h6 class="text-muted">Información General</h6>
@@ -187,6 +216,7 @@ function verDetallesPQR(idPQR) {
       <p><strong>Usuario:</strong> ${pqr.NombreUsuario || 'No disponible'}</p>
       <p><strong>Perfil (Email):</strong> ${pqr.Perfil || 'No disponible'}</p>
       <p><strong>Fecha:</strong> ${fecha}</p>
+      <p><strong>Respondida:</strong> ${isRespondida ? 'Sí' : 'No'}</p>
     </div>
     
     <div class="mb-3">

@@ -179,35 +179,153 @@ document.addEventListener("DOMContentLoaded", () => {
 
 /// INDEX.HTML VISUALIZACION DE PRODUCTOS
 
+// Variable global para almacenar todos los productos
+let todosLosProductos = [];
+
 document.addEventListener('DOMContentLoaded', async () => {
   // 🔹 Mostrar todos los productos públicos
   try {
-    const res = await fetch('/api/publicaciones_publicas?limite=12'); // Puedes ajustar el límite
+    const res = await fetch('/api/publicaciones_publicas?limite=50'); // Cargar más productos para filtrar
     const productos = await res.json();
+    todosLosProductos = productos; // Guardar en variable global
 
     if (Array.isArray(productos) && productos.length > 0) {
-      const grid = document.getElementById('productos-grid');
-      productos.forEach(p => {
-        const imagen = Array.isArray(p.imagenes) && p.imagenes.length > 0
-          ? p.imagenes[0]
-          : '/imagen/placeholder.png';
-
-        const tarjeta = document.createElement('div');
-        tarjeta.className = 'card card-bootstrap shadow-lg border-0';
-        tarjeta.innerHTML = `
-          <img src="${imagen}" class="d-block w-100 rounded-t-lg" alt="${p.nombreProducto}" onerror="this.src='/imagen/placeholder.png'">
-          <div class="card-body">
-            <h5 class="card-title font-bold">${p.nombreProducto}</h5>
-            <p class="text-gray-600">$${Number(p.precio).toLocaleString('es-CO')}</p>
-            <a href="Natural/Detalle_producto.html?id=${p.idPublicacion}" class="btn btn-danger">Ver Más</a>
-          </div>
-        `;
-        grid.appendChild(tarjeta);
-      });
+      mostrarProductos(productos.slice(0, 12)); // Mostrar primeros 12
     }
   } catch (err) {
     console.error('❌ Error cargando productos públicos:', err);
   }
+
+  // 🔹 Configurar botones de categorías
+  configurarBotonesCategorias();
+
+  // 🔹 Configurar búsqueda en tiempo real
+  configurarBusqueda();
+  
+  // 🔹 Continuar con visualizaciones recientes
+  cargarVisualizacionesRecientes();
+});
+
+/**
+ * Muestra los productos en el grid
+ */
+function mostrarProductos(productos) {
+  const grid = document.getElementById('productos-grid');
+  if (!grid) return;
+  
+  grid.innerHTML = ''; // Limpiar grid
+  
+  if (productos.length === 0) {
+    grid.innerHTML = '<p class="col-span-3 text-center text-gray-500">No se encontraron productos</p>';
+    return;
+  }
+  
+  productos.forEach(p => {
+    const imagen = Array.isArray(p.imagenes) && p.imagenes.length > 0
+      ? p.imagenes[0]
+      : '/imagen/placeholder.png';
+
+    const tarjeta = document.createElement('div');
+    tarjeta.className = 'card card-bootstrap shadow-lg border-0';
+    tarjeta.innerHTML = `
+      <img src="${imagen}" class="d-block w-100 rounded-t-lg" alt="${p.nombreProducto}" onerror="this.src='/imagen/placeholder.png'">
+      <div class="card-body">
+        <h5 class="card-title font-bold">${p.nombreProducto}</h5>
+        <p class="text-gray-600">$${Number(p.precio).toLocaleString('es-CO')}</p>
+        <a href="Natural/Detalle_producto.html?id=${p.idPublicacion}" class="btn btn-danger">Ver Más</a>
+      </div>
+    `;
+    grid.appendChild(tarjeta);
+  });
+}
+
+/**
+ * Configura los botones de categorías
+ */
+function configurarBotonesCategorias() {
+  const btnTodos = document.getElementById('btn-todos');
+  const btnAccesorios = document.getElementById('btn-accesorios');
+  const btnServicios = document.getElementById('btn-servicios');
+  const btnRepuestos = document.getElementById('btn-repuestos');
+  
+  const botones = [btnTodos, btnAccesorios, btnServicios, btnRepuestos];
+  
+  // Función para resaltar botón activo
+  function activarBoton(botonActivo) {
+    botones.forEach(btn => {
+      if (btn) {
+        btn.classList.remove('bg-gray-700', 'bg-red-700');
+        btn.classList.add(btn === botonActivo ? 'bg-gray-700' : 'bg-red-600');
+      }
+    });
+  }
+  
+  if (btnTodos) {
+    btnTodos.addEventListener('click', () => {
+      activarBoton(btnTodos);
+      mostrarProductos(todosLosProductos.slice(0, 12));
+    });
+  }
+  
+  if (btnAccesorios) {
+    btnAccesorios.addEventListener('click', () => {
+      activarBoton(btnAccesorios);
+      const filtrados = todosLosProductos.filter(p => 
+        p.categoria && p.categoria.toLowerCase() === 'accesorios'
+      );
+      mostrarProductos(filtrados.slice(0, 12));
+    });
+  }
+  
+  if (btnServicios) {
+    btnServicios.addEventListener('click', () => {
+      activarBoton(btnServicios);
+      const filtrados = todosLosProductos.filter(p => 
+        p.categoria && p.categoria.toLowerCase() === 'servicios'
+      );
+      mostrarProductos(filtrados.slice(0, 12));
+    });
+  }
+  
+  if (btnRepuestos) {
+    btnRepuestos.addEventListener('click', () => {
+      activarBoton(btnRepuestos);
+      const filtrados = todosLosProductos.filter(p => 
+        p.categoria && p.categoria.toLowerCase() === 'repuestos'
+      );
+      mostrarProductos(filtrados.slice(0, 12));
+    });
+  }
+}
+
+/**
+ * Configura la búsqueda en tiempo real
+ */
+function configurarBusqueda() {
+  const inputBusqueda = document.getElementById('buscar-productos');
+  
+  if (inputBusqueda) {
+    inputBusqueda.addEventListener('input', (e) => {
+      const texto = e.target.value.toLowerCase().trim();
+      
+      if (texto === '') {
+        mostrarProductos(todosLosProductos.slice(0, 12));
+        return;
+      }
+      
+      const filtrados = todosLosProductos.filter(p => 
+        p.nombreProducto && p.nombreProducto.toLowerCase().includes(texto)
+      );
+      
+      mostrarProductos(filtrados.slice(0, 12));
+    });
+  }
+}
+
+/**
+ * Carga las visualizaciones recientes del usuario
+ */
+async function cargarVisualizacionesRecientes() {
 
   // 🔹 Mostrar visualizaciones recientes si el usuario está logueado
   const usuarioActivo = JSON.parse(localStorage.getItem('usuarioActivo'));
@@ -272,4 +390,4 @@ document.addEventListener('DOMContentLoaded', async () => {
   } catch (err) {
     console.log("ℹ️ No se pudieron cargar visualizaciones (esto es normal si no hay endpoint configurado):", err.message);
   }
-});
+}

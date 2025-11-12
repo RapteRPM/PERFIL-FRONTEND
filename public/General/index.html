@@ -34,10 +34,10 @@
       <!-- Links -->
       <div class="hidden md:flex items-center space-x-6">
         <div class="relative">
-          <input type="text" placeholder="Buscar productos..." class="pl-10 pr-4 py-2 rounded-full border border-gray-600 bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-white transition"/>
+          <input type="text" id="buscar-productos" placeholder="Buscar productos..." class="pl-10 pr-4 py-2 rounded-full border border-gray-600 bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-white transition"/>
           <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
         </div>
-        <a href="/General/Ingreso.html" class="hover:text-gray-200 transition">Ingresar</a>
+        <a href="/General/Ingreso.html" id="link-ingresar" class="hover:text-gray-200 transition">Ingresar</a>
 <div class="relative">
   <button id="btnCategorias" class="hover:text-gray-200 flex items-center transition">
     Categorías <i class="fas fa-chevron-down ml-1 text-sm"></i>
@@ -76,9 +76,10 @@
   <!-- 🗂️ Categorías -->
   <section class="mb-12">
     <div class="flex justify-center space-x-2 mb-6">
-      <button class="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700">Accesorios</button>
-      <button class="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700">Servicios</button>
-      <button class="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700">Repuestos</button>
+      <button id="btn-todos" class="bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700">Todos</button>
+      <button id="btn-accesorios" class="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700">Accesorios</button>
+      <button id="btn-servicios" class="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700">Servicios</button>
+      <button id="btn-repuestos" class="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700">Repuestos</button>
     </div>
 
     <!-- 🛍️ Productos desde la base de datos -->

@@ -35,15 +35,40 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("tarifaBase").textContent = `$${parseInt(data.TarifaBase).toLocaleString("es-CO")}`;
 
 
-    const imagenes = Array.isArray(data.FotoPublicacion)
-      ? data.FotoPublicacion
-      : JSON.parse(data.FotoPublicacion || "[]");
+    let imagenes = [];
+    
+    // Parsear las imágenes
+    if (Array.isArray(data.FotoPublicacion)) {
+      imagenes = data.FotoPublicacion;
+    } else if (typeof data.FotoPublicacion === 'string' && data.FotoPublicacion.length > 0) {
+      try {
+        imagenes = JSON.parse(data.FotoPublicacion);
+      } catch (e) {
+        imagenes = [data.FotoPublicacion];
+      }
+    }
 
-    if (imagenes.length > 0) {
-      const ruta = imagenes[0].startsWith("/") ? imagenes[0] : `/${imagenes[0]}`;
-      document.querySelector("img.img-fluid").src = ruta;
+    // Establecer la imagen
+    const imgElement = document.getElementById("imagen-grua");
+    if (imgElement && imagenes.length > 0) {
+      let ruta = imagenes[0].replace(/\\/g, '/').trim();
+      
+      // Eliminar "public/" si está al inicio
+      if (ruta.startsWith('public/')) {
+        ruta = ruta.substring(7); // Quitar "public/"
+      }
+      
+      // Si no empieza con /, agregarlo
+      if (!ruta.startsWith('/')) {
+        ruta = '/' + ruta;
+      }
+      
+      console.log("🖼️ Cargando imagen:", ruta);
+      console.log("🖼️ Data completa:", data);
+      imgElement.src = ruta;
     } else {
-      document.querySelector("img.img-fluid").src = "/image/grua_default.jpg";
+      console.log("⚠️ No hay imágenes disponibles, usando imagen por defecto");
+      console.log("⚠️ Data.FotoPublicacion:", data.FotoPublicacion);
     }
 
   } catch (err) {

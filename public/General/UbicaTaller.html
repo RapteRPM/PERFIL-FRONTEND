@@ -34,8 +34,8 @@
       </div>
     </div>
 
-    <!-- Perfil -->
-    <div class="dropdown">
+    <!-- Perfil (solo si hay sesión) -->
+    <div class="dropdown" id="perfil-container" style="display: none;">
       <button class="perfil-btn dropdown-toggle" id="perfilDropdown" data-bs-toggle="dropdown" aria-expanded="false">
         <img id="foto-usuario" src="../image/imagen_perfil.png" alt="Usuario">
         <span id="nombre-usuario">Cargando...</span>
@@ -46,6 +46,9 @@
         <li><a class="dropdown-item text-danger" href="/logout">Cerrar sesión</a></li>
       </ul>
     </div>
+    
+    <!-- Botón Ingresar (solo sin sesión) -->
+    <a href="/General/Ingreso.html" id="link-ingresar-taller" class="btn btn-outline-light" style="display: none;">Ingresar</a>
   </div>
 
   <!-- ===== NAVBAR ===== -->
@@ -57,7 +60,7 @@
       <!-- Enlaces a la derecha -->
       <div class="navbar-links">
         <a href="index.html">RPM MARKET</a>
-        <a href="../Natural/perfil_usuario.html">Perfil</a>
+        <a href="../Natural/perfil_usuario.html" id="link-perfil-nav" style="display: none;">Perfil</a>
         <a href="CentroAyuda.html">Centro de ayuda</a>
       </div>
     </div>
@@ -137,18 +140,37 @@
     document.addEventListener('DOMContentLoaded', async () => {
       await cargarUsuarioHeader();
       
-      // Configurar link de editar perfil según tipo de usuario
+      // Verificar sesión y mostrar/ocultar elementos según corresponda
       const usuario = await verificarSesion();
+      const perfilContainer = document.getElementById('perfil-container');
+      const linkIngresar = document.getElementById('link-ingresar-taller');
+      const linkPerfilNav = document.getElementById('link-perfil-nav');
       const linkEditarPerfil = document.getElementById('link-editar-perfil');
       
-      if (usuario && linkEditarPerfil) {
-        if (usuario.tipo === 'Natural') {
-          linkEditarPerfil.href = '../Natural/Editar_perfil.html';
-        } else if (usuario.tipo === 'Comerciante') {
-          linkEditarPerfil.href = '../Comerciante/EditarPerfil_comerciante.html';
-        } else if (usuario.tipo === 'PrestadorServicio') {
-          linkEditarPerfil.href = '../PrestadorServicios/configuracion_prestador.html';
+      if (usuario && usuario.id) {
+        // Hay sesión: mostrar perfil y ocultar botón ingresar
+        if (perfilContainer) perfilContainer.style.display = 'block';
+        if (linkIngresar) linkIngresar.style.display = 'none';
+        if (linkPerfilNav) linkPerfilNav.style.display = 'inline-block';
+        
+        // Cargar información del usuario
+        cargarUsuarioHeader();
+        
+        // Configurar link de editar perfil según tipo de usuario
+        if (linkEditarPerfil) {
+          if (usuario.tipo === 'Natural') {
+            linkEditarPerfil.href = '../Natural/Editar_perfil.html';
+          } else if (usuario.tipo === 'Comerciante') {
+            linkEditarPerfil.href = '../Comerciante/EditarPerfil_comerciante.html';
+          } else if (usuario.tipo === 'PrestadorServicio') {
+            linkEditarPerfil.href = '../PrestadorServicios/configuracion_prestador.html';
+          }
         }
+      } else {
+        // No hay sesión: ocultar perfil y mostrar botón ingresar
+        if (perfilContainer) perfilContainer.style.display = 'none';
+        if (linkIngresar) linkIngresar.style.display = 'inline-block';
+        if (linkPerfilNav) linkPerfilNav.style.display = 'none';
       }
     });
   </script>

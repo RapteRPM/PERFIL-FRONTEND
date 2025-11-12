@@ -6,8 +6,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // 🔍 Buscar el contenedor del header (donde está el logo)
   const headerContainer = header?.querySelector('.max-w-7xl.mx-auto.flex.items-center.justify-start');
   
-  // 🔍 Buscar el enlace de "Ingresar" en el nav
-  const linkIngresar = nav?.querySelector('a[href="Ingreso.html"]');
+  // 🔍 Buscar el enlace de "Ingresar" en el nav por ID
+  const linkIngresar = document.getElementById('link-ingresar');
 
   if (!usuario || !usuario.id) {
     // ⛔ No hay sesión: asegurar que el botón "Ingresar" esté visible
@@ -15,6 +15,10 @@ document.addEventListener("DOMContentLoaded", () => {
       linkIngresar.style.display = "block";
     }
     console.log("ℹ️ No hay sesión activa");
+    
+    // 👉 Control del menú desplegable de Categorías (aunque no haya sesión)
+    configurarMenuCategorias();
+    
     return;
   }
 
@@ -108,6 +112,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // 👉 Control del menú desplegable de Categorías
+  configurarMenuCategorias();
+});
+
+/**
+ * Configura el menú desplegable de Categorías
+ */
+function configurarMenuCategorias() {
   const btnCategorias = document.getElementById("btnCategorias");
   const menuCategorias = document.getElementById("menuCategorias");
 
@@ -124,4 +135,4 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
-});
+}
