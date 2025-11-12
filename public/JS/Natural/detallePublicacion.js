@@ -35,65 +35,15 @@ document.addEventListener('DOMContentLoaded', () => {
         imagenes = ['imagen/placeholder.png'];
       }
 
-      // Normalizar rutas y asegurar que sean absolutas
-      imagenes = imagenes.map(img => {
-        if (!img) return '/imagen/placeholder.png';
-        let ruta = img.replace(/\\/g, '/').trim();
-        ruta = ruta.replace(/^\/?(Imagen|image|Natural)\//i, ''); // elimina prefijos incorrectos
-        return '/imagen/' + ruta;
-      });
+          // Normalizar rutas y asegurar que sean absolutas
+          imagenes = imagenes.map(img => {
+            if (!img) return '/imagen/placeholder.png';
+            let ruta = img.replace(/\\/g, '/').trim();
+            ruta = ruta.replace(/^\/?(Imagen|image|Natural)\//i, ''); // elimina prefijos incorrectos
+            return '/imagen/' + ruta;
+          });
 
-      // ===============================
-      // 🗺️ Inicializar mapa con ubicación del taller
-      // ===============================
-      if (p.Latitud && p.Longitud) {
-        const map = L.map('map').setView([p.Latitud, p.Longitud], 15);
-        
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19,
-          attribution: '© OpenStreetMap'
-        }).addTo(map);
-
-        L.marker([p.Latitud, p.Longitud])
-          .addTo(map)
-          .bindPopup(`
-            <b>${p.NombreComercio}</b><br>
-            ${p.Direccion || ''}<br>
-            ${p.Barrio || ''}
-          `)
-          .openPopup();
-
-        // Función para geolocalización
-        window.localizarUsuario = function() {
-          if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-              (position) => {
-                const lat = position.coords.latitude;
-                const lng = position.coords.longitude;
-                map.setView([lat, lng], 13);
-                L.marker([lat, lng])
-                  .addTo(map)
-                  .bindPopup("<b>📍 Tu ubicación</b>")
-                  .openPopup();
-              },
-              (error) => {
-                console.error("Error obteniendo ubicación:", error);
-                alert("No se pudo obtener tu ubicación. Verifica los permisos del navegador.");
-              }
-            );
-          } else {
-            alert("Tu navegador no soporta geolocalización.");
-          }
-        };
-      } else {
-        // Si no hay coordenadas, ocultar el mapa
-        const mapContainer = document.querySelector('.map-container');
-        if (mapContainer) {
-          mapContainer.innerHTML = '<p class="text-muted text-center p-4">📍 Ubicación no disponible</p>';
-        }
-      }
-
-      // Verificar si hay contenedor de imagen
+          // Verificar si hay contenedor de imagen
           if (imgContainer) {
             if (imagenes.length > 1) {
               const carouselHTML = `
