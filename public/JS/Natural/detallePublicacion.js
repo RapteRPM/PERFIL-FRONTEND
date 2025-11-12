@@ -45,7 +45,12 @@ document.addEventListener('DOMContentLoaded', () => {
           imagenes = imagenes.map(img => {
             if (!img) return '/imagen/placeholder.png';
             let ruta = img.replace(/\\/g, '/').trim();
-            ruta = ruta.replace(/^\/?(Imagen|image|Natural)\//i, ''); // elimina prefijos incorrectos
+            
+            // Si ya tiene la ruta completa, retornarla
+            if (ruta.startsWith('/imagen/')) return ruta;
+            if (ruta.startsWith('imagen/')) return '/' + ruta;
+            
+            // Si no, construirla
             return '/imagen/' + ruta;
           });
 
