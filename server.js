@@ -19,7 +19,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 // Configuración general
 app.use("/api/privado", verificarSesion); 
@@ -28,6 +28,18 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use("/imagen", express.static(path.join(__dirname, "public/imagen")));
+
+// ===============================
+// 🏥 Health Check para Railway
+// ===============================
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    port: port,
+    env: process.env.NODE_ENV || 'development'
+  });
+});
 
 
 // ===============================

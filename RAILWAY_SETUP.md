@@ -10,8 +10,9 @@ DB_PASSWORD=[obtener de Railway MySQL service]
 DB_NAME=railway
 SESSION_SECRET=[generar aleatorio o usar existente]
 NODE_ENV=production
-PORT=3000
 ```
+
+⚠️ **NO configurar PORT manualmente** - Railway lo asigna automáticamente
 
 ## Pasos para Recrear Servicio
 
@@ -50,7 +51,50 @@ curl https://[tu-url].railway.app/api/registro \
   -F "FotoPerfil=@/tmp/test.png"
 ```
 
+## Diagnóstico de Problemas
+
+### 1. Verificar Health Check
+```bash
+curl https://[tu-url].railway.app/health
+```
+Debe responder: `{"status":"OK","timestamp":"...","port":...,"env":"production"}`
+
+### 2. Verificar logs en Railway
+- Dashboard → Service → "Deployments"
+- Click en el deployment activo
+- Ver "View Logs"
+- Buscar: `✅ Conectado a MySQL`
+
+### 3. Problemas comunes
+
+**Error: "Cannot connect to MySQL"**
+- Verificar que las variables DB_HOST, DB_PORT, DB_USER, DB_PASSWORD estén configuradas
+- Verificar que el servicio MySQL esté activo
+- Verificar que el usuario tenga permisos
+
+**Error: "App crashed" o "Application failed to respond"**
+- Verificar que NO hayas configurado PORT manualmente
+- Railway asigna el puerto automáticamente vía process.env.PORT
+
+**Error: "No aparece nada en el frontend"**
+- Abrir https://[tu-url].railway.app/General/index.html
+- Verificar la consola del navegador (F12) para errores de CORS o API
+- Verificar que las rutas de las APIs estén respondiendo
+
+### 4. Comandos útiles
+```bash
+# Ver todas las publicaciones
+curl https://[tu-url].railway.app/api/publicaciones_publicas
+
+# Ver grúas
+curl https://[tu-url].railway.app/api/marketplace-gruas
+
+# Health check
+curl https://[tu-url].railway.app/health
+```
+
 ## Notas
 - La base de datos MySQL NO se toca, mantiene todos los datos
 - Solo recreamos el servicio Node.js
 - Total tiempo estimado: 5 minutos
+- El servidor ahora usa `process.env.PORT` para Railway
