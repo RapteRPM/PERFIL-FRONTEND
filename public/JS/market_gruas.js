@@ -13,15 +13,49 @@ document.addEventListener("DOMContentLoaded", async () => {
       const card = document.createElement("div");
       card.className = "col-md-4";
 
-      const imagenes = Array.isArray(item.FotoPublicacion)
-        ? item.FotoPublicacion
-        : JSON.parse(item.FotoPublicacion || "[]");
-
-      const imagenSrc = imagenes.length > 0 ? `/${imagenes[0]}` : "image/grua_default.jpg";
+      let imagenes = [];
+      
+      // Parsear las imágenes
+      if (Array.isArray(item.FotoPublicacion)) {
+        imagenes = item.FotoPublicacion;
+      } else if (typeof item.FotoPublicacion === 'string' && item.FotoPublicacion.length > 0) {
+        try {
+          imagenes = JSON.parse(item.FotoPublicacion);
+        } catch (e) {
+          imagenes = [item.FotoPublicacion];
+        }
+      }
+      
+      const idUsuario = item.Usuario;
+      const idPublicacion = item.IdPublicacionGrua;
+      
+      // Normalizar rutas de imágenes siguiendo la estructura real:
+      // /Imagen/PrestadorServicios/idUsuario/publicaciones/idPublicacion/nombreArchivo.ext
+      let imagenSrc = "../General/IMAGENINGRESO/Grua.png";
+      if (imagenes.length > 0 && idUsuario && idPublicacion) {
+        let primeraImagen = imagenes[0].replace(/\\/g, '/').trim();
+        
+        // Si la imagen ya tiene la ruta completa con "Imagen/PrestadorServicios", usarla directamente
+        if (primeraImagen.includes('Imagen/PrestadorServicios')) {
+          if (primeraImagen.startsWith('public/')) {
+            primeraImagen = primeraImagen.substring(7);
+          }
+          if (!primeraImagen.startsWith('/')) {
+            primeraImagen = '/' + primeraImagen;
+          }
+          imagenSrc = primeraImagen;
+        } else {
+          // Construir la ruta completa
+          const nombreArchivo = primeraImagen.split('/').pop();
+          imagenSrc = `/Imagen/PrestadorServicios/${idUsuario}/publicaciones/${idPublicacion}/${nombreArchivo}`;
+        }
+        
+        console.log("🖼️ Ruta de imagen procesada para publicación", idPublicacion, ":", imagenSrc);
+      }
 
       card.innerHTML = `
         <div class="card card-grua h-100">
-          <img src="${imagenSrc}" class="card-img-top" alt="Servicio de grúa">
+          <img src="${imagenSrc}" class="card-img-top" alt="Servicio de grúa" onerror="this.src='../General/IMAGENINGRESO/Grua.png'">
           <div class="card-body">
             <h5 class="card-title fw-bold">${item.TituloPublicacion}</h5>
             <p class="card-text">${item.DescripcionServicio}</p>

@@ -35,15 +35,51 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("tarifaBase").textContent = `$${parseInt(data.TarifaBase).toLocaleString("es-CO")}`;
 
 
-    const imagenes = Array.isArray(data.FotoPublicacion)
-      ? data.FotoPublicacion
-      : JSON.parse(data.FotoPublicacion || "[]");
+    let imagenes = [];
+    
+    // Parsear las imágenes
+    if (Array.isArray(data.FotoPublicacion)) {
+      imagenes = data.FotoPublicacion;
+    } else if (typeof data.FotoPublicacion === 'string' && data.FotoPublicacion.length > 0) {
+      try {
+        imagenes = JSON.parse(data.FotoPublicacion);
+      } catch (e) {
+        imagenes = [data.FotoPublicacion];
+      }
+    }
 
-    if (imagenes.length > 0) {
-      const ruta = imagenes[0].startsWith("/") ? imagenes[0] : `/${imagenes[0]}`;
-      document.querySelector("img.img-fluid").src = ruta;
+    const idUsuario = data.IdUsuario;
+    const idPublicacion = data.IdPublicacionGrua;
+
+    // Establecer la imagen
+    const imgElement = document.getElementById("imagen-grua");
+    if (imgElement && imagenes.length > 0 && idUsuario && idPublicacion) {
+      let primeraImagen = imagenes[0].replace(/\\/g, '/').trim();
+      
+      let ruta;
+      // Si la imagen ya tiene la ruta completa con "Imagen/PrestadorServicios", usarla directamente
+      if (primeraImagen.includes('Imagen/PrestadorServicios')) {
+        ruta = primeraImagen;
+        if (ruta.startsWith('public/')) {
+          ruta = ruta.substring(7);
+        }
+        if (!ruta.startsWith('/')) {
+          ruta = '/' + ruta;
+        }
+      } else {
+        // Construir la ruta completa siguiendo la estructura real:
+        // /Imagen/PrestadorServicios/idUsuario/publicaciones/idPublicacion/nombreArchivo.ext
+        const nombreArchivo = primeraImagen.split('/').pop();
+        ruta = `/Imagen/PrestadorServicios/${idUsuario}/publicaciones/${idPublicacion}/${nombreArchivo}`;
+      }
+      
+      console.log("🖼️ Cargando imagen:", ruta);
+      console.log("🖼️ Data completa:", data);
+      imgElement.src = ruta;
     } else {
-      document.querySelector("img.img-fluid").src = "/image/grua_default.jpg";
+      console.log("⚠️ No hay imágenes disponibles, usando imagen por defecto");
+      console.log("⚠️ Data.FotoPublicacion:", data.FotoPublicacion);
+      console.log("⚠️ IdUsuario:", idUsuario);
     }
 
   } catch (err) {

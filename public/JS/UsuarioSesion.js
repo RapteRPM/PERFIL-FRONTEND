@@ -26,7 +26,7 @@ async function cargarUsuarioHeader() {
 // ⚙️ Función general para verificar sesión y tipo de usuario (sin redirigir)
 async function verificarSesion(usuarioEsperadoTipo = null) {
   try {
-    const res = await fetch("/api/sesion-usuario");
+    const res = await fetch("/api/verificar-sesion");
     if (!res.ok) return null;
 
     const usuario = await res.json();

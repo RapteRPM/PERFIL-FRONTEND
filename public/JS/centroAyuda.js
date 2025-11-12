@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (contenedor) {
       contenedor.innerHTML = `
-        <a href="ingreso.html" class="btn btn-outline-light">Ingresar</a>
+        <a href="Ingreso.html" class="btn btn-outline-light">Ingresar</a>
       `;
     }
     return;
@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           <span class="font-semibold text-lg">${usuario.nombre || 'Usuario'}</span>
         </button>
         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="perfilDropdown">
-          <li><a class="dropdown-item" href="Editar_perfil.html">Configuración Perfil</a></li>
+          <li><a class="dropdown-item" href="../Natural/Editar_perfil.html">Configuración Perfil</a></li>
           <li><hr class="dropdown-divider"></li>
           <li><a class="dropdown-item text-danger" href="#" id="cerrarSesion">Cerrar sesión</a></li>
         </ul>
@@ -47,7 +47,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     document.getElementById("cerrarSesion").addEventListener("click", () => {
       localStorage.removeItem("usuarioActivo");
-      window.location.href = "ingreso.html";
+      window.location.href = "Ingreso.html";
     });
   }
 

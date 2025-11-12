@@ -1,24 +1,43 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const usuario = JSON.parse(localStorage.getItem("usuarioActivo"));
+document.addEventListener("DOMContentLoaded", async () => {
   const header = document.querySelector("header");
   const nav = document.querySelector("nav.nav2");
   
   // 🔍 Buscar el contenedor del header (donde está el logo)
   const headerContainer = header?.querySelector('.max-w-7xl.mx-auto.flex.items-center.justify-start');
   
-  // 🔍 Buscar el enlace de "Ingresar" en el nav
-  const linkIngresar = nav?.querySelector('a[href="Ingreso.html"]');
+  // 🔍 Buscar el enlace de "Ingresar" en el nav por ID
+  const linkIngresar = document.getElementById('link-ingresar');
+
+  // Verificar sesión en el servidor
+  let usuario = null;
+  try {
+    const res = await fetch("/api/verificar-sesion");
+    if (res.ok) {
+      usuario = await res.json();
+    }
+  } catch (error) {
+    console.log("ℹ️ No hay sesión activa en el servidor");
+  }
 
   if (!usuario || !usuario.id) {
-    // ⛔ No hay sesión: asegurar que el botón "Ingresar" esté visible
+    // ⛔ No hay sesión: limpiar localStorage y mostrar botón "Ingresar"
+    localStorage.removeItem("usuarioActivo");
+    
     if (linkIngresar) {
       linkIngresar.style.display = "block";
     }
     console.log("ℹ️ No hay sesión activa");
+    
+    // 👉 Control del menú desplegable de Categorías (aunque no haya sesión)
+    configurarMenuCategorias();
+    
     return;
   }
 
   console.log("✅ Sesión activa:", usuario);
+  
+  // Actualizar localStorage con la sesión actual
+  localStorage.setItem("usuarioActivo", JSON.stringify(usuario));
 
   // ✅ Hay sesión: OCULTAR botón "Ingresar"
   if (linkIngresar) {
@@ -108,6 +127,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // 👉 Control del menú desplegable de Categorías
+  configurarMenuCategorias();
+});
+
+/**
+ * Configura el menú desplegable de Categorías
+ */
+function configurarMenuCategorias() {
   const btnCategorias = document.getElementById("btnCategorias");
   const menuCategorias = document.getElementById("menuCategorias");
 
@@ -124,4 +150,4 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
-});
+}

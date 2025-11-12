@@ -1,6 +1,6 @@
 CREATE TABLE usuario (
   IdUsuario INT PRIMARY KEY,
-  TipoUsuario ENUM('Natural','Comerciante','PrestadorServicio') NOT NULL,
+  TipoUsuario ENUM('Natural','Comerciante','PrestadorServicio','PrestadorServicio') NOT NULL,
   Nombre VARCHAR(50) NOT NULL,
   Apellido VARCHAR(50) NOT NULL,
   Documento VARCHAR(20) NOT NULL,

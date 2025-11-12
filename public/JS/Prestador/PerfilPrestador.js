@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // 🚫 Si no hay sesión o no es prestador, redirigir
   if (!usuario || !usuario.id || usuario.tipo !== "PrestadorServicio") {
     alert("⚠️ Debes iniciar sesión como prestador de servicios para ver este perfil.");
-    window.location.href = "../General/ingreso.html";
+    window.location.href = "../General/Ingreso.html";
     return;
   }
 
