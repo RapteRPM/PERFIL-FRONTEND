@@ -63,6 +63,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const fecha = item.fecha ? new Date(item.fecha).toISOString().split('T')[0] : '';
 
+            // Mensaje de fecha de entrega (si está disponible)
+            let mensajeFechaEntrega = '';
+            if (!esGrua && item.fechaEntrega && item.horaEntrega) {
+              // Mostrar mensaje para cualquier modo que tenga fecha asignada
+              const tipoMensaje = item.modoEntrega === 'Visita al taller' 
+                ? 'Recogida programada' 
+                : 'Entrega programada';
+              mensajeFechaEntrega = `
+                <div class="mt-1">
+                  <small class="text-info">
+                    <i class="fas fa-calendar-check"></i> 
+                    ${tipoMensaje}: ${item.fechaEntrega} ${item.horaEntrega}
+                  </small>
+                </div>
+              `;
+            } else if (!esGrua && item.modoEntrega === 'Domicilio' && !item.fechaEntrega) {
+              // Solo mostrar "pendiente" para domicilio sin fecha (contraentrega)
+              mensajeFechaEntrega = `
+                <div class="mt-1">
+                  <small class="text-warning">
+                    <i class="fas fa-clock"></i> 
+                    Fecha de entrega pendiente
+                  </small>
+                </div>
+              `;
+            }
+
             // Botones de acción según el tipo
             let botonesAccion = '';
             
@@ -110,7 +137,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return `
               <tr>
                 <td>${i + 1}</td>
-                <td>${item.producto || ''}</td>
+                <td>
+                  ${item.producto || ''}
+                  ${mensajeFechaEntrega}
+                </td>
                 <td>${item.categoria || ''}</td>
                 <td>${fecha}</td>
                 <td>$${Number(item.precio || 0).toLocaleString('es-CO')}</td>

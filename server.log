@@ -1,5 +1,53 @@
+nohup: ignoring input
 ⚠️ MySQL no disponible, usando SQLite como fallback
 ✅ Base de datos SQLite creada en: /workspaces/PERFIL-FRONTEND/rpm_market.db
 ⚠️ Error en statement SQL: UNIQUE constraint failed: categoria.NombreCategoria
 ✅ Esquema SQLite inicializado desde rpm_market.sql
 🚀 Servidor escuchando en: http://localhost:3000/General/index.html
+🧠 Usuario encontrado: {
+  IdCredencial: 1,
+  Usuario: 1001092582,
+  NombreUsuario: '1001092582',
+  Contrasena: '$2b$10$J7FGShRW5/0wSuJtWvNnquZHYogSUafltoOhbyNYgRrOfvQ8CrioC',
+  TipoUsuario: 'Natural'
+}
+✅ Usuario autenticado: { id: 1001092582, nombre: '1001092582', tipo: 'Natural' }
+📖 Obteniendo perfil natural para usuario: 1001092582
+✅ Perfil encontrado para: David Duarte
+🧠 Usuario encontrado: {
+  IdCredencial: 3,
+  Usuario: 52343847,
+  NombreUsuario: '52343847',
+  Contrasena: '$2b$10$4CjtLPBQj8QIQ23/s0vD.uV.lIY.95Pt2OUyTfc5fVIytHYJKOdI.',
+  TipoUsuario: 'PrestadorServicio'
+}
+✅ Usuario autenticado: { id: 52343847, nombre: '52343847', tipo: 'PrestadorServicio' }
+📊 Cargando perfil del prestador: 52343847
+✅ Perfil del prestador cargado correctamente
+🧠 Usuario encontrado: {
+  IdCredencial: 2,
+  Usuario: 1019138679,
+  NombreUsuario: '1019138679',
+  Contrasena: '$2b$10$vNE36Zb2HWKtQZQ5S0oeu.yE/fD4hSYC3/IYD0f8wr4ZI5T9XhCka',
+  TipoUsuario: 'Comerciante'
+}
+✅ Usuario autenticado: { id: 1019138679, nombre: '1019138679', tipo: 'Comerciante' }
+📊 Cargando dashboard del comerciante: 1019138679
+✅ Dashboard del comerciante cargado correctamente
+📖 Obteniendo perfil comerciante para usuario: 1019138679
+✅ Perfil comerciante encontrado: {
+  IdUsuario: 1019138679,
+  Nombre: 'Carlos Alberto Duarte',
+  Apellido: 'Rojas',
+  Telefono: '3204586589',
+  Correo: 'carlos@gmail.com',
+  FotoPerfil: 'imagen/Comerciante/1019138679/1762909829670_990922.jpg',
+  NombreComercio: 'RPM MOTOS',
+  NitComercio: 234567890,
+  Direccion: 'Carrera 152#139- 30',
+  Barrio: 'Santa rita',
+  RedesSociales: '@RPMMOTOS',
+  DiasAtencion: 'Lunes - Viernes',
+  HoraInicio: '11:53',
+  HoraFin: '23:53'
+}

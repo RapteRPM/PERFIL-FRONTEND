@@ -15,6 +15,143 @@
    <link rel="stylesheet" href="style.css">
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+  
+  <!-- Estilos personalizados para el calendario -->
+  <style>
+    /* Estilos del calendario */
+    #calendar {
+      background-color: #1a1a1a;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    
+    /* Ajustar altura de las celdas del calendario */
+    .fc-daygrid-day {
+      min-height: 80px !important;
+      max-height: 100px !important;
+      overflow: hidden !important;
+    }
+    
+    /* Contenedor de eventos con altura fija */
+    .fc-daygrid-day-events {
+      max-height: 60px !important;
+      overflow: hidden !important;
+    }
+    
+    .fc-daygrid-day-frame {
+      min-height: 80px !important;
+      max-height: 100px !important;
+      overflow: hidden !important;
+    }
+    
+    /* Ocultar el botón de "más eventos" */
+    .fc-daygrid-more-link {
+      font-size: 0.75rem;
+      padding: 2px 4px;
+      margin: 2px;
+    }
+    
+    /* Espaciado de eventos en el calendario */
+    .fc-event {
+      margin: 1px 2px !important;
+      padding: 1px 4px !important;
+      border-radius: 3px !important;
+      font-size: 0.75rem !important;
+      line-height: 1.2 !important;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      height: 18px !important;
+      overflow: hidden !important;
+    }
+    
+    .fc-event:hover {
+      opacity: 0.85;
+    }
+    
+    /* Título de los eventos más compacto */
+    .fc-event-title {
+      font-weight: 500;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
+    
+    .fc-event-main {
+      overflow: hidden !important;
+      height: 100% !important;
+    }
+    
+    /* Colores del header del calendario */
+    .fc-toolbar {
+      background-color: #2d2d2d;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+    }
+    
+    .fc-toolbar-title {
+      color: #ffffff !important;
+      font-size: 1.5rem !important;
+    }
+    
+    .fc-button {
+      background-color: #004B87 !important;
+      border-color: #004B87 !important;
+      transition: background-color 0.2s;
+    }
+    
+    .fc-button:hover {
+      background-color: #003666 !important;
+    }
+    
+    .fc-button-active {
+      background-color: #002244 !important;
+    }
+    
+    /* Días de la semana */
+    .fc-col-header-cell {
+      background-color: #2d2d2d;
+      color: #ffffff;
+      padding: 10px;
+      font-weight: 600;
+    }
+    
+    /* Celdas de los días */
+    .fc-daygrid-day {
+      background-color: #252525;
+      border-color: #3a3a3a !important;
+    }
+    
+    .fc-daygrid-day:hover {
+      background-color: #2d2d2d;
+    }
+    
+    /* Número del día */
+    .fc-daygrid-day-number {
+      color: #ffffff;
+      padding: 6px;
+      font-size: 0.95rem;
+    }
+    
+    /* Día actual */
+    .fc-day-today {
+      background-color: #1a3a5a !important;
+    }
+    
+    /* Botón de ir a ventas con color verde de la lista */
+    .btn-ventas {
+      background-color: #155724 !important;
+      border-color: #155724 !important;
+      color: white !important;
+      transition: background-color 0.2s;
+    }
+    
+    .btn-ventas:hover {
+      background-color: #0d3d1a !important;
+      border-color: #0d3d1a !important;
+    }
+  </style>
 
 </head>
 <body>
@@ -72,9 +209,20 @@
     <!-- Panel lateral con lista de citas -->
     <div class="col-lg-3">
       <div class="panel-citas">
-        <h4 class="fw-bold text-center mb-3 titulos-extra">📋 Lista de Citas</h4>
+        <h4 class="fw-bold text-center mb-3 titulos-extra">📋 Lista de Pedidos</h4>
 
-        <div id="lista-citas" aria-live="polite">
+        <!-- Filtro de fecha -->
+        <div class="mb-3">
+          <input 
+            type="date" 
+            id="filtroFecha" 
+            class="form-control form-control-sm bg-dark text-white border-secondary"
+            style="font-size: 0.85rem;"
+          >
+        </div>
+
+        <!-- Lista con altura fija y scroll -->
+        <div id="lista-citas" aria-live="polite" style="max-height: 450px; overflow-y: auto; overflow-x: hidden;">
           <!-- La lista se carga por JS (ControlAgenda.js) -->
         </div>
 
@@ -82,7 +230,7 @@
 
         <div class="text-center">
           <a href="#" class="btn btn-outline-light w-100 mb-2">Nueva Publicación / Cita</a>
-          <a href="historial_ventas.html" class="btn btn-success w-100">Ir a Ventas</a>
+          <a href="historial_ventas.html" class="btn btn-ventas w-100">Ir a Ventas</a>
         </div>
       </div>
     </div>
