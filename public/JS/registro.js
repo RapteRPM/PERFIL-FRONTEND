@@ -1,5 +1,23 @@
 // registro.js — versión segura para los tres tipos de usuario(REGISTRAR NUEVOS USUARIOS)
 
+// Función para separar nombre completo en nombres y apellidos
+function separarNombreCompleto(nombreCompleto) {
+  const partes = nombreCompleto.trim().split(/\s+/); // Separar por espacios
+  
+  if (partes.length === 1) {
+    return { nombres: partes[0], apellidos: '' };
+  } else if (partes.length === 2) {
+    return { nombres: partes[0], apellidos: partes[1] };
+  } else if (partes.length === 3) {
+    return { nombres: partes[0], apellidos: `${partes[1]} ${partes[2]}` };
+  } else {
+    // 4 o más palabras: primeras 2 son nombres, resto apellidos
+    const nombres = `${partes[0]} ${partes[1]}`;
+    const apellidos = partes.slice(2).join(' ');
+    return { nombres, apellidos };
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const tipoUsuarioSelect = document.getElementById("tipoUsuario");
   const formRegistro = document.getElementById("formRegistro");
@@ -47,9 +65,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- Campos comunes según tipo ---
     if (tipoUsuario === "natural") {
-      formData.append("TipoUsuario", "Natural"); // ✅ agregado
+      const nombreCompleto = document.getElementById("Nombre").value.trim();
+      const { nombres, apellidos } = separarNombreCompleto(nombreCompleto);
+      
+      formData.append("TipoUsuario", "Natural");
       formData.append("Usuario", document.getElementById("Usuario").value);
-      formData.append("Nombre", document.getElementById("Nombre").value);
+      formData.append("Nombre", nombres);
+      formData.append("Apellido", apellidos);
       formData.append("Correo", document.getElementById("Correo").value);
       formData.append("Direccion", document.getElementById("Direccion").value);
       formData.append("Telefono", document.getElementById("Telefono").value);
@@ -62,9 +84,13 @@ document.addEventListener("DOMContentLoaded", () => {
 if (tipoUsuario === "comerciante") {
   const getVal = (id) => document.getElementById(id)?.value?.trim() || "";
 
+  const nombreCompleto = getVal("NombreComerciante");
+  const { nombres, apellidos } = separarNombreCompleto(nombreCompleto);
+
   formData.append("TipoUsuario", "Comerciante");
   formData.append("Usuario", getVal("UsuarioComercio"));
-  formData.append("Nombre", getVal("NombreComerciante"));
+  formData.append("Nombre", nombres);
+  formData.append("Apellido", apellidos);
   formData.append("Correo", getVal("CorreoComercio"));
 
   // --- Construir dirección completa ---
@@ -123,9 +149,13 @@ if (tipoUsuario === "comerciante") {
     if (tipoUsuario === "servicio" || tipoUsuario === "prestadorservicios") {
       const getVal = (id) => document.getElementById(id)?.value || "";
 
-      formData.append("TipoUsuario", "PrestadorServicio"); // ✅ ya estaba correcto
+      const nombreCompleto = getVal("NombreServicio");
+      const { nombres, apellidos } = separarNombreCompleto(nombreCompleto);
+
+      formData.append("TipoUsuario", "PrestadorServicio");
       formData.append("Usuario", getVal("UsuarioServicio"));
-      formData.append("Nombre", getVal("NombreServicio"));
+      formData.append("Nombre", nombres);
+      formData.append("Apellido", apellidos);
       formData.append("Correo", getVal("CorreoServicio"));
       formData.append("Telefono", getVal("TelefonoServicio"));
       formData.append("Direccion", getVal("DireccionServicio"));

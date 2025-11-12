@@ -23,7 +23,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const res = await fetch(`/api/perfilNatural/${usuarioId}`);
     const data = await res.json();
 
-    document.querySelector("input[type='text']").value = `${data.Nombre || ""} ${data.Apellido || ""}`;
+    document.getElementById("nombre").value = data.Nombre || "";
+    document.getElementById("apellido").value = data.Apellido || "";
     document.querySelector("input[type='dir']").value = data.Direccion || "";
     document.querySelector("input[type='bar']").value = data.Barrio || "";
     document.querySelector("input[type='email']").value = data.Correo || "";
@@ -43,10 +44,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const nombreCompleto = document.querySelector("input[type='text']").value.trim().split(" ");
     const formData = new FormData();
-    formData.append("Nombre", nombreCompleto[0] || "");
-    formData.append("Apellido", nombreCompleto.slice(1).join(" ") || "");
+    formData.append("Nombre", document.getElementById("nombre").value.trim());
+    formData.append("Apellido", document.getElementById("apellido").value.trim());
     formData.append("Direccion", document.querySelector("input[type='dir']").value.trim());
     formData.append("Barrio", document.querySelector("input[type='bar']").value.trim());
     formData.append("Correo", document.querySelector("input[type='email']").value.trim());
@@ -66,11 +66,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       alert(result.mensaje || "Perfil actualizado correctamente ✅");
 
+      // Actualizar foto en el sidebar y recargar la sesión
       if (result.fotoPerfil) {
         document.getElementById("foto-usuario").src = `/${result.fotoPerfil}`;
+        // Forzar recarga de la foto en todos los elementos
+        const todasLasFotos = document.querySelectorAll('img[id="foto-usuario"]');
+        todasLasFotos.forEach(img => img.src = `/${result.fotoPerfil}?t=${Date.now()}`);
+        
         imagenPerfil.value = "";
         previewImg.src = "";
         previewContainer.classList.add("d-none");
+      }
+      
+      // Recargar la información del header
+      if (typeof cargarUsuarioHeader === 'function') {
+        await cargarUsuarioHeader();
       }
     } catch (err) {
       console.error("❌ Error al actualizar perfil:", err);

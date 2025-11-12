@@ -2,6 +2,27 @@ const form = document.getElementById("formPerfil");
 const usuario = JSON.parse(localStorage.getItem("usuarioActivo"));
 const usuarioId = usuario?.id;
 
+// Preview de imagen
+const inputImagen = document.getElementById("imagenPerfil");
+const previewArea = document.getElementById("previewArea");
+
+if (inputImagen) {
+  inputImagen.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        previewArea.innerHTML = `
+          <div class="mt-3">
+            <img src="${event.target.result}" style="max-width: 200px; border-radius: 8px; border: 2px solid #ccc;">
+          </div>
+        `;
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   if (!usuarioId) return;
 
@@ -9,17 +30,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     const res = await fetch(`/api/perfilPrestador/${usuarioId}`);
     const data = await res.json();
 
-    document.getElementById("nombreCompleto").value = data.Nombre || "";
+    document.getElementById("nombre").value = data.Nombre || "";
+    document.getElementById("apellido").value = data.Apellido || "";
     document.getElementById("correo").value = data.Correo || "";
     document.getElementById("telefono").value = data.Telefono || "";
 
     if (data.FotoPerfil) {
-      const preview = document.getElementById("previewArea");
-      const img = document.createElement("img");
-      img.src = `/${data.FotoPerfil}`;
-      img.style.width = "100px";
-      img.style.borderRadius = "8px";
-      preview.appendChild(img);
+      previewArea.innerHTML = `
+        <div class="mt-3">
+          <img src="/${data.FotoPerfil}" style="max-width: 200px; border-radius: 8px; border: 2px solid #ccc;">
+        </div>
+      `;
     }
   } catch (err) {
     console.error("❌ Error al cargar perfil prestador:", err);
@@ -31,7 +52,8 @@ form.addEventListener("submit", async (e) => {
   if (!usuarioId) return alert("No hay usuario logueado");
 
   const formData = new FormData();
-  formData.append("Nombre", document.getElementById("nombreCompleto").value.trim());
+  formData.append("Nombre", document.getElementById("nombre").value.trim());
+  formData.append("Apellido", document.getElementById("apellido").value.trim());
   formData.append("Correo", document.getElementById("correo").value.trim());
   formData.append("Telefono", document.getElementById("telefono").value.trim());
 

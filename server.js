@@ -168,7 +168,7 @@ app.get('/api/usuario-actual', verificarSesion, async (req, res) => {
   try {
     // 🔍 Obtenemos los datos del usuario
     const [userRows] = await pool.query(
-      `SELECT u.IdUsuario, u.TipoUsuario, u.Nombre, u.Documento, u.FotoPerfil
+      `SELECT u.IdUsuario, u.TipoUsuario, u.Nombre, u.Apellido, u.Documento, u.FotoPerfil
        FROM usuario u
        INNER JOIN Credenciales c ON c.Usuario = u.IdUsuario
        WHERE u.IdUsuario = ?`,
@@ -180,7 +180,7 @@ app.get('/api/usuario-actual', verificarSesion, async (req, res) => {
     }
 
     const user = userRows[0];
-    let nombreMostrar = user.Nombre;
+    let nombreMostrar = `${user.Nombre} ${user.Apellido || ''}`.trim();
 
     // 🏪 Si es comerciante, obtener nombre del comercio
     if (user.TipoUsuario === "Comerciante") {
@@ -193,30 +193,18 @@ app.get('/api/usuario-actual', verificarSesion, async (req, res) => {
       }
     }
 
-    // 🖼️ Ruta de la imagen
+    // 🖼️ Ruta de la imagen - usar directamente de la BD
     const tipo = user.TipoUsuario;
-    const documento = user.Documento;
-    const fotoGuardada = user.FotoPerfil;
-
-    // ✅ Corrección de nombre de carpeta solo para PrestadorServicio
-    let tipoCarpeta = tipo;
-    if (tipo === "PrestadorServicio") {
-      tipoCarpeta = "PrestadorServicios";
-    }
-
-    const rutaCarpeta = path.join(__dirname, 'public', 'imagen', tipoCarpeta, documento.toString());
-    let fotoRutaFinal = '/imagen/imagen_perfil.png'; // por defecto
-
-    if (fs.existsSync(rutaCarpeta)) {
-      const archivos = fs.readdirSync(rutaCarpeta);
-      const archivoFoto = archivos.find(
-        f => f.includes(fotoGuardada) || f.match(/\.(jpg|jpeg|png|webp)$/i)
-      );
-      if (archivoFoto) {
-        fotoRutaFinal = `/imagen/${tipoCarpeta}/${documento}/${archivoFoto}`;
-      }
+    let fotoRutaFinal = user.FotoPerfil;
+    
+    // Si no hay foto o la ruta está vacía, usar imagen por defecto
+    if (!fotoRutaFinal || fotoRutaFinal.trim() === '') {
+      fotoRutaFinal = '/imagen/imagen_perfil.png';
     } else {
-      console.warn(`⚠️ Carpeta de usuario no encontrada: ${rutaCarpeta}`);
+      // Asegurar que la ruta comience con /
+      if (!fotoRutaFinal.startsWith('/')) {
+        fotoRutaFinal = '/' + fotoRutaFinal;
+      }
     }
 
     // ✅ Respuesta al frontend
@@ -361,11 +349,16 @@ app.get('/api/historial', async (req, res) => {
           ELSE df.Estado
         END AS estado,
         f.IdFactura AS idFactura,
-        'producto' AS tipo
+        'producto' AS tipo,
+        ca.FechaServicio AS fechaEntrega,
+        ca.HoraServicio AS horaEntrega,
+        ca.ModoServicio AS modoEntrega
       FROM detallefactura df
       LEFT JOIN factura f ON df.Factura = f.IdFactura
       INNER JOIN publicacion pub ON df.Publicacion = pub.IdPublicacion
       INNER JOIN categoria c ON pub.Categoria = c.IdCategoria
+      LEFT JOIN detallefacturacomercio dfc ON df.IdDetalleFactura = dfc.IdDetalleFacturaComercio
+      LEFT JOIN controlagendacomercio ca ON dfc.IdDetalleFacturaComercio = ca.DetFacturacomercio
       WHERE df.VisibleUsuario = 1
     `;
 
@@ -1047,9 +1040,8 @@ app.post(
           : 'PrestadorServicio';
 
       const idUsuarioValue = data.Usuario;
-      const partes = (data.Nombre || '').trim().split(' ');
-      const nombre = partes.slice(0, -1).join(' ') || data.Nombre;
-      const apellido = partes.slice(-1).join(' ') || '';
+      const nombre = (data.Nombre || '').trim();
+      const apellido = (data.Apellido || '').trim();
 
       const fotoPerfilFile = files.FotoPerfil ? files.FotoPerfil[0] : null;
       if (!fotoPerfilFile)
@@ -1951,7 +1943,7 @@ app.get("/api/perfilComerciante/:idUsuario", async (req, res) => {
 
 ///APARTADO DE CONTROL DE AGENDA - COMERCIANTE 
 
-app.get('/api/privado/citas', async (req, res) => {
+app.get('/api/citas-comerciante', async (req, res) => {
   const usuario = req.session?.usuario;
 
   if (!usuario) {
@@ -1971,45 +1963,113 @@ app.get('/api/privado/citas', async (req, res) => {
 
     const nitComercio = comercianteRows[0].NitComercio;
 
-    // 🧾 Obtener las citas/pedidos del comerciante desde detallefactura
+    // 🧾 Obtener las citas/pedidos del comerciante desde controlagendacomercio
     const citas = await queryPromise(`
       SELECT 
-        df.IdDetalleFactura AS id,
+        ca.IdSolicitud AS id,
         p.NombreProducto AS title,
-        DATE(f.FechaCompra) AS start,
+        ca.FechaServicio AS fechaServicio,
+        ca.HoraServicio AS horaServicio,
+        ca.ModoServicio AS modoServicio,
+        ca.ComentariosAdicionales AS comentarios,
         u.Nombre AS cliente,
-        df.Cantidad AS cantidad,
-        df.Total AS total,
-        df.Estado AS estado,
-        f.MetodoPago AS metodoPago
-      FROM detallefactura df
-      JOIN factura f ON df.Factura = f.IdFactura
-      JOIN publicacion p ON df.Publicacion = p.IdPublicacion
+        dfc.Cantidad AS cantidad,
+        dfc.Total AS total,
+        dfc.Estado AS estado,
+        f.MetodoPago AS metodoPago,
+        f.FechaCompra AS fechaCompra
+      FROM controlagendacomercio ca
+      JOIN detallefacturacomercio dfc ON ca.DetFacturacomercio = dfc.IdDetalleFacturaComercio
+      JOIN factura f ON dfc.Factura = f.IdFactura
+      JOIN publicacion p ON dfc.Publicacion = p.IdPublicacion
       LEFT JOIN usuario u ON f.Usuario = u.IdUsuario
-      WHERE p.Comerciante = ?
-      ORDER BY f.FechaCompra DESC
+      WHERE ca.Comercio = ?
+      ORDER BY ca.FechaServicio DESC, f.FechaCompra DESC
     `, [nitComercio]);
 
-    // Formatear datos para FullCalendar
-    const eventosFormateados = citas.map(cita => ({
-      id: cita.id,
-      title: `${cita.title} - ${cita.cliente || 'Cliente'}`,
-      start: cita.start,
-      extendedProps: {
-        descripcion: `Cliente: ${cita.cliente || 'N/A'} | Cantidad: ${cita.cantidad} | Total: $${Number(cita.total || 0).toLocaleString()} | Estado: ${cita.estado}`,
-        hora: new Date(cita.start).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
-        cliente: cita.cliente,
-        cantidad: cita.cantidad,
-        total: cita.total,
-        estado: cita.estado,
-        metodoPago: cita.metodoPago
-      }
-    }));
+    // Formatear datos para FullCalendar y lista
+    const eventosFormateados = citas.map(cita => {
+      // Solo incluir en calendario si tiene fecha confirmada
+      const tieneFecha = cita.fechaServicio && cita.fechaServicio !== '';
+      
+      return {
+        id: cita.id,
+        title: `${cita.title} - ${cita.cliente || 'Cliente'}`,
+        start: tieneFecha ? cita.fechaServicio : null, // null = no aparece en calendario
+        extendedProps: {
+          descripcion: `Cliente: ${cita.cliente || 'N/A'} | Cantidad: ${cita.cantidad} | Total: $${Number(cita.total || 0).toLocaleString()} | Estado: ${cita.estado}`,
+          hora: cita.horaServicio || 'Sin confirmar',
+          cliente: cita.cliente,
+          cantidad: cita.cantidad,
+          total: cita.total,
+          estado: cita.estado,
+          metodoPago: cita.metodoPago,
+          modoServicio: cita.modoServicio,
+          comentarios: cita.comentarios,
+          fechaServicio: cita.fechaServicio,
+          fechaCompra: cita.fechaCompra,
+          tieneFecha: tieneFecha
+        }
+      };
+    });
 
     res.json(eventosFormateados);
   } catch (error) {
     console.error('Error al obtener citas:', error);
     res.status(500).json({ error: 'Error al obtener citas' });
+  }
+});
+
+// Endpoint para eliminar un pedido del control de agenda
+app.delete('/api/eliminar-pedido/:id', async (req, res) => {
+  const usuario = req.session?.usuario;
+  const pedidoId = req.params.id;
+
+  if (!usuario) {
+    return res.status(401).json({ error: 'No autenticado' });
+  }
+
+  try {
+    // Eliminar de controlagendacomercio
+    await queryPromise(
+      'DELETE FROM controlagendacomercio WHERE IdSolicitud = ?',
+      [pedidoId]
+    );
+
+    res.json({ message: '✅ Pedido eliminado correctamente' });
+  } catch (error) {
+    console.error('Error al eliminar pedido:', error);
+    res.status(500).json({ error: 'Error al eliminar pedido' });
+  }
+});
+
+// Endpoint para actualizar fecha de entrega en contraentrega
+app.put('/api/actualizar-fecha-pedido', async (req, res) => {
+  const usuario = req.session?.usuario;
+  const { id, fecha, hora } = req.body;
+
+  if (!usuario) {
+    return res.status(401).json({ error: 'No autenticado' });
+  }
+
+  if (!id || !fecha || !hora) {
+    return res.status(400).json({ error: 'Faltan datos requeridos' });
+  }
+
+  try {
+    // Actualizar fecha y hora en controlagendacomercio
+    await queryPromise(
+      'UPDATE controlagendacomercio SET FechaServicio = ?, HoraServicio = ? WHERE IdSolicitud = ?',
+      [fecha, hora, id]
+    );
+
+    res.json({ 
+      success: true,
+      message: '✅ Fecha de entrega actualizada correctamente' 
+    });
+  } catch (error) {
+    console.error('Error al actualizar fecha:', error);
+    res.status(500).json({ error: 'Error al actualizar fecha' });
   }
 });
 
@@ -3293,16 +3353,19 @@ app.put("/api/actualizarPerfilPrestador/:idUsuario", uploadPublicacionPrestador.
     }
 
     let rutaFotoFinal = usuarioRows[0].FotoPerfil;
-    let rutaCertificadoFinal = usuarioRows[0].CertificadoGrua;
 
     // ✅ Procesar imagen de perfil
     if (foto) {
       const folder = path.join(__dirname, "public", "imagen", "PrestadorServicios", idUsuario);
       fs.mkdirSync(folder, { recursive: true });
 
+      // Eliminar foto anterior
       if (rutaFotoFinal) {
         const rutaAnterior = path.join(__dirname, "public", rutaFotoFinal);
-        if (fs.existsSync(rutaAnterior)) fs.unlinkSync(rutaAnterior);
+        if (fs.existsSync(rutaAnterior)) {
+          fs.unlinkSync(rutaAnterior);
+          console.log(`🗑️ Foto anterior eliminada: ${rutaAnterior}`);
+        }
       }
 
       const nombreFoto = `${Date.now()}_${Math.round(Math.random() * 1e6)}${path.extname(foto.originalname)}`;
@@ -3310,7 +3373,9 @@ app.put("/api/actualizarPerfilPrestador/:idUsuario", uploadPublicacionPrestador.
       fs.renameSync(foto.path, destino);
 
       rutaFotoFinal = path.join("imagen", "PrestadorServicios", idUsuario, nombreFoto).replace(/\\/g, "/");
+      console.log(`✅ Nueva foto guardada: ${rutaFotoFinal}`);
     }
+    
     // ✅ Procesar certificado
     if (certificado) {
       const folder = path.join(__dirname, "public", "Imagen", "PrestadorServicios", idUsuario, "documentos");
@@ -3329,9 +3394,13 @@ app.put("/api/actualizarPerfilPrestador/:idUsuario", uploadPublicacionPrestador.
       const idServicio = servicioRows[0].IdServicio;
       const rutaCertificadoAnterior = servicioRows[0].Certificado;
 
+      // Eliminar certificado anterior
       if (rutaCertificadoAnterior) {
         const rutaCompleta = path.join(__dirname, "public", rutaCertificadoAnterior);
-        if (fs.existsSync(rutaCompleta)) fs.unlinkSync(rutaCompleta);
+        if (fs.existsSync(rutaCompleta)) {
+          fs.unlinkSync(rutaCompleta);
+          console.log(`🗑️ Certificado anterior eliminado`);
+        }
       }
 
       const nombreCertificado = `${Date.now()}_${Math.round(Math.random() * 1e6)}${path.extname(certificado.originalname)}`;
@@ -3349,10 +3418,11 @@ app.put("/api/actualizarPerfilPrestador/:idUsuario", uploadPublicacionPrestador.
     // ✅ Actualizar datos en la base
     await pool.query(
       `UPDATE Usuario 
-      SET Nombre = ?, Correo = ?, Telefono = ?, FotoPerfil = ?
+      SET Nombre = ?, Apellido = ?, Correo = ?, Telefono = ?, FotoPerfil = ?
       WHERE IdUsuario = ?`,
       [
         data.Nombre || null,
+        data.Apellido || null,
         data.Correo || null,
         data.Telefono || null,
         rutaFotoFinal,
