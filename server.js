@@ -2369,7 +2369,7 @@ app.get('/api/detallePublicacion/:id', async (req, res) => {
             FROM publicacion p
             JOIN comerciante c ON p.Comerciante = c.NitComercio
             JOIN usuario u ON c.Comercio = u.IdUsuario
-            LEFT JOIN Opiniones o ON o.Publicacion = p.IdPublicacion
+            LEFT JOIN opiniones o ON o.Publicacion = p.IdPublicacion
             WHERE p.IdPublicacion = ?
             GROUP BY p.IdPublicacion, c.NombreComercio, u.Nombre, u.Apellido`,
             [idPublicacion]
@@ -2388,7 +2388,7 @@ app.get('/api/detallePublicacion/:id', async (req, res) => {
                 o.FechaOpinion, 
                 u.Nombre, 
                 u.Apellido
-            FROM Opiniones o
+            FROM opiniones o
             JOIN usuario u ON o.UsuarioNatural = u.IdUsuario
             WHERE o.Publicacion = ?
             ORDER BY o.FechaOpinion DESC`,
