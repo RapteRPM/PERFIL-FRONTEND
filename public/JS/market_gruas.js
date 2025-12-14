@@ -29,28 +29,25 @@ document.addEventListener("DOMContentLoaded", async () => {
       const idUsuario = item.Usuario;
       const idPublicacion = item.IdPublicacionGrua;
       
-      // Normalizar rutas de imágenes siguiendo la estructura real:
-      // /Imagen/PrestadorServicios/idUsuario/publicaciones/idPublicacion/nombreArchivo.ext
+      // Normalizar rutas de imágenes - usar misma lógica que detalle
       let imagenSrc = "../General/IMAGENINGRESO/Grua.png";
-      if (imagenes.length > 0 && idUsuario && idPublicacion) {
-        let primeraImagen = imagenes[0].replace(/\\/g, '/').trim();
+      if (imagenes.length > 0) {
+        let primeraImagen = imagenes[0];
         
-        // Si la imagen ya tiene la ruta completa con "Imagen/PrestadorServicios", usarla directamente
-        if (primeraImagen.includes('Imagen/PrestadorServicios')) {
-          if (primeraImagen.startsWith('public/')) {
-            primeraImagen = primeraImagen.substring(7);
+        if (typeof primeraImagen === 'string') {
+          primeraImagen = primeraImagen.replace(/\\/g, '/').trim();
+          
+          // Si la ruta empieza con "imagen/", usar tal cual con barra al inicio
+          if (primeraImagen.toLowerCase().startsWith('imagen/')) {
+            imagenSrc = '/' + primeraImagen;
+          } 
+          // Si no tiene prefijo, asumimos que es la ruta completa
+          else {
+            imagenSrc = primeraImagen.startsWith('/') ? primeraImagen : '/' + primeraImagen;
           }
-          if (!primeraImagen.startsWith('/')) {
-            primeraImagen = '/' + primeraImagen;
-          }
-          imagenSrc = primeraImagen;
-        } else {
-          // Construir la ruta completa
-          const nombreArchivo = primeraImagen.split('/').pop();
-          imagenSrc = `/Imagen/PrestadorServicios/${idUsuario}/publicaciones/${idPublicacion}/${nombreArchivo}`;
+          
+          console.log("🖼️ Ruta de imagen para publicación", idPublicacion, ":", imagenSrc);
         }
-        
-        console.log("🖼️ Ruta de imagen procesada para publicación", idPublicacion, ":", imagenSrc);
       }
 
       card.innerHTML = `

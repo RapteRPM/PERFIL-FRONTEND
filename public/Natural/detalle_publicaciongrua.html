@@ -35,7 +35,7 @@
       <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="perfilDropdown">
         <li><a class="dropdown-item" href="Editar_perfil.html">Editar perfil</a></li>
         <li><hr class="dropdown-divider"></li>
-        <li><a class="dropdown-item text-danger" href="../General/Ingreso.html">Cerrar sesión</a></li>
+        <li><a class="dropdown-item text-danger" href="/logout">Cerrar sesión</a></li>
       </ul>
     </div>
   </div>
@@ -50,9 +50,8 @@
 
       <!-- Menú para Usuario Natural -->
       <div class="hidden md:flex items-center space-x-6" id="menuNatural">
+        <a href="perfil_usuario.html" class="hover:text-gray-200 transition">RPM Market</a>
         <a href="../General/marketplace_gruas.html" class="hover:text-gray-200 transition">Market Grua</a>
-        <a href="perfil_usuario.html" class="hover:text-gray-200 transition">Perfil</a>
-        <a href="carrito_compras.html" class="hover:text-gray-200 transition">Carrito</a>
         <a href="../General/CentroAyuda.html" class="hover:text-gray-200 transition">Centro de ayuda</a>
       </div>
 
@@ -214,6 +213,7 @@
 <!-- Scripts -->
 
 
+<script src="../JS/protegerPagina.js"></script>
 <script src="../JS/perfil_usuario.js"></script>
 <script src="../JS/UsuarioSesion.js"></script>
 <script src="../JS/Natural/DetallePublicacionGrua.js"></script>

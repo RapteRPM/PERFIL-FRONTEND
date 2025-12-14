@@ -335,8 +335,35 @@ app.get('/logout', (req, res) => {
     // 🧹 Limpia cookies de sesión para mayor seguridad
     res.clearCookie('connect.sid', { path: '/' });
 
-    // 🔄 Redirige al login
-    res.redirect('/General/Ingreso.html');
+    // 🔄 Redirige al login con script para limpiar localStorage
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Cerrando sesión...</title>
+      </head>
+      <body>
+        <script>
+          // Limpiar localStorage
+          localStorage.removeItem('usuarioActivo');
+          localStorage.removeItem('productoCompra');
+          localStorage.clear();
+          
+          // Limpiar sessionStorage
+          sessionStorage.clear();
+          
+          // Evitar que se pueda volver atrás con caché
+          window.history.pushState(null, '', window.location.href);
+          window.onpopstate = function() {
+            window.history.pushState(null, '', window.location.href);
+          };
+          
+          // Redirigir al login
+          window.location.replace('/General/Ingreso.html');
+        </script>
+      </body>
+      </html>
+    `);
   });
 });
 
@@ -344,8 +371,17 @@ app.get('/logout', (req, res) => {
 // 🧠 Verificar sesión activa
 // ===============================
 app.get('/api/verificar-sesion', (req, res) => {
-  const sesionActiva = !!req.session?.usuario;
-  res.json({ activa: sesionActiva });
+  if (req.session?.usuario) {
+    // Devolver los datos del usuario si hay sesión activa
+    res.json({
+      activa: true,
+      id: req.session.usuario.id,
+      nombre: req.session.usuario.nombre,
+      tipo: req.session.usuario.tipo
+    });
+  } else {
+    res.json({ activa: false });
+  }
 });
 
 // ===============================
@@ -1095,14 +1131,24 @@ app.post(
       if (!fotoPerfilFile)
         return res.status(400).json({ error: 'Debe subir una foto de perfil' });
 
-      // Verificar si ya existe
+      // Verificar si ya existe el usuario por ID
       const usuarioExistente = await queryPromise(
         'SELECT IdUsuario FROM usuario WHERE IdUsuario = ?',
         [idUsuarioValue]
       );
       if (usuarioExistente.length > 0) {
         console.log(`⚠️ Usuario ${idUsuarioValue} ya existe en la base de datos`);
-        return res.status(409).json({ error: 'El usuario ya está registrado. Por favor, utilice otro número de documento.' });
+        return res.status(409).json({ error: 'El número de documento ya está registrado. Por favor, utilice otro número de documento.' });
+      }
+
+      // Verificar si ya existe el correo
+      const correoExistente = await queryPromise(
+        'SELECT IdUsuario FROM usuario WHERE Correo = ?',
+        [data.Correo]
+      );
+      if (correoExistente.length > 0) {
+        console.log(`⚠️ Correo ${data.Correo} ya está registrado en la base de datos`);
+        return res.status(409).json({ error: 'El correo electrónico ya está registrado. Por favor, utilice otro correo.' });
       }
 
       // Insertar en usuario (tabla en minúsculas para MySQL case-sensitive)

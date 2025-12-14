@@ -37,7 +37,7 @@
     <!-- Perfil (solo si hay sesión) -->
     <div class="dropdown" id="perfil-container" style="display: none;">
       <button class="perfil-btn dropdown-toggle" id="perfilDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-        <img id="foto-usuario" src="../image/imagen_perfil.png" alt="Usuario">
+        <img id="foto-usuario" src="/General/IMAGENINGRESO/imagen_perfil.png" alt="Usuario">
         <span id="nombre-usuario">Cargando...</span>
       </button>
       <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="perfilDropdown">
@@ -48,7 +48,7 @@
     </div>
     
     <!-- Botón Ingresar (solo sin sesión) -->
-    <a href="/General/Ingreso.html" id="link-ingresar-taller" class="btn btn-outline-light" style="display: none;">Ingresar</a>
+    <a href="/General/Ingreso.html" id="link-ingresar-taller" class="btn btn-outline-light">Ingresar</a>
   </div>
 
   <!-- ===== NAVBAR ===== -->
@@ -59,8 +59,7 @@
 
       <!-- Enlaces a la derecha -->
       <div class="navbar-links">
-        <a href="index.html">RPM MARKET</a>
-        <a href="../Natural/perfil_usuario.html" id="link-perfil-nav" style="display: none;">Perfil</a>
+        <a href="../Natural/perfil_usuario.html" id="link-inicio-nav">Inicio</a>
         <a href="CentroAyuda.html">Centro de ayuda</a>
       </div>
     </div>
@@ -138,23 +137,27 @@
   <script>
     // Cargar usuario al cargar la página
     document.addEventListener('DOMContentLoaded', async () => {
-      await cargarUsuarioHeader();
+      console.log('🔄 Verificando sesión en UbicaTaller...');
       
       // Verificar sesión y mostrar/ocultar elementos según corresponda
       const usuario = await verificarSesion();
+      console.log('👤 Usuario obtenido:', usuario);
+      
       const perfilContainer = document.getElementById('perfil-container');
       const linkIngresar = document.getElementById('link-ingresar-taller');
-      const linkPerfilNav = document.getElementById('link-perfil-nav');
       const linkEditarPerfil = document.getElementById('link-editar-perfil');
       
       if (usuario && usuario.id) {
+        console.log('✅ Usuario con sesión activa, mostrando perfil');
         // Hay sesión: mostrar perfil y ocultar botón ingresar
-        if (perfilContainer) perfilContainer.style.display = 'block';
+        if (perfilContainer) {
+          perfilContainer.style.display = 'block';
+          console.log('✅ Perfil container mostrado');
+        }
         if (linkIngresar) linkIngresar.style.display = 'none';
-        if (linkPerfilNav) linkPerfilNav.style.display = 'inline-block';
         
         // Cargar información del usuario
-        cargarUsuarioHeader();
+        await cargarUsuarioHeader();
         
         // Configurar link de editar perfil según tipo de usuario
         if (linkEditarPerfil) {
@@ -167,10 +170,10 @@
           }
         }
       } else {
+        console.log('⚠️ No hay sesión activa, mostrando botón ingresar');
         // No hay sesión: ocultar perfil y mostrar botón ingresar
         if (perfilContainer) perfilContainer.style.display = 'none';
         if (linkIngresar) linkIngresar.style.display = 'inline-block';
-        if (linkPerfilNav) linkPerfilNav.style.display = 'none';
       }
     });
   </script>

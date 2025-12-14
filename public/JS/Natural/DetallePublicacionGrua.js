@@ -24,16 +24,29 @@ document.addEventListener("DOMContentLoaded", async () => {
   try {
     const res = await fetch(`/api/publicaciones-grua/${idPublicacion}`);
     const data = await res.json();
+    
+    console.log("📊 Datos recibidos de la grúa:", data);
 
-    document.getElementById("tituloPublicacion").textContent = data.TituloPublicacion;
-    document.getElementById("descripcionServicio").textContent = data.DescripcionServicio;
-    document.getElementById("nombrePrestador").textContent = data.NombrePrestador;
-    document.getElementById("telefonoPrestador").textContent = data.Telefono;
-    document.getElementById("correoPrestador").textContent = data.Correo;
-    document.getElementById("detalleServicio").textContent = data.DescripcionServicio;
-    document.getElementById("zonaCobertura").textContent = data.ZonaCobertura;
-    document.getElementById("tarifaBase").textContent = `$${parseInt(data.TarifaBase).toLocaleString("es-CO")}`;
+    // Llenar la información del servicio
+    const tituloEl = document.getElementById("tituloPublicacion");
+    const descripcionEl = document.getElementById("descripcionServicio");
+    const nombreEl = document.getElementById("nombrePrestador");
+    const telefonoEl = document.getElementById("telefonoPrestador");
+    const correoEl = document.getElementById("correoPrestador");
+    const detalleEl = document.getElementById("detalleServicio");
+    const zonaEl = document.getElementById("zonaCobertura");
+    const tarifaEl = document.getElementById("tarifaBase");
+    
+    if (tituloEl) tituloEl.textContent = data.TituloPublicacion || "Sin título";
+    if (descripcionEl) descripcionEl.textContent = data.DescripcionServicio || "Sin descripción";
+    if (nombreEl) nombreEl.textContent = data.NombrePrestador || "No disponible";
+    if (telefonoEl) telefonoEl.textContent = data.Telefono || "No disponible";
+    if (correoEl) correoEl.textContent = data.Correo || "No disponible";
+    if (detalleEl) detalleEl.textContent = data.DescripcionServicio || "Sin detalles";
+    if (zonaEl) zonaEl.textContent = data.ZonaCobertura || "No especificada";
+    if (tarifaEl) tarifaEl.textContent = `$${parseInt(data.TarifaBase || 0).toLocaleString("es-CO")}`;
 
+    console.log("✅ Información llenada en la página");
 
     let imagenes = [];
     
@@ -48,38 +61,34 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
 
-    const idUsuario = data.IdUsuario;
-    const idPublicacion = data.IdPublicacionGrua;
-
-    // Establecer la imagen
+    // Establecer la imagen (usar la misma lógica que marketplace_gruas)
     const imgElement = document.getElementById("imagen-grua");
-    if (imgElement && imagenes.length > 0 && idUsuario && idPublicacion) {
-      let primeraImagen = imagenes[0].replace(/\\/g, '/').trim();
+    if (imgElement && imagenes.length > 0) {
+      let primeraImagen = imagenes[0];
       
-      let ruta;
-      // Si la imagen ya tiene la ruta completa con "Imagen/PrestadorServicios", usarla directamente
-      if (primeraImagen.includes('Imagen/PrestadorServicios')) {
-        ruta = primeraImagen;
-        if (ruta.startsWith('public/')) {
-          ruta = ruta.substring(7);
+      // Limpiar la ruta
+      if (typeof primeraImagen === 'string') {
+        primeraImagen = primeraImagen.replace(/\\/g, '/').trim();
+        
+        // Si la ruta empieza con "imagen/", agregar barra al inicio
+        if (primeraImagen.toLowerCase().startsWith('imagen/')) {
+          imgElement.src = '/' + primeraImagen;
+        } 
+        // Si no tiene prefijo, asumimos que es la ruta completa
+        else {
+          imgElement.src = primeraImagen.startsWith('/') ? primeraImagen : '/' + primeraImagen;
         }
-        if (!ruta.startsWith('/')) {
-          ruta = '/' + ruta;
-        }
-      } else {
-        // Construir la ruta completa siguiendo la estructura real:
-        // /Imagen/PrestadorServicios/idUsuario/publicaciones/idPublicacion/nombreArchivo.ext
-        const nombreArchivo = primeraImagen.split('/').pop();
-        ruta = `/Imagen/PrestadorServicios/${idUsuario}/publicaciones/${idPublicacion}/${nombreArchivo}`;
+        
+        console.log("🖼️ Cargando imagen:", imgElement.src);
+        
+        // Agregar evento de error para debugging
+        imgElement.onerror = function() {
+          console.error("❌ Error cargando imagen:", imgElement.src);
+          this.src = '../General/IMAGENINGRESO/Grua.png';
+        };
       }
-      
-      console.log("🖼️ Cargando imagen:", ruta);
-      console.log("🖼️ Data completa:", data);
-      imgElement.src = ruta;
     } else {
       console.log("⚠️ No hay imágenes disponibles, usando imagen por defecto");
-      console.log("⚠️ Data.FotoPublicacion:", data.FotoPublicacion);
-      console.log("⚠️ IdUsuario:", idUsuario);
     }
 
   } catch (err) {

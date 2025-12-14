@@ -10,8 +10,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const data = await response.json();
 
+    // Extraer solo el primer nombre
+    let nombreMostrar = data.nombre || 'Usuario';
+    if (nombreMostrar.includes(' ')) {
+      nombreMostrar = nombreMostrar.split(' ')[0];
+    }
+
     // Mostrar datos en el header
-    nombreUsuario.textContent = data.nombre || 'Usuario';
+    nombreUsuario.textContent = nombreMostrar;
     fotoUsuario.src = data.foto || '/imagen/imagen_perfil.png';
 
     // 🧩 Guardar usuario en localStorage para usarlo en otras páginas
