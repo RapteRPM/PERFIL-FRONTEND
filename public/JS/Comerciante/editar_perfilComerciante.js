@@ -52,7 +52,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     
     if (nombreUsuario) {
       const nombreCompleto = `${data.Nombre || ""} ${data.Apellido || ""}`.trim();
-      nombreUsuario.textContent = nombreCompleto || data.NombreComercio || "Usuario";
+      // Mostrar solo el primer nombre
+      const primerNombre = nombreCompleto.split(' ')[0] || data.NombreComercio || "Usuario";
+      nombreUsuario.textContent = primerNombre;
     }
 
     // Preview de imagen

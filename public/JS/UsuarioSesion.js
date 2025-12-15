@@ -11,15 +11,32 @@ async function cargarUsuarioHeader() {
     const nombreEl = document.getElementById("nombre-usuario");
     const fotoEl = document.getElementById("foto-usuario");
 
-    if (nombreEl) nombreEl.textContent = data.nombre || "Usuario";
-    if (fotoEl) fotoEl.src = data.foto || "../General/IMAGENINGRESO/imagen_perfil.png";
+    // Extraer solo el primer nombre
+    let nombreMostrar = data.nombre || "Usuario";
+    if (nombreMostrar.includes(' ')) {
+      nombreMostrar = nombreMostrar.split(' ')[0];
+    }
+
+    if (nombreEl) nombreEl.textContent = nombreMostrar;
+    
+    // Usar ruta absoluta para la foto
+    if (fotoEl) {
+      // Si data.foto viene con ruta, usar tal cual, sino usar imagen por defecto
+      if (data.foto && data.foto.startsWith('/')) {
+        fotoEl.src = data.foto;
+      } else if (data.foto) {
+        fotoEl.src = '/' + data.foto;
+      } else {
+        fotoEl.src = "/General/IMAGENINGRESO/imagen_perfil.png";
+      }
+    }
   } catch (error) {
     console.warn("⚠️ No se pudo cargar la sesión:", error);
     const nombreEl = document.getElementById("nombre-usuario");
     const fotoEl = document.getElementById("foto-usuario");
 
     if (nombreEl) nombreEl.textContent = "Invitado";
-    if (fotoEl) fotoEl.src = "../General/IMAGENINGRESO/imagen_perfil.png";
+    if (fotoEl) fotoEl.src = "/General/IMAGENINGRESO/imagen_perfil.png";
   }
 }
 

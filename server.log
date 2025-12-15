@@ -1,53 +1,275 @@
-nohup: ignoring input
+
+> proytecto@1.0.1 start
+> node server.js
+
 ⚠️ MySQL no disponible, usando SQLite como fallback
 ✅ Base de datos SQLite creada en: /workspaces/PERFIL-FRONTEND/rpm_market.db
 ⚠️ Error en statement SQL: UNIQUE constraint failed: categoria.NombreCategoria
 ✅ Esquema SQLite inicializado desde rpm_market.sql
 🚀 Servidor escuchando en: http://localhost:3000/General/index.html
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+🚀 === INICIO REGISTRO === 🚀
+📦 Datos recibidos: [Object: null prototype] {
+  TipoUsuario: 'Natural',
+  Usuario: '987654321',
+  Nombre: 'mauricio',
+  Apellido: 'sanchez',
+  Correo: 'mauriciosanchez@gmail.com',
+  Direccion: 'cra 123 # 125 - 52',
+  Telefono: '3134681250',
+  Barrio: 'Santa rita'
+}
+📸 Archivos recibidos: [Object: null prototype] {
+  FotoPerfil: [
+    {
+      fieldname: 'FotoPerfil',
+      originalname: 'base de datos.png',
+      encoding: '7bit',
+      mimetype: 'image/png',
+      destination: '/workspaces/PERFIL-FRONTEND/public/imagen/temp',
+      filename: '1765742595014-386856938.png',
+      path: '/workspaces/PERFIL-FRONTEND/public/imagen/temp/1765742595014-386856938.png',
+      size: 170745
+    }
+  ]
+}
+✅ Credenciales creadas para: 987654321
+🔑 Token temporal generado: UPBMFsFe
+📝 Insertando perfil natural...
+✅ Perfil natural creado
+✅ Registro completo: 987654321
+🔐 Actualizando contraseña para usuario: 987654321
+✅ Contraseña actualizada para usuario: 987654321
 🧠 Usuario encontrado: {
-  IdCredencial: 1,
-  Usuario: 1001092582,
-  NombreUsuario: '1001092582',
-  Contrasena: '$2b$10$J7FGShRW5/0wSuJtWvNnquZHYogSUafltoOhbyNYgRrOfvQ8CrioC',
+  IdCredencial: 7,
+  Usuario: 987654321,
+  NombreUsuario: '987654321',
+  Contrasena: '$2b$10$kRVT4N3BLkCB2WMgmo3WoeSj0ki/Py9sh4wj2czDtvbrvTGgznGk2',
   TipoUsuario: 'Natural'
 }
-✅ Usuario autenticado: { id: 1001092582, nombre: '1001092582', tipo: 'Natural' }
-📖 Obteniendo perfil natural para usuario: 1001092582
-✅ Perfil encontrado para: David Duarte
-🧠 Usuario encontrado: {
-  IdCredencial: 3,
-  Usuario: 52343847,
-  NombreUsuario: '52343847',
-  Contrasena: '$2b$10$4CjtLPBQj8QIQ23/s0vD.uV.lIY.95Pt2OUyTfc5fVIytHYJKOdI.',
-  TipoUsuario: 'PrestadorServicio'
+✅ Usuario autenticado: { id: 987654321, nombre: '987654321', tipo: 'Natural' }
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📖 Obteniendo perfil natural para usuario: 987654321
+✅ Perfil encontrado para: mauricio sanchez
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/marketplace-gruas
+✅ Encontradas 4 grúas
+📥 GET /api/marketplace-gruas
+✅ Encontradas 4 grúas
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/marketplace-gruas
+✅ Encontradas 4 grúas
+📥 GET /api/publicaciones_publicas - categoria: Accesorios limite: 6
+✅ Encontradas 2 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: Accesorios limite: 6
+✅ Encontradas 2 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: Repuestos limite: 6
+✅ Encontradas 0 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: Servicio mecanico limite: 6
+✅ Encontradas 2 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: Accesorios limite: 6
+✅ Encontradas 2 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📖 Obteniendo perfil natural para usuario: 987654321
+✅ Perfil encontrado para: mauricio sanchez
+📝 Actualizando perfil natural para usuario: 987654321
+✅ Datos de usuario actualizados
+✅ Perfil natural actualizado
+📖 Obteniendo perfil natural para usuario: 987654321
+✅ Perfil encontrado para: mauricio sanchez
+📊 Consultando historial para usuario: 987654321
+✅ 0 registros encontrados
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📩 Solicitud de centro de ayuda recibida: {
+  perfil: 987654321,
+  tipoSolicitud: 'Sugerencia',
+  rol: 'Usuario Natural',
+  asunto: 'MALA PLATAFORMA'
 }
-✅ Usuario autenticado: { id: 52343847, nombre: '52343847', tipo: 'PrestadorServicio' }
-📊 Cargando perfil del prestador: 52343847
-✅ Perfil del prestador cargado correctamente
-🧠 Usuario encontrado: {
-  IdCredencial: 2,
-  Usuario: 1019138679,
-  NombreUsuario: '1019138679',
-  Contrasena: '$2b$10$vNE36Zb2HWKtQZQ5S0oeu.yE/fD4hSYC3/IYD0f8wr4ZI5T9XhCka',
-  TipoUsuario: 'Comerciante'
+✅ Solicitud de ayuda registrada exitosamente
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📦 Finalizando compra...
+👤 Usuario: 987654321, 💳 Método: contraentrega
+🛍️ Compra directa: NO
+🛒 Procesando compra desde carrito...
+📋 1 productos en el carrito
+💰 Total de la compra: $156000
+✅ Factura creada con ID: 13
+🗑️ Carrito vaciado
+✅ Compra registrada con método: contraentrega
+📊 Consultando historial para usuario: 987654321
+✅ 1 registros encontrados
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/marketplace-gruas
+✅ Encontradas 4 grúas
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/marketplace-gruas
+✅ Encontradas 4 grúas
+📥 GET /api/marketplace-gruas
+✅ Encontradas 4 grúas
+📅 Agendando servicio de grúa: {
+  usuarioId: 987654321,
+  idPublicacionGrua: '4',
+  fecha: '2025-12-31',
+  hora: '15:24',
+  direccion: 'Cra 152 # 139-35',
+  destino: 'portal 80',
+  detalle: 'me bare '
 }
-✅ Usuario autenticado: { id: 1019138679, nombre: '1019138679', tipo: 'Comerciante' }
-📊 Cargando dashboard del comerciante: 1019138679
-✅ Dashboard del comerciante cargado correctamente
-📖 Obteniendo perfil comerciante para usuario: 1019138679
-✅ Perfil comerciante encontrado: {
-  IdUsuario: 1019138679,
-  Nombre: 'Carlos Alberto Duarte',
-  Apellido: 'Rojas',
-  Telefono: '3204586589',
-  Correo: 'carlos@gmail.com',
-  FotoPerfil: 'imagen/Comerciante/1019138679/1762909829670_990922.jpg',
-  NombreComercio: 'RPM MOTOS',
-  NitComercio: 234567890,
-  Direccion: 'Carrera 152#139- 30',
-  Barrio: 'Santa rita',
-  RedesSociales: '@RPMMOTOS',
-  DiasAtencion: 'Lunes - Viernes',
-  HoraInicio: '11:53',
-  HoraFin: '23:53'
-}
+✅ Servicio agendado correctamente
+📥 GET /api/marketplace-gruas
+✅ Encontradas 4 grúas
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📊 Consultando historial para usuario: 987654321
+✅ 2 registros encontrados
+📦 Excel generado con 2 registros (productos + grúas)
+📊 Consultando historial para usuario: 987654321
+✅ 1 registros encontrados
+📊 Consultando historial para usuario: 987654321
+✅ 1 registros encontrados
+📊 Consultando historial para usuario: 987654321
+✅ 0 registros encontrados
+📊 Consultando historial para usuario: 987654321
+✅ 0 registros encontrados
+📊 Consultando historial para usuario: 987654321
+✅ 2 registros encontrados
+📊 Consultando historial para usuario: 987654321
+✅ 2 registros encontrados
+📊 Consultando historial para usuario: 987654321
+✅ 2 registros encontrados
+📊 Consultando historial para usuario: 987654321
+✅ 1 registros encontrados
+📊 Consultando historial para usuario: 987654321
+✅ 1 registros encontrados
+📊 Consultando historial para usuario: 987654321
+✅ 2 registros encontrados
+📊 Consultando historial para usuario: 987654321
+✅ 1 registros encontrados
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/marketplace-gruas
+✅ Encontradas 4 grúas
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📊 Consultando historial para usuario: 987654321
+✅ 2 registros encontrados
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/marketplace-gruas
+✅ Encontradas 4 grúas
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📊 Consultando historial para usuario: 987654321
+✅ 2 registros encontrados
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📊 Consultando historial para usuario: 987654321
+✅ 2 registros encontrados
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📊 Consultando historial para usuario: 987654321
+✅ 2 registros encontrados
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 4 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 4 publicaciones

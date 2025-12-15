@@ -162,7 +162,9 @@ if (btnComprar) {
       id: p.IdPublicacion,
       nombre: p.NombreProducto,
       precio: p.Precio,
-      imagen: imagenes[0] || '/imagen/placeholder.png'
+      imagen: imagenes[0] || '/imagen/placeholder.png',
+      nombreComercio: p.NombreComercio || 'No especificado',
+      direccionComercio: p.DireccionComercio || p.Direccion || 'No especificada'
     };
 
     localStorage.setItem('productoCompra', JSON.stringify(producto));

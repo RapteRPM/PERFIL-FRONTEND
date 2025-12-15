@@ -35,7 +35,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       foto.src = `/${data.FotoPerfil}`;
     }
 
-    document.getElementById("nombre-usuario").textContent = `${data.Nombre || ""} ${data.Apellido || ""}`;
+    // Mostrar solo el primer nombre en el header
+    const nombreCompleto = `${data.Nombre || ""} ${data.Apellido || ""}`.trim();
+    const primerNombre = nombreCompleto.split(' ')[0] || 'Usuario';
+    document.getElementById("nombre-usuario").textContent = primerNombre;
   } catch (err) {
     console.error("❌ Error al cargar perfil natural:", err);
   }
