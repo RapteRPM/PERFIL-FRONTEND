@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!data || data.length === 0) {
         tablaBody.innerHTML = `
           <tr>
-            <td colspan="11" class="text-center text-muted py-3">
+            <td colspan="10" class="text-center text-muted py-3">
               No se encontraron resultados para los filtros seleccionados.
             </td>
           </tr>
@@ -54,18 +54,6 @@ document.addEventListener("DOMContentLoaded", async () => {
               ${venta.estado || "Pendiente"}
             </span>
           </td>
-          <td>
-            <div class="dropdown">
-              <button class="btn btn-sm btn-outline-light dropdown-toggle" data-bs-toggle="dropdown">
-                Acciones
-              </button>
-              <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="#">Agendado</a></li>
-                <li><a class="dropdown-item" href="#">Entregado</a></li>
-                <li><a class="dropdown-item" href="#">Cancelado</a></li>
-              </ul>
-            </div>
-          </td>
         `;
         tablaBody.appendChild(fila);
       });
@@ -73,7 +61,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       console.error("Error al cargar ventas:", error);
       tablaBody.innerHTML = `
         <tr>
-          <td colspan="11" class="text-center text-danger py-3">
+          <td colspan="10" class="text-center text-danger py-3">
             Error al obtener los datos. Intenta nuevamente más tarde.
           </td>
         </tr>

@@ -19,7 +19,8 @@
               <h5 class="text-xl font-bold mb-1">${pub.NombreProducto}</h5>
               <p class="text-green-400 font-semibold">$${Number(pub.Precio).toLocaleString()}</p>
             </div>
-            <div class="flex justify-between mt-4">
+            <div class="flex justify-between gap-2 mt-4">
+              <a href="../Natural/Detalle_producto.html?id=${pub.IdPublicacion}" class="btn btn-outline-info btn-sm">Detalle</a>
               <a href="Editar_publicacion.html?id=${pub.IdPublicacion}" class="btn btn-outline-primary btn-sm">Editar</a>
               <button class="btn btn-outline-danger btn-sm" onclick="eliminarPublicacion(${pub.IdPublicacion})">Eliminar</button>
             </div>

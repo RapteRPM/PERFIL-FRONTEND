@@ -2409,6 +2409,13 @@ app.get('/api/detallePublicacion/:id', async (req, res) => {
                 p.ImagenProducto,
                 p.FechaPublicacion,
                 c.NombreComercio,
+                c.Latitud,
+                c.Longitud,
+                c.Barrio,
+                c.Direccion,
+                c.DiasAtencion,
+                c.HoraInicio,
+                c.HoraFin,
                 u.Nombre AS NombreUsuario,
                 u.Apellido AS ApellidoUsuario,
                 IFNULL(AVG(o.Calificacion), 0) AS CalificacionPromedio
@@ -2417,7 +2424,7 @@ app.get('/api/detallePublicacion/:id', async (req, res) => {
             JOIN usuario u ON c.Comercio = u.IdUsuario
             LEFT JOIN opiniones o ON o.Publicacion = p.IdPublicacion
             WHERE p.IdPublicacion = ?
-            GROUP BY p.IdPublicacion, c.NombreComercio, u.Nombre, u.Apellido`,
+            GROUP BY p.IdPublicacion, c.NombreComercio, c.Latitud, c.Longitud, c.Barrio, c.Direccion, c.DiasAtencion, c.HoraInicio, c.HoraFin, u.Nombre, u.Apellido`,
             [idPublicacion]
         );
 
@@ -2425,7 +2432,7 @@ app.get('/api/detallePublicacion/:id', async (req, res) => {
             return res.status(404).json({ msg: 'Publicación no encontrada' });
         }
 
-        // Consulta de opiniones
+        // Consulta de opiniones con respuestas
         const [opiniones] = await pool.query(
             `SELECT 
                 o.IdOpinion, 
@@ -2440,6 +2447,23 @@ app.get('/api/detallePublicacion/:id', async (req, res) => {
             ORDER BY o.FechaOpinion DESC`,
             [idPublicacion]
         );
+
+        // Obtener respuestas para cada opinión
+        for (let opinion of opiniones) {
+            const [respuestas] = await pool.query(
+                `SELECT 
+                    r.IdRespuesta,
+                    r.Respuesta,
+                    r.FechaRespuesta,
+                    c.NombreComercio
+                FROM respuestas_opiniones r
+                JOIN comerciante c ON r.IdComerciante = c.Comercio
+                WHERE r.IdOpinion = ?
+                ORDER BY r.FechaRespuesta ASC`,
+                [opinion.IdOpinion]
+            );
+            opinion.Respuestas = respuestas;
+        }
 
         // Guardar la imagen como string directamente (sin parse)
             let imagenes = [];
@@ -2547,6 +2571,56 @@ app.post('/api/opiniones', async (req, res) => {
   } catch (error) {
     console.error('❌ Error al insertar opinión:', error);
     res.status(500).json({ error: 'Error en el servidor al guardar la opinión.' });
+  }
+});
+
+// RESPONDER OPINIONES - COMERCIANTES
+app.post('/api/opiniones/responder', async (req, res) => {
+  try {
+    const { idOpinion, idComerciante, respuesta } = req.body;
+
+    if (!idOpinion || !idComerciante || !respuesta) {
+      return res.status(400).json({ error: 'Faltan datos obligatorios' });
+    }
+
+    // Verificar que la opinión existe y pertenece a una publicación del comerciante
+    const [opinion] = await pool.query(
+      `SELECT o.IdOpinion, p.Comerciante 
+       FROM opiniones o
+       JOIN publicacion p ON o.Publicacion = p.IdPublicacion
+       WHERE o.IdOpinion = ?`,
+      [idOpinion]
+    );
+
+    if (opinion.length === 0) {
+      return res.status(404).json({ error: 'Opinión no encontrada' });
+    }
+
+    // Verificar que el comerciante es el dueño de la publicación
+    const [comerciante] = await pool.query(
+      `SELECT NitComercio FROM comerciante WHERE Comercio = ?`,
+      [idComerciante]
+    );
+
+    if (comerciante.length === 0 || comerciante[0].NitComercio !== opinion[0].Comerciante) {
+      return res.status(403).json({ error: 'No tienes permiso para responder esta opinión' });
+    }
+
+    // Insertar la respuesta
+    const [resultado] = await pool.query(
+      `INSERT INTO respuestas_opiniones (IdOpinion, IdComerciante, Respuesta)
+       VALUES (?, ?, ?)`,
+      [idOpinion, idComerciante, respuesta]
+    );
+
+    res.json({
+      mensaje: '✅ Respuesta guardada correctamente',
+      idRespuesta: resultado.insertId
+    });
+
+  } catch (error) {
+    console.error('❌ Error al insertar respuesta:', error);
+    res.status(500).json({ error: 'Error en el servidor al guardar la respuesta.' });
   }
 });
 
