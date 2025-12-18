@@ -16,6 +16,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Cambiar enlace de inicio a perfil comerciante
     const linkInicio = document.getElementById('link-inicio-detalle');
     if (linkInicio) linkInicio.href = '../Comerciante/perfil_comerciante.html';
+    
+    // Ocultar botones de compra (Añadir al carrito y Comprar ahora)
+    const btnCarrito = document.getElementById('btn-agregar-carrito');
+    const btnComprar = document.getElementById('btn-comprar-ahora');
+    if (btnCarrito) btnCarrito.style.display = 'none';
+    if (btnComprar) btnComprar.style.display = 'none';
+    
+    // Ocultar formulario de comentarios (solo visualización)
+    const formComentario = document.getElementById('form-comentario');
+    if (formComentario) formComentario.style.display = 'none';
   }
 
   fetch(`/api/detallePublicacion/${idPublicacion}`)
@@ -121,6 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const opinionesContainer = document.getElementById('opiniones-container');
 
       const esComerciante = usuarioActivo && usuarioActivo.tipo === 'Comerciante';
+      const esDuenoPublicacion = usuarioActivo && p.IdComerciante && usuarioActivo.id == p.IdComerciante;
       
       const comentariosHTML = opiniones.map(op => `
         <div class="comment-box border p-3 mb-3 rounded bg-light" data-opinion-id="${op.IdOpinion}">
@@ -131,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <p>${op.Comentario}</p>
           <small class="text-muted">${new Date(op.FechaOpinion).toLocaleString()}</small>
           
-          ${esComerciante ? `
+          ${(esComerciante && esDuenoPublicacion) ? `
             <div class="mt-2">
               <button class="btn btn-sm btn-outline-primary btn-responder" data-opinion-id="${op.IdOpinion}">
                 <i class="fas fa-reply"></i> Responder

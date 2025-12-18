@@ -151,9 +151,10 @@ app.post('/api/login', async (req, res) => {
     }
 
     const query = `
-      SELECT c.*, u.TipoUsuario
+      SELECT c.*, u.TipoUsuario, u.Nombre, u.Apellido, u.FotoPerfil, com.NombreComercio
       FROM credenciales c
       JOIN usuario u ON u.IdUsuario = c.Usuario
+      LEFT JOIN comerciante com ON com.Comercio = c.Usuario
       WHERE TRIM(c.NombreUsuario) = TRIM(?)
     `;
 
@@ -173,10 +174,17 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: "Contraseña incorrecta" });
     }
 
+    // Obtener solo el primer nombre
+    const primerNombre = usuario.Nombre ? usuario.Nombre.split(' ')[0] : usuario.NombreUsuario;
+
     req.session.usuario = {
       id: usuario.Usuario,
-      nombre: usuario.NombreUsuario,
-      tipo: usuario.TipoUsuario || "Natural"
+      nombre: primerNombre,
+      nombreCompleto: usuario.Nombre || usuario.NombreUsuario,
+      apellido: usuario.Apellido || '',
+      tipo: usuario.TipoUsuario || "Natural",
+      foto: usuario.FotoPerfil || '/imagen/imagen_perfil.png',
+      nombreComercio: usuario.NombreComercio || null
     };
 
     console.log("✅ Usuario autenticado:", req.session.usuario);
@@ -377,7 +385,11 @@ app.get('/api/verificar-sesion', (req, res) => {
       activa: true,
       id: req.session.usuario.id,
       nombre: req.session.usuario.nombre,
-      tipo: req.session.usuario.tipo
+      nombreCompleto: req.session.usuario.nombreCompleto || req.session.usuario.nombre,
+      apellido: req.session.usuario.apellido || '',
+      tipo: req.session.usuario.tipo,
+      foto: req.session.usuario.foto || '/imagen/imagen_perfil.png',
+      nombreComercio: req.session.usuario.nombreComercio || null
     });
   } else {
     res.json({ activa: false });
@@ -2409,6 +2421,7 @@ app.get('/api/detallePublicacion/:id', async (req, res) => {
                 p.ImagenProducto,
                 p.FechaPublicacion,
                 c.NombreComercio,
+                c.Comercio AS IdComerciante,
                 c.Latitud,
                 c.Longitud,
                 c.Barrio,
@@ -3566,7 +3579,7 @@ app.put("/api/actualizarPerfilPrestador/:idUsuario", uploadPublicacionPrestador.
 
   try {
     const [usuarioRows] = await pool.query(
-      "SELECT FotoPerfil FROM Usuario WHERE IdUsuario = ?",
+      "SELECT Nombre, Apellido, Correo, Telefono, FotoPerfil FROM Usuario WHERE IdUsuario = ?",
       [idUsuario]
     );
 
@@ -3574,7 +3587,8 @@ app.put("/api/actualizarPerfilPrestador/:idUsuario", uploadPublicacionPrestador.
       return res.status(404).json({ error: "Usuario no encontrado" });
     }
 
-    let rutaFotoFinal = usuarioRows[0].FotoPerfil;
+    const datosActuales = usuarioRows[0];
+    let rutaFotoFinal = datosActuales.FotoPerfil;
 
     // ✅ Procesar imagen de perfil
     if (foto) {
@@ -3599,6 +3613,7 @@ app.put("/api/actualizarPerfilPrestador/:idUsuario", uploadPublicacionPrestador.
     }
     
     // ✅ Procesar certificado
+    let rutaCertificadoFinal = null;
     if (certificado) {
       const folder = path.join(__dirname, "public", "Imagen", "PrestadorServicios", idUsuario, "documentos");
       fs.mkdirSync(folder, { recursive: true });
@@ -3629,7 +3644,7 @@ app.put("/api/actualizarPerfilPrestador/:idUsuario", uploadPublicacionPrestador.
       const destino = path.join(folder, nombreCertificado);
       fs.renameSync(certificado.path, destino);
 
-      const rutaCertificadoFinal = path.join("Imagen", "PrestadorServicios", idUsuario, "documentos", nombreCertificado).replace(/\\/g, "/");
+      rutaCertificadoFinal = path.join("Imagen", "PrestadorServicios", idUsuario, "documentos", nombreCertificado).replace(/\\/g, "/");
 
       await pool.query(
         "UPDATE prestadorservicio SET Certificado = ? WHERE IdServicio = ?",
@@ -3643,16 +3658,16 @@ app.put("/api/actualizarPerfilPrestador/:idUsuario", uploadPublicacionPrestador.
       SET Nombre = ?, Apellido = ?, Correo = ?, Telefono = ?, FotoPerfil = ?
       WHERE IdUsuario = ?`,
       [
-        data.Nombre || null,
-        data.Apellido || null,
-        data.Correo || null,
-        data.Telefono || null,
+        data.Nombre || datosActuales.Nombre,
+        data.Apellido || datosActuales.Apellido,
+        data.Correo || datosActuales.Correo,
+        data.Telefono || datosActuales.Telefono,
         rutaFotoFinal,
         idUsuario
       ]
     );
 
-
+    console.log(`✅ Perfil prestador actualizado para usuario: ${idUsuario}`);
 
     res.json({ mensaje: "✅ Perfil actualizado correctamente", fotoPerfil: rutaFotoFinal, certificado: rutaCertificadoFinal });
 
