@@ -15,6 +15,45 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <!-- SheetJS para exportar a Excel -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  
+  <style>
+    /* Estilos para los inputs de fecha oscuros */
+    #filtroFechaInicio,
+    #filtroFechaFin {
+      background-color: #1e293b !important;
+      color: #ffffff !important;
+      border: 1px solid #475569 !important;
+    }
+    
+    #filtroFechaInicio:focus,
+    #filtroFechaFin:focus {
+      background-color: #1e293b !important;
+      color: #ffffff !important;
+      border-color: #3b82f6 !important;
+      box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25) !important;
+    }
+    
+    /* Estilos para el calendario desplegable */
+    #filtroFechaInicio::-webkit-calendar-picker-indicator,
+    #filtroFechaFin::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      cursor: pointer;
+    }
+    
+    /* Select de estado oscuro */
+    #filtroEstado {
+      background-color: #1e293b !important;
+      color: #ffffff !important;
+      border: 1px solid #475569 !important;
+    }
+    
+    #filtroEstado:focus {
+      background-color: #1e293b !important;
+      color: #ffffff !important;
+      border-color: #3b82f6 !important;
+      box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25) !important;
+    }
+  </style>
 
 </head>
 

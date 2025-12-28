@@ -78,8 +78,10 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      maxAge: 60 * 60 * 1000, // 1 hora
+      // Sin maxAge - la sesión termina al cerrar el navegador
       httpOnly: true,
+      secure: false, // Cambiar a true en producción con HTTPS
+      sameSite: 'lax'
     },
   })
 );
@@ -3461,7 +3463,7 @@ app.put('/api/publicaciones-grua/:id', uploadPublicacionPrestador.array('imagene
     return res.status(403).json({ error: 'Acceso no autorizado.' });
   }
 
-  const { titulo, descripcion, tarifa, zona } = req.body;
+  const { titulo, descripcion, tarifa, zona, imagenesActuales } = req.body;
 
   if (!titulo || !descripcion || !tarifa || !zona) {
     cleanupTempFiles(req.files, tempDirGrua);
@@ -3504,14 +3506,17 @@ app.put('/api/publicaciones-grua/:id', uploadPublicacionPrestador.array('imagene
     );
     fs.mkdirSync(carpetaPublicacion, { recursive: true });
 
-    const nuevasImagenes = [];
+    // Parsear las imágenes actuales que NO se eliminaron
+    let imagenesMantenidas = [];
+    try {
+      imagenesMantenidas = imagenesActuales ? JSON.parse(imagenesActuales) : [];
+    } catch (e) {
+      imagenesMantenidas = [];
+    }
+
+    const nuevasImagenes = [...imagenesMantenidas];
 
     if (Array.isArray(req.files) && req.files.length > 0) {
-      // Eliminar imágenes anteriores
-      fs.readdirSync(carpetaPublicacion).forEach(file => {
-        fs.unlinkSync(path.join(carpetaPublicacion, file));
-      });
-
       req.files.forEach(file => {
         const destino = path.join(carpetaPublicacion, file.filename);
         fs.renameSync(file.path, destino);
@@ -3527,12 +3532,13 @@ app.put('/api/publicaciones-grua/:id', uploadPublicacionPrestador.array('imagene
 
         nuevasImagenes.push(rutaRelativa);
       });
-
-      await pool.query(
-        'UPDATE publicaciongrua SET FotoPublicacion = ? WHERE IdPublicacionGrua = ?',
-        [JSON.stringify(nuevasImagenes), idPublicacion]
-      );
     }
+
+    // Actualizar con todas las imágenes (mantenidas + nuevas)
+    await pool.query(
+      'UPDATE publicaciongrua SET FotoPublicacion = ? WHERE IdPublicacionGrua = ?',
+      [JSON.stringify(nuevasImagenes), idPublicacion]
+    );
 
     res.json({ mensaje: '✅ Publicación actualizada correctamente' });
 

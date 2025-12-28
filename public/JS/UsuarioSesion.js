@@ -2,11 +2,19 @@
 
 // 🧭 Función para cargar la info del usuario en el header (nombre y foto)
 async function cargarUsuarioHeader() {
+  console.log("🔵 UsuarioSesion.js - cargarUsuarioHeader iniciando...");
+  
   try {
     const res = await fetch("/api/usuario-actual");
-    if (!res.ok) throw new Error("No autenticado");
+    console.log("🔵 /api/usuario-actual response status:", res.status);
+    
+    if (!res.ok) {
+      console.log("⚠️ No autenticado (status no OK)");
+      throw new Error("No autenticado");
+    }
 
     const data = await res.json();
+    console.log("✅ Datos usuario:", data);
 
     const nombreEl = document.getElementById("nombre-usuario");
     const fotoEl = document.getElementById("foto-usuario");
@@ -31,12 +39,14 @@ async function cargarUsuarioHeader() {
       }
     }
   } catch (error) {
-    console.warn("⚠️ No se pudo cargar la sesión:", error);
-    const nombreEl = document.getElementById("nombre-usuario");
-    const fotoEl = document.getElementById("foto-usuario");
-
-    if (nombreEl) nombreEl.textContent = "Invitado";
-    if (fotoEl) fotoEl.src = "/General/IMAGENINGRESO/imagen_perfil.png";
+    console.warn("⚠️ Error en cargarUsuarioHeader:", error.message);
+    
+    // Ocultar el dropdown completo si no hay usuario logueado
+    const dropdown = document.querySelector('.dropdown');
+    if (dropdown) {
+      console.log("🔵 Ocultando dropdown (no hay sesión)");
+      dropdown.style.display = 'none';
+    }
   }
 }
 

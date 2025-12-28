@@ -30,8 +30,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const res = await fetch(`/api/perfilPrestador/${usuarioId}`);
     const data = await res.json();
 
+    // Mostrar nombre completo en el campo de nombre
     document.getElementById("nombre").value = data.Nombre || "";
-    document.getElementById("apellido").value = data.Apellido || "";
     document.getElementById("correo").value = data.Correo || "";
     document.getElementById("telefono").value = data.Telefono || "";
 
@@ -53,7 +53,6 @@ form.addEventListener("submit", async (e) => {
 
   const formData = new FormData();
   formData.append("Nombre", document.getElementById("nombre").value.trim());
-  formData.append("Apellido", document.getElementById("apellido").value.trim());
   formData.append("Correo", document.getElementById("correo").value.trim());
   formData.append("Telefono", document.getElementById("telefono").value.trim());
 

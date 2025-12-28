@@ -61,34 +61,60 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
 
-    // Establecer la imagen (usar la misma lógica que marketplace_gruas)
-    const imgElement = document.getElementById("imagen-grua");
-    if (imgElement && imagenes.length > 0) {
-      let primeraImagen = imagenes[0];
+    // Cargar todas las imágenes en el carrusel
+    const carouselImages = document.getElementById("carousel-images");
+    const carouselIndicators = document.getElementById("carousel-indicators");
+    const carouselPrev = document.getElementById("carousel-prev");
+    const carouselNext = document.getElementById("carousel-next");
+    
+    if (imagenes.length > 0) {
+      carouselImages.innerHTML = ''; // Limpiar spinner
+      carouselIndicators.innerHTML = '';
       
-      // Limpiar la ruta
-      if (typeof primeraImagen === 'string') {
-        primeraImagen = primeraImagen.replace(/\\/g, '/').trim();
-        
-        // Si la ruta empieza con "imagen/", agregar barra al inicio
-        if (primeraImagen.toLowerCase().startsWith('imagen/')) {
-          imgElement.src = '/' + primeraImagen;
-        } 
-        // Si no tiene prefijo, asumimos que es la ruta completa
-        else {
-          imgElement.src = primeraImagen.startsWith('/') ? primeraImagen : '/' + primeraImagen;
+      imagenes.forEach((imagen, index) => {
+        // Limpiar la ruta
+        let rutaImagen = '';
+        if (typeof imagen === 'string') {
+          rutaImagen = imagen.replace(/\\/g, '/').trim();
+          
+          // Si la ruta empieza con "imagen/", agregar barra al inicio
+          if (rutaImagen.toLowerCase().startsWith('imagen/')) {
+            rutaImagen = '/' + rutaImagen;
+          } else {
+            rutaImagen = rutaImagen.startsWith('/') ? rutaImagen : '/' + rutaImagen;
+          }
         }
         
-        console.log("🖼️ Cargando imagen:", imgElement.src);
+        // Crear item del carrusel
+        const carouselItem = document.createElement('div');
+        carouselItem.className = index === 0 ? 'carousel-item active' : 'carousel-item';
+        carouselItem.innerHTML = `
+          <img src="${rutaImagen}" class="d-block w-100" style="height: 400px; object-fit: contain;" alt="Imagen ${index + 1}" 
+               onerror="this.src='../General/IMAGENINGRESO/Grua.png'; this.style.objectFit='cover';">
+        `;
+        carouselImages.appendChild(carouselItem);
         
-        // Agregar evento de error para debugging
-        imgElement.onerror = function() {
-          console.error("❌ Error cargando imagen:", imgElement.src);
-          this.src = '../General/IMAGENINGRESO/Grua.png';
-        };
+        // Crear indicador
+        const indicator = document.createElement('button');
+        indicator.type = 'button';
+        indicator.setAttribute('data-bs-target', '#carouselGrua');
+        indicator.setAttribute('data-bs-slide-to', index);
+        if (index === 0) indicator.className = 'active';
+        indicator.setAttribute('aria-current', index === 0 ? 'true' : 'false');
+        indicator.setAttribute('aria-label', `Imagen ${index + 1}`);
+        carouselIndicators.appendChild(indicator);
+      });
+      
+      // Mostrar controles solo si hay más de una imagen
+      if (imagenes.length > 1) {
+        carouselPrev.style.display = 'flex';
+        carouselNext.style.display = 'flex';
       }
+      
+      console.log(`✅ Carrusel cargado con ${imagenes.length} imagen(es)`);
     } else {
-      console.log("⚠️ No hay imágenes disponibles, usando imagen por defecto");
+      console.log("⚠️ No hay imágenes disponibles");
+      carouselImages.innerHTML = '<div class="d-flex justify-content-center align-items-center h-100 text-muted"><div><i class="fas fa-truck-monster fa-3x mb-3"></i><p>Sin imágenes</p></div></div>';
     }
 
   } catch (err) {
@@ -213,6 +239,7 @@ async function cargarOpiniones() {
 
     if (!usuarioActivo) {
       alert("⚠️ Debes iniciar sesión para agendar un servicio.");
+      window.location.href = "../General/Ingreso.html";
       return;
     }
 
