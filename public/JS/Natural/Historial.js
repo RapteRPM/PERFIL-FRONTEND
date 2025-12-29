@@ -32,11 +32,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const estado = (item.estado || '').toLowerCase();
             const esGrua = item.tipo === 'grua';
             let estadoHtml = '';
+            let mensajeFechaEntrega = ''; // Declarar al inicio
 
             if (esGrua) {
               // Estados para grúas
-              if (estado === 'terminado') {
-                estadoHtml = `<span class="badge bg-success">Terminado</span>`;
+              if (estado === 'terminado' || estado === 'completado') {
+                estadoHtml = `<span class="badge bg-success">Completado</span>`;
               } else if (estado === 'aceptado') {
                 estadoHtml = `<span class="badge bg-info text-dark">Aceptado</span>`;
               } else if (estado === 'pendiente') {
@@ -47,6 +48,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 estadoHtml = `<span class="badge bg-secondary">Cancelado</span>`;
               } else {
                 estadoHtml = `<span class="badge bg-secondary">${item.estado || 'Desconocido'}</span>`;
+              }
+
+              // Verificar si hay cambio de fecha no visto
+              if (item.fechaModificada && !item.notificacionVista) {
+                const fechaMod = new Date(item.fechaModificada);
+                const fechaModStr = fechaMod.toLocaleDateString('es-CO', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                });
+                
+                mensajeFechaEntrega = `
+                  <div class="mt-2 p-2 bg-warning text-dark rounded" style="border-left: 4px solid #ff9800;">
+                    <div class="d-flex align-items-start">
+                      <i class="fas fa-exclamation-triangle me-2 mt-1"></i>
+                      <div class="flex-grow-1">
+                        <strong>⚠️ El prestador modificó la fecha del servicio</strong>
+                        <br>
+                        <small>Modificado el ${fechaModStr}</small>
+                        <br>
+                        <button class="btn btn-sm btn-primary mt-1 btn-marcar-visto" 
+                                data-id="${item.idDetalleFactura}"
+                                style="font-size: 0.75rem;">
+                          <i class="fas fa-check"></i> Entendido
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                `;
               }
             } else {
               // Estados para productos
@@ -63,8 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const fecha = item.fecha ? new Date(item.fecha).toISOString().split('T')[0] : '';
 
-            // Mensaje de fecha de entrega (si está disponible)
-            let mensajeFechaEntrega = '';
+            // Mensaje de fecha de entrega (si está disponible) - solo para productos
             if (!esGrua && item.fechaEntrega && item.horaEntrega) {
               // Mostrar mensaje para cualquier modo que tenga fecha asignada
               const tipoMensaje = item.modoEntrega === 'Visita al taller' 
@@ -96,24 +127,47 @@ document.addEventListener('DOMContentLoaded', () => {
             if (esGrua) {
               // Botones para grúas
               if (estado === 'cancelado') {
-                botonesAccion = `<span class="text-muted">Cancelado</span>`;
+                botonesAccion = `
+                  <button class="btn btn-danger btn-sm btn-eliminar-grua" data-id="${item.idDetalleFactura}">
+                    <i class="fas fa-trash"></i> Eliminar
+                  </button>
+                `;
               } else if (estado === 'rechazado') {
-                botonesAccion = `<span class="text-danger">Rechazado por el prestador</span>`;
+                botonesAccion = `
+                  <span class="text-danger">
+                    <i class="fas fa-times-circle"></i> Rechazado por el prestador
+                  </span>
+                  <button class="btn btn-danger btn-sm btn-eliminar-grua mt-2" data-id="${item.idDetalleFactura}">
+                    <i class="fas fa-trash"></i> Eliminar
+                  </button>
+                `;
               } else if (estado === 'pendiente') {
                 botonesAccion = `
                   <span class="text-info">
                     <i class="fas fa-clock"></i> Esperando respuesta del prestador
                   </span>
-                  <button class="btn btn-danger btn-sm btn-estado-grua" data-id="${item.idDetalleFactura}" data-estado="Cancelado">Cancelar</button>
+                  <button class="btn btn-danger btn-sm btn-estado-grua mt-2" data-id="${item.idDetalleFactura}" data-estado="Cancelado">
+                    <i class="fas fa-ban"></i> Cancelar
+                  </button>
                 `;
               } else if (estado === 'aceptado') {
                 botonesAccion = `
-                  <button class="btn btn-success btn-sm btn-estado-grua" data-id="${item.idDetalleFactura}" data-estado="Terminado">
-                    <i class="fas fa-check-circle"></i> Marcar como Terminado
+                  <button class="btn btn-success btn-sm btn-estado-grua" data-id="${item.idDetalleFactura}" data-estado="Completado">
+                    <i class="fas fa-check-circle"></i> Marcar como Completado
+                  </button>
+                  <button class="btn btn-warning btn-sm btn-estado-grua" data-id="${item.idDetalleFactura}" data-estado="Cancelado">
+                    <i class="fas fa-ban"></i> Cancelar
                   </button>
                 `;
-              } else if (estado === 'terminado') {
-                botonesAccion = `<span class="text-success"><i class="fas fa-check-circle"></i> Servicio completado</span>`;
+              } else if (estado === 'terminado' || estado === 'completado') {
+                botonesAccion = `
+                  <span class="text-success">
+                    <i class="fas fa-check-circle"></i> Servicio completado
+                  </span>
+                  <button class="btn btn-danger btn-sm btn-eliminar-grua mt-2" data-id="${item.idDetalleFactura}">
+                    <i class="fas fa-trash"></i> Eliminar
+                  </button>
+                `;
               } else {
                 botonesAccion = `<span class="text-muted">—</span>`;
               }
@@ -186,13 +240,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 🔹 Delegar evento para actualizar estado de grúa (Terminado / Cancelar)
+  // 🔹 Delegar evento para actualizar estado de grúa (Completado / Cancelar)
   document.addEventListener('click', async (e) => {
     if (e.target.classList.contains('btn-estado-grua')) {
       const id = e.target.dataset.id;
       const nuevoEstado = e.target.dataset.estado;
 
-      if (!confirm(`¿Deseas marcar este servicio de grúa como ${nuevoEstado}?`)) return;
+      const mensaje = nuevoEstado === 'Completado' 
+        ? '¿Confirmas que el servicio ha sido completado?' 
+        : '¿Deseas cancelar este servicio de grúa? Esta acción no se puede deshacer.';
+
+      if (!confirm(mensaje)) return;
 
       try {
         const res = await fetch(`/api/historial/grua/estado/${id}`, {
@@ -210,6 +268,58 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (err) {
         console.error('❌ Error al actualizar estado de grúa:', err);
         alert('❌ Error al actualizar estado.');
+      }
+    }
+  });
+
+  // 🔹 Delegar evento para eliminar solicitud de grúa
+  document.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('btn-eliminar-grua')) {
+      const solicitudId = e.target.dataset.id;
+      if (!confirm("¿Deseas eliminar este registro de servicio de grúa?")) return;
+
+      try {
+        const res = await fetch(`/api/historial/grua/eliminar/${solicitudId}`, { method: "DELETE" });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          alert("✅ Registro eliminado correctamente.");
+          cargarHistorial();
+        } else {
+          alert("❌ No se pudo eliminar el registro.");
+        }
+      } catch (err) {
+        console.error("❌ Error al eliminar registro:", err);
+        alert("Error al conectar con el servidor.");
+      }
+    }
+  });
+
+  // 🔹 Delegar evento para marcar notificación de cambio de fecha como vista
+  document.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('btn-marcar-visto') || 
+        e.target.closest('.btn-marcar-visto')) {
+      
+      const btn = e.target.classList.contains('btn-marcar-visto') 
+        ? e.target 
+        : e.target.closest('.btn-marcar-visto');
+      
+      const solicitudId = btn.dataset.id;
+
+      try {
+        const res = await fetch(`/api/solicitudes-grua/notificacion-vista/${solicitudId}`, { 
+          method: "PUT" 
+        });
+        const data = await res.json();
+        
+        if (res.ok && data.success) {
+          console.log("✅ Notificación marcada como vista");
+          cargarHistorial();
+        } else {
+          alert("❌ No se pudo marcar la notificación como vista.");
+        }
+      } catch (err) {
+        console.error("❌ Error al marcar notificación:", err);
+        alert("Error al conectar con el servidor.");
       }
     }
   });

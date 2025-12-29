@@ -80,7 +80,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 function estadoColor(estado) {
   switch (estado) {
     case "Pendiente": return "bg-warning text-dark";
-    case "Terminado": return "bg-success";
+    case "Terminado": 
+    case "Completado": return "bg-success";
     case "Aceptado": return "bg-info text-dark";
     case "Rechazado": return "bg-danger";
     case "Cancelado": return "bg-secondary";

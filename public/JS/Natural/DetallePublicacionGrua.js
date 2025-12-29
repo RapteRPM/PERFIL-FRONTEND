@@ -2,17 +2,30 @@ document.addEventListener("DOMContentLoaded", async () => {
   const params = new URLSearchParams(window.location.search);
   const idPublicacion = params.get("id");
   const esPrestador = params.get("prestador") === "true";
-  const usuarioActivo = JSON.parse(localStorage.getItem("usuarioActivo"));
+  
+  // Obtener usuarioActivo de localStorage (puede ser null)
+  let usuarioActivo = null;
+  try {
+    const usuarioStr = localStorage.getItem("usuarioActivo");
+    if (usuarioStr) {
+      usuarioActivo = JSON.parse(usuarioStr);
+    }
+  } catch (e) {
+    console.warn("Error al parsear usuarioActivo:", e);
+  }
 
   if (!idPublicacion) return;
 
-  // 🔹 Ocultar botón de agendar si es el prestador
-  if (esPrestador) {
-    const btnAgendar = document.querySelector('[data-bs-target="#modalAgendar"]');
-    if (btnAgendar) {
+  // 🔹 Ocultar botón de agendar si NO hay usuario logueado o si es el prestador
+  const btnAgendar = document.querySelector('[data-bs-target="#modalAgendar"]');
+  if (btnAgendar) {
+    if (!usuarioActivo || esPrestador) {
       btnAgendar.style.display = "none";
     }
-    
+  }
+  
+  // 🔹 Mostrar menú según tipo de usuario
+  if (esPrestador && usuarioActivo) {
     // Mostrar menú de prestador
     const menuNatural = document.getElementById("menuNatural");
     const menuPrestador = document.getElementById("menuPrestador");
@@ -170,11 +183,11 @@ async function cargarOpiniones() {
 
   await cargarOpiniones();
 
-  // 🔹 Ocultar formulario de comentarios si es el prestador
-  if (esPrestador) {
-    const formComentario = document.getElementById("form-comentario");
-    if (formComentario) {
-      formComentario.parentElement.style.display = "none";
+  // 🔹 Ocultar formulario de comentarios si NO hay usuario logueado o es el prestador
+  const formComentarioContainer = document.getElementById("form-comentario")?.parentElement;
+  if (formComentarioContainer) {
+    if (!usuarioActivo || esPrestador) {
+      formComentarioContainer.style.display = "none";
     }
   }
 
@@ -191,7 +204,10 @@ async function cargarOpiniones() {
     const calificacion = document.getElementById("calificacion").value;
 
     if (!usuarioActivo) {
-      alert("⚠️ Debes iniciar sesión para comentar.");
+      const confirmar = confirm("⚠️ Debes iniciar sesión para comentar.\n\n¿Deseas ir a la página de inicio de sesión?");
+      if (confirmar) {
+        window.location.href = "../General/Ingreso.html";
+      }
       return;
     }
 
@@ -228,49 +244,56 @@ async function cargarOpiniones() {
   });
 
   // 🔹 Manejo del formulario de agendamiento
-  document.getElementById("formAgendar").addEventListener("submit", async function (e) {
-    e.preventDefault();
-    
-    const fecha = document.getElementById("fecha").value;
-    const hora = document.getElementById("hora").value;
-    const direccion = document.getElementById("direccion").value;
-    const destino = document.getElementById("destino").value;
-    const detalle = document.getElementById("detalle").value;
+  const formAgendar = document.getElementById("formAgendar");
+  if (formAgendar) {
+    formAgendar.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      
+      const fecha = document.getElementById("fecha").value;
+      const hora = document.getElementById("hora").value;
+      const direccion = document.getElementById("direccion").value;
+      const destino = document.getElementById("destino").value;
+      const detalle = document.getElementById("detalle").value;
 
-    if (!usuarioActivo) {
-      alert("⚠️ Debes iniciar sesión para agendar un servicio.");
-      window.location.href = "../General/Ingreso.html";
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/agendar-grua", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          usuarioId: usuarioActivo.id,
-          idPublicacionGrua: idPublicacion,
-          fecha,
-          hora,
-          direccion,
-          destino,
-          detalle
-        })
-      });
-
-      const result = await res.json();
-
-      if (res.ok) {
-        alert(`✅ Servicio agendado con éxito!\n📅 ${fecha} ${hora}\n📍 ${direccion}\n🏁 ${destino}`);
-        const modal = bootstrap.Modal.getInstance(document.getElementById("modalAgendar"));
-        modal.hide();
-        this.reset();
-      } else {
-        alert("❌ " + (result.error || "No se pudo agendar el servicio."));
+      if (!usuarioActivo) {
+        const confirmar = confirm("⚠️ Debes iniciar sesión para agendar un servicio.\n\n¿Deseas ir a la página de inicio de sesión?");
+        if (confirmar) {
+          // Guardar la URL actual para regresar después del login
+          sessionStorage.setItem('returnUrl', window.location.href);
+          window.location.href = "../General/Ingreso.html";
+        }
+        return;
       }
-    } catch (err) {
-      console.error("❌ Error al agendar servicio:", err);
-      alert("Error de conexión con el servidor.");
-    }
-  });
+
+      try {
+        const res = await fetch("/api/agendar-grua", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            usuarioId: usuarioActivo.id,
+            idPublicacionGrua: idPublicacion,
+            fecha,
+            hora,
+            direccion,
+            destino,
+            detalle
+          })
+        });
+
+        const result = await res.json();
+
+        if (res.ok) {
+          alert(`✅ Servicio agendado con éxito!\n📅 ${fecha} ${hora}\n📍 ${direccion}\n🏁 ${destino}`);
+          const modal = bootstrap.Modal.getInstance(document.getElementById("modalAgendar"));
+          modal.hide();
+          this.reset();
+        } else {
+          alert("❌ " + (result.error || "No se pudo agendar el servicio."));
+        }
+      } catch (err) {
+        console.error("❌ Error al agendar servicio:", err);
+        alert("Error de conexión con el servidor.");
+      }
+    });
+  }
 });

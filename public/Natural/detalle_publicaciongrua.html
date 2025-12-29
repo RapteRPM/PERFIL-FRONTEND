@@ -26,17 +26,25 @@
       </div>
     </a>
 
-    <!-- Perfil -->
-    <div class="dropdown">
-      <button class="flex items-center bg-transparent border-0 text-white" id="perfilDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-          <img id="foto-usuario" src="../image/imagen_perfil.png" alt="Usuario" class="w-16 h-16 object-cover rounded-full border-2 border-white mr-2"/>
-          <span id="nombre-usuario" class="font-semibold text-lg">Cargando...</span>
-      </button>
-      <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="perfilDropdown">
-        <li><a class="dropdown-item" href="Editar_perfil.html">Editar perfil</a></li>
-        <li><hr class="dropdown-divider"></li>
-        <li><a class="dropdown-item text-danger" href="/logout">Cerrar sesión</a></li>
-      </ul>
+    <!-- Perfil y botón de ingreso -->
+    <div class="flex items-center space-x-4">
+      <!-- Botón Ingresar (solo visible sin sesión) -->
+      <a id="link-ingresar-grua" href="../General/Ingreso.html" class="btn btn-light px-4 py-2" style="display: none;">
+        <i class="fas fa-sign-in-alt me-2"></i>Ingresar
+      </a>
+      
+      <!-- Perfil (solo visible con sesión) -->
+      <div id="perfil-container-grua" class="dropdown" style="display: none;">
+        <button class="flex items-center bg-transparent border-0 text-white" id="perfilDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            <img id="foto-usuario" src="../image/imagen_perfil.png" alt="Usuario" class="w-16 h-16 object-cover rounded-full border-2 border-white mr-2"/>
+            <span id="nombre-usuario" class="font-semibold text-lg">Cargando...</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="perfilDropdown">
+          <li><a class="dropdown-item" href="Editar_perfil.html">Editar perfil</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item text-danger" href="/logout">Cerrar sesión</a></li>
+        </ul>
+      </div>
     </div>
   </div>
 
@@ -50,7 +58,8 @@
 
       <!-- Menú para Usuario Natural -->
       <div class="hidden md:flex items-center space-x-6" id="menuNatural">
-        <a href="perfil_usuario.html" class="hover:text-gray-200 transition">RPM Market</a>
+        <a href="../General/index.html" class="hover:text-gray-200 transition">RPM Market</a>
+        <a id="link-perfil-grua" href="perfil_usuario.html" class="hover:text-gray-200 transition" style="display: none;">Inicio</a>
         <a href="../General/marketplace_gruas.html" class="hover:text-gray-200 transition">Market Grua</a>
         <a href="../General/CentroAyuda.html" class="hover:text-gray-200 transition">Centro de ayuda</a>
       </div>
@@ -231,6 +240,27 @@
 <!-- Scripts -->
 
 
+<script>
+  // Verificar sesión y mostrar/ocultar perfil o botón ingresar
+  document.addEventListener('DOMContentLoaded', () => {
+    const usuarioActivo = localStorage.getItem('usuarioActivo');
+    const perfilContainer = document.getElementById('perfil-container-grua');
+    const linkIngresar = document.getElementById('link-ingresar-grua');
+    const linkPerfilGrua = document.getElementById('link-perfil-grua');
+    
+    if (usuarioActivo) {
+      // Hay sesión: mostrar perfil, ocultar botón ingresar
+      if (perfilContainer) perfilContainer.style.display = 'block';
+      if (linkIngresar) linkIngresar.style.display = 'none';
+      if (linkPerfilGrua) linkPerfilGrua.style.display = 'block';
+    } else {
+      // No hay sesión: ocultar perfil, mostrar botón ingresar
+      if (perfilContainer) perfilContainer.style.display = 'none';
+      if (linkIngresar) linkIngresar.style.display = 'block';
+      if (linkPerfilGrua) linkPerfilGrua.style.display = 'none';
+    }
+  });
+</script>
 <script src="../JS/perfil_usuario.js"></script>
 <script src="../JS/UsuarioSesion.js"></script>
 <script src="../JS/Natural/DetallePublicacionGrua.js"></script>

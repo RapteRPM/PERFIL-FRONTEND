@@ -53,6 +53,35 @@
       border-color: #3b82f6 !important;
       box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25) !important;
     }
+
+    /* Estilos para botones de acción */
+    .btn-accion {
+      width: 38px;
+      height: 38px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+      font-size: 16px;
+      margin: 2px;
+    }
+
+    .btn-accion:hover {
+      transform: scale(1.1);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn-accion i {
+      margin: 0;
+    }
+
+    /* Columna de acciones */
+    td.col-acciones {
+      min-width: 140px;
+      white-space: nowrap;
+    }
   </style>
 
 </head>
@@ -123,7 +152,8 @@
         <select class="form-select" id="filtroEstado">
           <option value="">Todos</option>
           <option value="Pendiente">Pendiente</option>
-          <option value="Terminado">Terminado</option>
+          <option value="Aceptado">Aceptado</option>
+          <option value="Completado">Completado</option>
           <option value="Cancelado">Cancelado</option>
           <option value="Rechazado">Rechazado</option>
         </select>
@@ -151,14 +181,15 @@
              style="background: linear-gradient(135deg, #0a0f1f, #162a4a); color: #ffffff; border: none;">
         <thead style="background: linear-gradient(135deg, red, #004B87); color: #fff;">
           <tr>
-            <th>#</th>
+            <th style="width: 40px;">#</th>
             <th>Cliente</th>
             <th>Servicio</th>
             <th>Origen</th>
             <th>Destino</th>
-            <th>Fecha</th>
-            <th>Hora</th>
-            <th>Estado</th>
+            <th style="width: 100px;">Fecha</th>
+            <th style="width: 80px;">Hora</th>
+            <th style="width: 100px;">Estado</th>
+            <th style="width: 160px;">Acciones</th>
           </tr>
         </thead>
         <tbody id="historialBody">
@@ -197,6 +228,54 @@
       </div>
     </div>
   </footer>
+  <!-- Modal para Editar Fecha/Hora -->
+  <div class="modal fade" id="modalEditarFecha" tabindex="-1" aria-labelledby="modalEditarFechaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="background-color: #1e293b; color: #ffffff;">
+        <div class="modal-header" style="border-bottom: 1px solid #475569;">
+          <h5 class="modal-title" id="modalEditarFechaLabel">
+            <i class="fas fa-calendar-alt me-2"></i>Modificar Fecha y Hora del Servicio
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="formEditarFecha">
+            <input type="hidden" id="idSolicitudEditar">
+            
+            <div class="mb-3">
+              <label for="nombreClienteEditar" class="form-label">Cliente</label>
+              <input type="text" class="form-control" id="nombreClienteEditar" readonly style="background-color: #0f172a; color: #94a3b8; border-color: #475569;">
+            </div>
+
+            <div class="mb-3">
+              <label for="fechaEditar" class="form-label">Nueva Fecha del Servicio</label>
+              <input type="date" class="form-control" id="fechaEditar" required style="background-color: #0f172a; color: #ffffff; border-color: #475569;">
+            </div>
+
+            <div class="mb-3">
+              <label for="horaEditar" class="form-label">Nueva Hora del Servicio</label>
+              <input type="time" class="form-control" id="horaEditar" required style="background-color: #0f172a; color: #ffffff; border-color: #475569;">
+            </div>
+
+            <div class="alert alert-info" style="background-color: #1e40af; border-color: #3b82f6; color: #dbeafe;">
+              <i class="fas fa-info-circle me-2"></i>
+              <small>Al modificar la fecha/hora, el cliente verá la actualización en su historial.</small>
+            </div>
+
+            <div class="d-flex gap-2 justify-content-end">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                <i class="fas fa-times me-1"></i>Cancelar
+              </button>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-1"></i>Guardar Cambios
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="../JS/Prestador/HistorialServicios.js"></script>
   <script src="../JS/perfil_usuario.js"></script>
   <script src="../JS/UsuarioSesion.js"></script>
