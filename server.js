@@ -470,7 +470,9 @@ app.get('/api/historial', async (req, res) => {
         'Servicio' AS metodoPago,
         cas.Estado AS estado,
         NULL AS idFactura,
-        'grua' AS tipo
+        'grua' AS tipo,
+        cas.FechaModificadaPor AS fechaModificada,
+        cas.NotificacionVista AS notificacionVista
       FROM controlagendaservicios cas
       INNER JOIN publicaciongrua pg ON cas.PublicacionGrua = pg.IdPublicacionGrua
       WHERE 1 = 1
@@ -625,28 +627,83 @@ app.put('/api/historial/grua/estado/:id', async (req, res) => {
 
     const estadoActual = solicitud[0].Estado;
 
-    // Validar que solo se pueda marcar como "Terminado" si está "Aceptado"
-    if (estado === 'Terminado' && estadoActual !== 'Aceptado') {
+    // Validar que no se puede modificar un servicio ya finalizado o cancelado
+    if (['Completado', 'Terminado', 'Cancelado', 'Rechazado'].includes(estadoActual)) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Solo puedes marcar como terminado un servicio que ha sido aceptado por el prestador.' 
+        message: `No se puede modificar un servicio que ya está ${estadoActual.toLowerCase()}.` 
       });
     }
+
+    // Validar que solo se pueda marcar como "Terminado"/"Completado" si está "Aceptado"
+    if ((estado === 'Terminado' || estado === 'Completado') && estadoActual !== 'Aceptado') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Solo puedes marcar como completado un servicio que ha sido aceptado por el prestador.' 
+      });
+    }
+
+    // Normalizar Terminado a Completado
+    const estadoFinal = estado === 'Terminado' ? 'Completado' : estado;
 
     // Actualizar estado de la solicitud de grúa
     await queryPromise(
       'UPDATE controlagendaservicios SET Estado = ? WHERE IdSolicitudServicio = ?',
-      [estado, id]
+      [estadoFinal, id]
     );
 
     res.status(200).json({
       success: true,
-      message: `Estado de la solicitud de grúa #${id} actualizado a '${estado}'.`
+      message: `Estado de la solicitud de grúa #${id} actualizado a '${estadoFinal}'.`
     });
 
   } catch (error) {
     console.error('❌ Error al actualizar estado de grúa:', error);
     res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+  }
+});
+
+// ===============================
+//  ELIMINAR SOLICITUD DE GRÚA
+// ===============================
+app.delete('/api/historial/grua/eliminar/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Verificar que la solicitud existe y está en un estado final
+    const solicitud = await queryPromise(
+      'SELECT IdSolicitudServicio, Estado FROM controlagendaservicios WHERE IdSolicitudServicio = ?',
+      [id]
+    );
+
+    if (!solicitud || solicitud.length === 0) {
+      return res.status(404).json({ success: false, message: 'Solicitud no encontrada.' });
+    }
+
+    const estado = solicitud[0].Estado;
+
+    // Validar que solo se pueden eliminar servicios finalizados
+    if (!['Completado', 'Terminado', 'Cancelado', 'Rechazado'].includes(estado)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Solo puedes eliminar servicios completados, cancelados o rechazados.' 
+      });
+    }
+
+    // Eliminar físicamente el registro
+    await queryPromise(
+      'DELETE FROM controlagendaservicios WHERE IdSolicitudServicio = ?',
+      [id]
+    );
+
+    res.json({ 
+      success: true, 
+      message: "Registro de servicio eliminado correctamente." 
+    });
+
+  } catch (error) {
+    console.error('❌ Error al eliminar solicitud de grúa:', error);
+    res.status(500).json({ success: false, message: 'Error al eliminar el registro.' });
   }
 });
 
@@ -3102,7 +3159,7 @@ app.get('/api/perfil-prestador', async (req, res) => {
         `SELECT 
            SUM(CASE WHEN cas.Estado = 'Pendiente' THEN 1 ELSE 0 END) AS pendientes,
            SUM(CASE WHEN cas.Estado = 'Aceptado' THEN 1 ELSE 0 END) AS aceptados,
-           SUM(CASE WHEN cas.Estado = 'Terminado' THEN 1 ELSE 0 END) AS completados
+           SUM(CASE WHEN cas.Estado IN ('Terminado', 'Completado') THEN 1 ELSE 0 END) AS completados
          FROM controlagendaservicios cas
          JOIN publicaciongrua pg ON cas.PublicacionGrua = pg.IdPublicacionGrua
          WHERE pg.Servicio = ?`,
@@ -3773,17 +3830,17 @@ app.put('/api/solicitudes-grua/estado/:id', async (req, res) => {
   const { estado } = req.body;
 
   // Validar que el estado sea válido
-  const estadosValidos = ['Aceptado', 'Rechazado', 'Cancelado'];
+  const estadosValidos = ['Aceptado', 'Rechazado', 'Cancelado', 'Terminado', 'Finalizado', 'Completado'];
   
   if (!estadosValidos.includes(estado)) {
     return res.status(400).json({ 
       success: false, 
-      message: 'Estado no válido. Debe ser: Aceptado, Rechazado o Cancelado' 
+      message: 'Estado no válido. Debe ser: Aceptado, Rechazado, Cancelado, Terminado, Finalizado o Completado' 
     });
   }
 
   try {
-    // Verificar que la solicitud existe
+    // Verificar que la solicitud existe y obtener su estado actual
     const solicitud = await queryPromise(
       'SELECT IdSolicitudServicio, Estado FROM controlagendaservicios WHERE IdSolicitudServicio = ?',
       [id]
@@ -3793,19 +3850,118 @@ app.put('/api/solicitudes-grua/estado/:id', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Solicitud no encontrada.' });
     }
 
+    const estadoActual = solicitud[0].Estado;
+
+    // Validar que no se puede modificar un servicio ya finalizado o cancelado
+    if (['Completado', 'Terminado', 'Cancelado', 'Rechazado'].includes(estadoActual)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `No se puede modificar un servicio que ya está ${estadoActual.toLowerCase()}.` 
+      });
+    }
+
+    // Validar transiciones de estado
+    if ((estado === 'Terminado' || estado === 'Finalizado' || estado === 'Completado') && estadoActual !== 'Aceptado') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Solo puedes marcar como completado un servicio que ha sido aceptado.' 
+      });
+    }
+
+    // Normalizar estados: Terminado/Finalizado -> Completado
+    let estadoFinal = estado;
+    if (estado === 'Terminado' || estado === 'Finalizado') {
+      estadoFinal = 'Completado';
+    }
+
     // Actualizar el estado
     await queryPromise(
       'UPDATE controlagendaservicios SET Estado = ? WHERE IdSolicitudServicio = ?',
-      [estado, id]
+      [estadoFinal, id]
     );
 
     res.status(200).json({
       success: true,
-      message: `Solicitud #${id} ${estado.toLowerCase()} correctamente.`
+      message: `Solicitud #${id} ${estadoFinal.toLowerCase()} correctamente.`
     });
 
   } catch (error) {
     console.error('❌ Error al actualizar estado de solicitud:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+  }
+});
+
+// ===============================
+//  ACTUALIZAR FECHA/HORA DE SOLICITUD DE GRÚA - PRESTADOR
+// ===============================
+app.put('/api/solicitudes-grua/fecha/:id', async (req, res) => {
+  const { id } = req.params;
+  const { fecha, hora } = req.body;
+
+  if (!fecha || !hora) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Fecha y hora son obligatorias.' 
+    });
+  }
+
+  try {
+    // Verificar que la solicitud existe y obtener su estado
+    const solicitud = await queryPromise(
+      'SELECT IdSolicitudServicio, Estado FROM controlagendaservicios WHERE IdSolicitudServicio = ?',
+      [id]
+    );
+
+    if (!solicitud || solicitud.length === 0) {
+      return res.status(404).json({ success: false, message: 'Solicitud no encontrada.' });
+    }
+
+    const estadoActual = solicitud[0].Estado;
+
+    // Validar que solo se puede modificar si está Pendiente o Aceptado
+    if (!['Pendiente', 'Aceptado'].includes(estadoActual)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Solo puedes modificar la fecha de servicios pendientes o aceptados.' 
+      });
+    }
+
+    // Actualizar fecha y hora, registrar modificación y resetear notificación
+    // Usar datetime('now') para SQLite o NOW() para MySQL
+    const fechaActual = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    await queryPromise(
+      'UPDATE controlagendaservicios SET FechaServicio = ?, HoraServicio = ?, FechaModificadaPor = ?, NotificacionVista = 0 WHERE IdSolicitudServicio = ?',
+      [fecha, hora, fechaActual, id]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Fecha y hora actualizadas correctamente para la solicitud #${id}. El usuario será notificado del cambio.`
+    });
+
+  } catch (error) {
+    console.error('❌ Error al actualizar fecha/hora de solicitud:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+  }
+});
+
+// 🔹 Marcar notificación de cambio de fecha como vista
+app.put('/api/solicitudes-grua/notificacion-vista/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Usar 1 para SQLite en lugar de TRUE
+    await queryPromise(
+      'UPDATE controlagendaservicios SET NotificacionVista = 1 WHERE IdSolicitudServicio = ?',
+      [id]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Notificación marcada como vista.'
+    });
+  } catch (error) {
+    console.error('❌ Error al marcar notificación como vista:', error);
     res.status(500).json({ success: false, message: 'Error interno del servidor.' });
   }
 });
@@ -3982,7 +4138,9 @@ app.get('/api/historial-servicios-prestador/:usuarioId', async (req, res) => {
          cas.Destino,
          cas.FechaServicio AS Fecha,
          cas.HoraServicio AS Hora,
-         cas.Estado
+         cas.Estado,
+         cas.FechaModificadaPor,
+         cas.NotificacionVista
        FROM controlagendaservicios cas
        JOIN publicaciongrua pg ON cas.PublicacionGrua = pg.IdPublicacionGrua
        JOIN usuario u ON cas.UsuarioNatural = u.IdUsuario
