@@ -47,7 +47,13 @@ document.getElementById('loginForm').addEventListener('submit', async (event) =>
       }
 
     } else {
-      mensajeError.textContent = data.error || 'Usuario y/o contraseña errada.';
+      // Verificar si es un error por usuario inactivo
+      if (data.requiereAprobacion && data.estado === 'Inactivo') {
+        mensajeError.textContent = '⏳ ' + data.error;
+        mensajeError.style.color = '#ff9800'; // Color naranja para indicar pendiente
+      } else {
+        mensajeError.textContent = data.error || 'Usuario y/o contraseña errada.';
+      }
     }
   } catch (error) {
     console.error('❌ Error al conectar con el servidor:', error);

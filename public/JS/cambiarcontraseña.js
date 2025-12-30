@@ -29,6 +29,24 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    // Validar que tenga al menos una mayúscula
+    if (!/[A-Z]/.test(nueva)) {
+      alert("❌ La contraseña debe contener al menos una letra mayúscula.");
+      return;
+    }
+
+    // Validar que tenga al menos un número
+    if (!/[0-9]/.test(nueva)) {
+      alert("❌ La contraseña debe contener al menos un número.");
+      return;
+    }
+
+    // Validar que tenga al menos un carácter especial
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(nueva)) {
+      alert("❌ La contraseña debe contener al menos un carácter especial (!@#$%^&*()_+-=[]{};\':\"|,.<>?/).");
+      return;
+    }
+
     // Detectar si viene de recuperación o sesión activa
     const usuarioActivo = JSON.parse(localStorage.getItem("usuarioActivo"));
     const idUsuario = usuarioRecuperacion?.id || usuarioActivo?.id;

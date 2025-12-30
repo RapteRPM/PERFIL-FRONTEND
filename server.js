@@ -153,7 +153,7 @@ app.post('/api/login', async (req, res) => {
     }
 
     const query = `
-      SELECT c.*, u.TipoUsuario, u.Nombre, u.Apellido, u.FotoPerfil, com.NombreComercio
+      SELECT c.*, u.TipoUsuario, u.Nombre, u.Apellido, u.FotoPerfil, u.Estado, com.NombreComercio
       FROM credenciales c
       JOIN usuario u ON u.IdUsuario = c.Usuario
       LEFT JOIN comerciante com ON com.Comercio = c.Usuario
@@ -169,6 +169,16 @@ app.post('/api/login', async (req, res) => {
 
     const usuario = results[0];
     console.log("🧠 Usuario encontrado:", usuario);
+
+    // Verificar si el usuario está activo (validar solo si el campo existe)
+    if (usuario.Estado !== undefined && usuario.Estado === 'Inactivo') {
+      console.warn("⚠️ Usuario inactivo intentando iniciar sesión:", username);
+      return res.status(403).json({ 
+        error: "Su cuenta está en revisión por un administrador. Por favor, vuelva a intentar en un lapso de 24 horas.",
+        estado: 'Inactivo',
+        requiereAprobacion: true
+      });
+    }
 
     const esValida = await bcrypt.compare(password, usuario.Contrasena);
     if (!esValida) {
@@ -306,8 +316,24 @@ app.put('/api/usuarios/:id/contrasena', async (req, res) => {
   const { id } = req.params;
   const { nuevaContrasena } = req.body;
 
+  // Validación estricta de contraseña
   if (!nuevaContrasena || nuevaContrasena.length < 6) {
     return res.status(400).json({ msg: 'La contraseña debe tener al menos 6 caracteres.' });
+  }
+
+  // Validar que tenga al menos una mayúscula
+  if (!/[A-Z]/.test(nuevaContrasena)) {
+    return res.status(400).json({ msg: 'La contraseña debe contener al menos una letra mayúscula.' });
+  }
+
+  // Validar que tenga al menos un número
+  if (!/[0-9]/.test(nuevaContrasena)) {
+    return res.status(400).json({ msg: 'La contraseña debe contener al menos un número.' });
+  }
+
+  // Validar que tenga al menos un carácter especial
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(nuevaContrasena)) {
+    return res.status(400).json({ msg: 'La contraseña debe contener al menos un carácter especial (!@#$%^&*()_+-=[]{};\':"|,.<>?/).' });
   }
 
   try {
@@ -1222,11 +1248,20 @@ app.post(
         return res.status(409).json({ error: 'El correo electrónico ya está registrado. Por favor, utilice otro correo.' });
       }
 
+      // Determinar el estado inicial del usuario
+      // Comerciantes y Prestadores de Servicio quedan Inactivos hasta que el admin los apruebe
+      // Usuarios Naturales y Administradores quedan Activos inmediatamente
+      const estadoInicial = (tipoUsuarioSQL === 'Comerciante' || tipoUsuarioSQL === 'PrestadorServicio') 
+        ? 'Inactivo' 
+        : 'Activo';
+
+      console.log(`📝 Estado inicial del usuario: ${estadoInicial} (Tipo: ${tipoUsuarioSQL})`);
+
       // Insertar en usuario (tabla en minúsculas para MySQL case-sensitive)
       const insertUsuarioSQL = `
         INSERT INTO usuario
-          (IdUsuario, TipoUsuario, Nombre, Apellido, Documento, Telefono, Correo, FotoPerfil)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          (IdUsuario, TipoUsuario, Nombre, Apellido, Documento, Telefono, Correo, FotoPerfil, Estado)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       const usuarioValues = [
         idUsuarioValue,
@@ -1237,6 +1272,7 @@ app.post(
         data.Telefono || null,
         data.Correo || null,
         fotoPerfilFile.filename,
+        estadoInicial,
       ];
 
       await queryPromise(insertUsuarioSQL, usuarioValues);
@@ -1374,10 +1410,22 @@ app.post(
       }
 
       console.log(`✅ Registro completo: ${idUsuarioValue}`);
-      res.status(200).json({
-        mensaje: 'Registro exitoso',
-        usuario: idUsuarioValue,
-      });
+      
+      // Mensaje diferente según el estado inicial del usuario
+      if (estadoInicial === 'Inactivo') {
+        res.status(200).json({
+          mensaje: 'Registro exitoso. Su cuenta está en revisión y será activada por un administrador en un lapso de 24 horas. Mientras tanto, no podrá iniciar sesión.',
+          usuario: idUsuarioValue,
+          estado: 'Inactivo',
+          requiereAprobacion: true
+        });
+      } else {
+        res.status(200).json({
+          mensaje: 'Registro exitoso',
+          usuario: idUsuarioValue,
+          estado: 'Activo'
+        });
+      }
 
     } catch (error) {
       console.error('');

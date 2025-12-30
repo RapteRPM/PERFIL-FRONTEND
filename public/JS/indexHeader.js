@@ -34,6 +34,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.log("🔵 No hay sesión - mostrando botón Ingresar");
     localStorage.removeItem("usuarioActivo");
     
+    // Limpiar el contenedor del perfil en el header
+    if (headerPerfilContainer) {
+      headerPerfilContainer.innerHTML = '';
+    }
+    
     if (linkIngresar) {
       linkIngresar.style.display = "block";
     }

@@ -6,7 +6,8 @@ CREATE TABLE usuario (
   Documento VARCHAR(20) NOT NULL,
   Telefono VARCHAR(20) NOT NULL,
   Correo VARCHAR(100) NOT NULL UNIQUE,
-  FotoPerfil VARCHAR(255) NOT NULL
+  FotoPerfil VARCHAR(255) NOT NULL,
+  Estado ENUM('Activo','Inactivo') DEFAULT 'Activo'
 );
 
   
