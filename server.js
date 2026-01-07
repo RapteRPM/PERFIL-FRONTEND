@@ -14,6 +14,9 @@ import axios from 'axios';
 import multer from 'multer';
 import pool from './config/db.js'; // ✅ usamos pool, import moderno
 import { crearCredenciales } from './controllers/credenciales.js';
+import crypto from 'crypto'; // Para generar tokens seguros
+import enviarCorreo from './controllers/enviarCorreo.js';
+import bcrypt from 'bcrypt'; // Para hashear contraseñas
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -143,7 +146,6 @@ app.post('/api/login/demo', (req, res) => {
 // ===============================
 // 🔑 Login
 // ===============================
-import bcrypt from 'bcrypt';
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -160,7 +162,7 @@ app.post('/api/login', async (req, res) => {
       WHERE TRIM(c.NombreUsuario) = TRIM(?)
     `;
 
-    const [results] = await pool.query(query, [username]);
+    const results = await queryPromise(query, [username]);
 
     if (results.length === 0) {
       console.warn("⚠️ Usuario no encontrado:", username);
@@ -169,6 +171,15 @@ app.post('/api/login', async (req, res) => {
 
     const usuario = results[0];
     console.log("🧠 Usuario encontrado:", usuario);
+
+    // Verificar si el usuario tiene contraseña temporal (no ha completado el registro)
+    if (usuario.ContrasenaTemporal === 'Si') {
+      console.warn("⚠️ Usuario con contraseña temporal intentando iniciar sesión:", username);
+      return res.status(403).json({ 
+        error: "Debes completar tu registro creando tu contraseña. Revisa tu correo electrónico para obtener el enlace de activación.",
+        requiereContrasena: true
+      });
+    }
 
     // Verificar si el usuario está activo (validar solo si el campo existe)
     if (usuario.Estado !== undefined && usuario.Estado === 'Inactivo') {
@@ -234,7 +245,7 @@ app.get('/api/usuario-actual', verificarSesion, async (req, res) => {
 
   try {
     // 🔍 Obtenemos los datos del usuario
-    const [userRows] = await pool.query(
+    const userRows = await queryPromise(
       `SELECT u.IdUsuario, u.TipoUsuario, u.Nombre, u.Apellido, u.Documento, u.FotoPerfil
        FROM usuario u
        INNER JOIN credenciales c ON c.Usuario = u.IdUsuario
@@ -251,7 +262,7 @@ app.get('/api/usuario-actual', verificarSesion, async (req, res) => {
 
     // 🏪 Si es comerciante, obtener nombre del comercio
     if (user.TipoUsuario === "Comerciante") {
-      const [comercioRows] = await pool.query(
+      const comercioRows = await queryPromise(
         `SELECT NombreComercio FROM comerciante WHERE Comercio = ?`,
         [usuarioSesion.id]
       );
@@ -341,7 +352,7 @@ app.put('/api/usuarios/:id/contrasena', async (req, res) => {
     const hash = await bcrypt.hash(nuevaContrasena, 10);
 
     const result = await queryPromise(
-      'UPDATE credenciales SET Contrasena = ? WHERE Usuario = ?',
+      'UPDATE credenciales SET Contrasena = ?, ContrasenaTemporal = "No" WHERE Usuario = ?',
       [hash, id]
     );
 
@@ -1301,8 +1312,125 @@ app.post(
         [fotoRuta, idUsuarioValue]
       );
 
-      // Crear credenciales
-      await crearCredenciales(idUsuarioValue, idUsuarioValue, data.Correo, fotoRuta);
+      // � CREAR CREDENCIALES CON CONTRASEÑA TEMPORAL
+      // La contraseña temporal será el documento del usuario hasheado
+      const contrasenaTemporal = idUsuarioValue.toString();
+      const hashTemporal = await bcrypt.hash(contrasenaTemporal, 10);
+      
+      await queryPromise(
+        `INSERT INTO credenciales (Usuario, NombreUsuario, Contrasena, ContrasenaTemporal)
+         VALUES (?, ?, ?, 'Si')`,
+        [idUsuarioValue, data.Correo, hashTemporal]
+      );
+      
+      console.log('🔑 Credenciales temporales creadas');
+
+      // 📧 Generar token y enviar correo para que el usuario configure su contraseña
+      const token = generarToken();
+      const fechaExpiracion = new Date();
+      fechaExpiracion.setHours(fechaExpiracion.getHours() + 24); // Token válido por 24 horas
+
+      await queryPromise(
+        `INSERT INTO tokens_verificacion (Usuario, Token, TipoToken, FechaExpiracion)
+         VALUES (?, ?, 'CrearContrasena', ?)`,
+        [idUsuarioValue, token, fechaExpiracion.toISOString()]
+      );
+
+      // Crear link de verificación
+      const linkCrearContrasena = `${req.protocol}://${req.get('host')}/General/crear-contrasena.html?token=${token}`;
+
+      // Enviar correo con el link
+      try {
+        await enviarCorreo({
+          to: data.Correo,
+          subject: '🔐 Completa tu Registro - Crea tu Contraseña',
+          html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+                .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                .content { background: white; padding: 30px; }
+                .button { display: inline-block; padding: 15px 30px; background: #667eea; color: white !important; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 20px 0; }
+                .button:hover { background: #5568d3; }
+                .footer { background: #333; color: white; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; font-size: 12px; }
+                .alert-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 5px; }
+                .info-box { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; margin: 20px 0; border-radius: 5px; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1>🎉 ¡Bienvenido a RPM Market!</h1>
+                </div>
+                <div class="content">
+                  <p>Hola <strong>${nombre} ${apellido}</strong>,</p>
+                  
+                  <p>¡Gracias por registrarte en RPM Market! Para completar tu registro y activar tu cuenta, necesitas crear tu contraseña.</p>
+                  
+                  <div class="info-box">
+                    <strong>📧 Datos de acceso:</strong>
+                    <p>Tu <strong>nombre de usuario</strong> para iniciar sesión es: <strong>${data.Correo}</strong></p>
+                    <p>Recuerda usar este correo electrónico cuando inicies sesión en la plataforma.</p>
+                  </div>
+                  
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${linkCrearContrasena}" class="button">
+                      🔐 Crear Mi Contraseña
+                    </a>
+                  </div>
+                  
+                  ${tipoUsuarioSQL === 'Comerciante' || tipoUsuarioSQL === 'PrestadorServicio' ? `
+                  <div class="info-box">
+                    <strong>ℹ️ Información Importante:</strong>
+                    <p>Como usuario <strong>${tipoUsuarioSQL}</strong>, tu cuenta requiere dos pasos para estar activa:</p>
+                    <ol>
+                      <li><strong>Crear tu contraseña</strong> (haciendo clic en el botón de arriba)</li>
+                      <li><strong>Aprobación del administrador</strong> (en un plazo de 24 horas)</li>
+                    </ol>
+                    <p>Una vez completes ambos pasos, podrás iniciar sesión y comenzar a usar la plataforma.</p>
+                  </div>
+                  ` : `
+                  <div class="info-box">
+                    <strong>ℹ️ Información Importante:</strong>
+                    <p>Una vez crees tu contraseña, podrás iniciar sesión inmediatamente y comenzar a usar la plataforma.</p>
+                  </div>
+                  `}
+                  
+                  <div class="alert-box">
+                    <strong>⚠️ Importante:</strong>
+                    <ul>
+                      <li>Este enlace es válido por <strong>24 horas</strong></li>
+                      <li>Solo puedes usarlo una vez</li>
+                      <li>No compartas este enlace con nadie</li>
+                    </ul>
+                  </div>
+                  
+                  <p style="font-size: 12px; color: #666; margin-top: 20px;">
+                    Si no solicitaste este registro, por favor ignora este correo.
+                  </p>
+                  
+                  <p style="font-size: 12px; color: #666;">
+                    Si el botón no funciona, copia y pega este enlace en tu navegador:<br>
+                    <a href="${linkCrearContrasena}" style="word-break: break-all;">${linkCrearContrasena}</a>
+                  </p>
+                </div>
+                <div class="footer">
+                  <p><strong>RPM Market</strong></p>
+                  <p>📧 rpmservice2026@gmail.com | 📞 301 403 8181</p>
+                  <p>© 2026 RPM Market - Todos los derechos reservados</p>
+                </div>
+              </div>
+            </body>
+            </html>
+          `
+        });
+        console.log(`✅ Correo de creación de contraseña enviado a: ${data.Correo}`);
+      } catch (emailError) {
+        console.warn('⚠️ Error al enviar correo, pero el usuario fue creado:', emailError.message);
+      }
 
       // Insertar perfil correspondiente
       if (tipoKey === 'natural') {
@@ -1414,16 +1542,20 @@ app.post(
       // Mensaje diferente según el estado inicial del usuario
       if (estadoInicial === 'Inactivo') {
         res.status(200).json({
-          mensaje: 'Registro exitoso. Su cuenta está en revisión y será activada por un administrador en un lapso de 24 horas. Mientras tanto, no podrá iniciar sesión.',
+          mensaje: `Registro exitoso. Hemos enviado un correo a ${data.Correo} con un enlace para crear tu contraseña. Tu cuenta también requiere aprobación del administrador antes de poder iniciar sesión.`,
           usuario: idUsuarioValue,
           estado: 'Inactivo',
-          requiereAprobacion: true
+          requiereAprobacion: true,
+          requiereContrasena: true,
+          correo: data.Correo
         });
       } else {
         res.status(200).json({
-          mensaje: 'Registro exitoso',
+          mensaje: `Registro exitoso. Hemos enviado un correo a ${data.Correo} con un enlace para crear tu contraseña. Una vez la crees, podrás iniciar sesión.`,
           usuario: idUsuarioValue,
-          estado: 'Activo'
+          estado: 'Activo',
+          requiereContrasena: true,
+          correo: data.Correo
         });
       }
 
@@ -1444,6 +1576,275 @@ app.post(
     }
   }
 );
+
+// ===============================
+// 🔐 SISTEMA DE VERIFICACIÓN Y CREACIÓN DE CONTRASEÑA POR CORREO
+// ===============================
+
+/**
+ * Genera un token único y seguro
+ */
+function generarToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+/**
+ * POST /api/enviar-token-creacion-contrasena
+ * Envía un correo con link para crear contraseña
+ */
+app.post('/api/enviar-token-creacion-contrasena', async (req, res) => {
+  try {
+    const { idUsuario } = req.body;
+
+    if (!idUsuario) {
+      return res.status(400).json({ error: 'ID de usuario requerido' });
+    }
+
+    // Verificar que el usuario existe
+    const [usuario] = await queryPromise(
+      'SELECT * FROM usuario WHERE IdUsuario = ?',
+      [idUsuario]
+    );
+
+    if (!usuario) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Verificar si tiene contraseña temporal
+    const [credenciales] = await queryPromise(
+      'SELECT ContrasenaTemporal FROM credenciales WHERE Usuario = ?',
+      [idUsuario]
+    );
+
+    if (!credenciales) {
+      return res.status(404).json({ error: 'No se encontraron credenciales para este usuario' });
+    }
+
+    if (credenciales.ContrasenaTemporal === 'No') {
+      return res.status(400).json({ error: 'El usuario ya configuró su contraseña' });
+    }
+
+    // Generar token
+    const token = generarToken();
+    const fechaExpiracion = new Date();
+    fechaExpiracion.setHours(fechaExpiracion.getHours() + 24); // Token válido por 24 horas
+
+    // Guardar token en la base de datos
+    await queryPromise(
+      `INSERT INTO tokens_verificacion (Usuario, Token, TipoToken, FechaExpiracion)
+       VALUES (?, ?, 'CrearContrasena', ?)`,
+      [idUsuario, token, fechaExpiracion.toISOString()]
+    );
+
+    // Crear link de verificación
+    const linkCrearContrasena = `${req.protocol}://${req.get('host')}/General/crear-contrasena.html?token=${token}`;
+
+    // Enviar correo
+    await enviarCorreo({
+      to: usuario.Correo,
+      subject: '🔐 Crea tu Contraseña - RPM Market',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+            .content { background: white; padding: 30px; }
+            .button { display: inline-block; padding: 15px 30px; background: #667eea; color: white !important; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 20px 0; }
+            .button:hover { background: #5568d3; }
+            .footer { background: #333; color: white; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; font-size: 12px; }
+            .alert-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 5px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>🎉 ¡Bienvenido a RPM Market!</h1>
+            </div>
+            <div class="content">
+              <p>Hola <strong>${usuario.Nombre} ${usuario.Apellido}</strong>,</p>
+              
+              <p>Tu registro en RPM Market ha sido exitoso. Para completar la configuración de tu cuenta, necesitas crear tu contraseña.</p>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${linkCrearContrasena}" class="button">
+                  🔐 Crear Mi Contraseña
+                </a>
+              </div>
+              
+              <div class="alert-box">
+                <strong>⚠️ Importante:</strong>
+                <ul>
+                  <li>Este enlace es válido por <strong>24 horas</strong></li>
+                  <li>Solo puedes usarlo una vez</li>
+                  <li>${usuario.TipoUsuario === 'Comerciante' || usuario.TipoUsuario === 'PrestadorServicio' 
+                    ? 'Tu cuenta también requiere aprobación de un administrador antes de poder iniciar sesión' 
+                    : 'Una vez crees tu contraseña, podrás iniciar sesión inmediatamente'}</li>
+                </ul>
+              </div>
+              
+              <p style="font-size: 12px; color: #666; margin-top: 20px;">
+                Si no solicitaste este registro, por favor ignora este correo.
+              </p>
+              
+              <p style="font-size: 12px; color: #666;">
+                Si el botón no funciona, copia y pega este enlace en tu navegador:<br>
+                <a href="${linkCrearContrasena}">${linkCrearContrasena}</a>
+              </p>
+            </div>
+            <div class="footer">
+              <p><strong>RPM Market</strong></p>
+              <p>📧 rpmservice2026@gmail.com | 📞 301 403 8181</p>
+              <p>© 2026 RPM Market - Todos los derechos reservados</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    });
+
+    console.log(`✅ Token de creación de contraseña enviado a: ${usuario.Correo}`);
+    res.json({ 
+      success: true, 
+      mensaje: 'Correo enviado exitosamente. Por favor revisa tu bandeja de entrada.' 
+    });
+
+  } catch (error) {
+    console.error('❌ Error al enviar token de creación de contraseña:', error);
+    res.status(500).json({ error: 'Error al enviar el correo', detalles: error.message });
+  }
+});
+
+/**
+ * POST /api/verificar-token-contrasena
+ * Verifica si un token es válido
+ */
+app.post('/api/verificar-token-contrasena', async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Token requerido' });
+    }
+
+    // Buscar token
+    const [tokenData] = await queryPromise(
+      `SELECT t.*, u.Nombre, u.Apellido, u.TipoUsuario 
+       FROM tokens_verificacion t
+       JOIN usuario u ON t.Usuario = u.IdUsuario
+       WHERE t.Token = ? AND t.TipoToken = 'CrearContrasena' AND t.Usado = 'No'`,
+      [token]
+    );
+
+    if (!tokenData) {
+      return res.status(404).json({ 
+        valido: false, 
+        error: 'Token inválido o ya utilizado' 
+      });
+    }
+
+    // Verificar expiración
+    const ahora = new Date();
+    const fechaExpiracion = new Date(tokenData.FechaExpiracion);
+
+    if (ahora > fechaExpiracion) {
+      return res.status(400).json({ 
+        valido: false, 
+        error: 'El token ha expirado. Solicita un nuevo enlace.' 
+      });
+    }
+
+    res.json({
+      valido: true,
+      usuario: {
+        id: tokenData.Usuario,
+        nombre: tokenData.Nombre,
+        apellido: tokenData.Apellido,
+        tipoUsuario: tokenData.TipoUsuario
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error al verificar token:', error);
+    res.status(500).json({ error: 'Error al verificar el token' });
+  }
+});
+
+/**
+ * POST /api/crear-contrasena-con-token
+ * Actualiza la contraseña temporal del usuario con su contraseña definitiva
+ */
+app.post('/api/crear-contrasena-con-token', async (req, res) => {
+  try {
+    const { token, contrasena } = req.body;
+
+    if (!token || !contrasena) {
+      return res.status(400).json({ error: 'Token y contraseña son requeridos' });
+    }
+
+    // Verificar token
+    const [tokenData] = await queryPromise(
+      `SELECT * FROM tokens_verificacion 
+       WHERE Token = ? AND TipoToken = 'CrearContrasena' AND Usado = 'No'`,
+      [token]
+    );
+
+    if (!tokenData) {
+      return res.status(404).json({ error: 'Token inválido o ya utilizado' });
+    }
+
+    // Verificar expiración
+    const ahora = new Date();
+    const fechaExpiracion = new Date(tokenData.FechaExpiracion);
+
+    if (ahora > fechaExpiracion) {
+      return res.status(400).json({ error: 'El token ha expirado' });
+    }
+
+    const idUsuario = tokenData.Usuario;
+
+    // Verificar que el usuario tenga contraseña temporal
+    const [credenciales] = await queryPromise(
+      'SELECT * FROM credenciales WHERE Usuario = ?',
+      [idUsuario]
+    );
+
+    if (!credenciales) {
+      return res.status(404).json({ error: 'No se encontraron credenciales para este usuario' });
+    }
+
+    if (credenciales.ContrasenaTemporal === 'No') {
+      return res.status(400).json({ error: 'Este usuario ya configuró su contraseña' });
+    }
+
+    // Hashear la nueva contraseña
+    const hashNuevaContrasena = await bcrypt.hash(contrasena, 10);
+
+    // ACTUALIZAR la contraseña (no crear nueva)
+    await queryPromise(
+      'UPDATE credenciales SET Contrasena = ?, ContrasenaTemporal = "No" WHERE Usuario = ?',
+      [hashNuevaContrasena, idUsuario]
+    );
+
+    // Marcar el token como usado
+    await queryPromise(
+      'UPDATE tokens_verificacion SET Usado = "Si" WHERE IdToken = ?',
+      [tokenData.IdToken]
+    );
+
+    console.log(`✅ Contraseña actualizada exitosamente para usuario: ${idUsuario}`);
+    res.json({ 
+      success: true, 
+      mensaje: 'Contraseña configurada exitosamente. Ya puedes iniciar sesión.' 
+    });
+
+  } catch (error) {
+    console.error('❌ Error al crear contraseña:', error);
+    res.status(500).json({ error: 'Error al crear la contraseña', detalles: error.message });
+  }
+});
 
 
 // ----------------------
@@ -4333,11 +4734,81 @@ app.delete('/api/admin/usuario/:id', verificarAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    // Eliminar usuario (considerar eliminar en cascada o manejar referencias)
-    await queryPromise(
-      'DELETE FROM usuario WHERE IdUsuario = ?',
-      [id]
-    );
+    // Eliminar registros relacionados en cascada
+    console.log('🗑️ Eliminando registros relacionados...');
+    
+    // Función auxiliar para eliminar de forma segura
+    const eliminarSeguro = async (query, params, descripcion) => {
+      try {
+        await queryPromise(query, params);
+        console.log(`✅ ${descripcion}`);
+      } catch (error) {
+        console.log(`⚠️ ${descripcion} - ${error.message}`);
+      }
+    };
+    
+    // 1. Eliminar tokens de verificación
+    await eliminarSeguro('DELETE FROM tokens_verificacion WHERE Usuario = ?', [id], 'Tokens eliminados');
+    
+    // 2. Eliminar opiniones sobre publicaciones
+    await eliminarSeguro('DELETE FROM opiniones WHERE UsuarioNatural = ?', [id], 'Opiniones eliminadas');
+    
+    // 3. Eliminar opiniones sobre grúas
+    await eliminarSeguro('DELETE FROM OpinionesGrua WHERE UsuarioNatural = ?', [id], 'Opiniones grúas eliminadas');
+    
+    // 4. Eliminar PQRs
+    await eliminarSeguro('DELETE FROM centroayuda WHERE Perfil = ?', [id], 'PQRs eliminadas');
+    
+    // 5. Eliminar control de agenda de comercio
+    await eliminarSeguro('DELETE FROM controlagendacomercio WHERE Comercio = ?', [id], 'Agenda comercio eliminada');
+    
+    // 6. Eliminar detalles de factura comercio relacionados con publicaciones del usuario
+    await eliminarSeguro('DELETE FROM detallefacturacomercio WHERE Factura IN (SELECT IdFactura FROM factura WHERE Usuario = ?)', [id], 'Detalles factura comercio eliminados');
+    
+    // 7. Eliminar detalles de facturas normales
+    await eliminarSeguro('DELETE FROM detallefactura WHERE Factura IN (SELECT IdFactura FROM factura WHERE Usuario = ?)', [id], 'Detalles factura eliminados');
+    
+    // 8. Eliminar facturas
+    await eliminarSeguro('DELETE FROM factura WHERE Usuario = ?', [id], 'Facturas eliminadas');
+    
+    // 9. Eliminar carrito
+    await eliminarSeguro('DELETE FROM carrito WHERE UsuarioNat = ?', [id], 'Carrito eliminado');
+    
+    // 10. Eliminar historial de servicios
+    await eliminarSeguro('DELETE FROM historialservicios WHERE SolicitudServicio IN (SELECT IdSolicitudServicio FROM controlagendaservicios WHERE UsuarioNatural = ?)', [id], 'Historial servicios eliminado');
+    
+    // 11. Eliminar control de agenda de servicios
+    await eliminarSeguro('DELETE FROM controlagendaservicios WHERE UsuarioNatural = ?', [id], 'Agenda servicios eliminada');
+    
+    // 12. Eliminar productos de publicaciones del usuario
+    await eliminarSeguro('DELETE FROM producto WHERE Publicacion IN (SELECT IdPublicacion FROM publicacion WHERE Usuario = ?)', [id], 'Productos eliminados');
+    
+    // 13. Eliminar publicaciones de grúas del usuario
+    await eliminarSeguro('DELETE FROM publicaciongrua WHERE Publicacion IN (SELECT IdPublicacion FROM publicacion WHERE Usuario = ?)', [id], 'Publicaciones grúa eliminadas');
+    
+    // 14. Eliminar publicaciones del usuario
+    await eliminarSeguro('DELETE FROM publicacion WHERE Usuario = ?', [id], 'Publicaciones eliminadas');
+    
+    // 15. Eliminar perfil de prestador de servicio si existe
+    await eliminarSeguro('DELETE FROM prestadorservicio WHERE Usuario = ?', [id], 'Perfil prestador eliminado');
+    
+    // 16. Eliminar perfil de comerciante si existe
+    await eliminarSeguro('DELETE FROM comerciante WHERE Comercio = ?', [id], 'Perfil comerciante eliminado');
+    
+    // 17. Eliminar perfil natural si existe
+    await eliminarSeguro('DELETE FROM perfilnatural WHERE UsuarioNatural = ?', [id], 'Perfil natural eliminado');
+    
+    // 18. Eliminar credenciales
+    await eliminarSeguro('DELETE FROM credenciales WHERE Usuario = ?', [id], 'Credenciales eliminadas');
+    
+    // 19. Finalmente, eliminar el usuario
+    await queryPromise('DELETE FROM usuario WHERE IdUsuario = ?', [id]);
+    await queryPromise('DELETE FROM credenciales WHERE Usuario = ?', [id]);
+    
+    // 19. Finalmente, eliminar el usuario
+    await queryPromise('DELETE FROM usuario WHERE IdUsuario = ?', [id]);
+
+    console.log('✅ Usuario y registros relacionados eliminados correctamente');
 
     res.json({ 
       success: true, 
@@ -4376,6 +4847,129 @@ app.get('/api/admin/publicaciones', verificarAdmin, async (req, res) => {
 });
 
 // ===============================
+// Eliminar publicación desde admin con observación
+// ===============================
+app.delete('/api/admin/publicacion/:id', verificarAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { observacion } = req.body;
+
+  try {
+    console.log(`🗑️ Admin eliminando publicación ${id}`);
+
+    if (!observacion || observacion.trim().length === 0) {
+      return res.status(400).json({ error: 'La observación es requerida' });
+    }
+
+    // Obtener información de la publicación y del comerciante
+    const publicacion = await queryPromise(
+      `SELECT p.*, u.Correo, u.Nombre, u.Apellido, com.NombreComercio
+       FROM publicacion p
+       JOIN usuario u ON p.Comerciante = u.Documento
+       LEFT JOIN comerciante com ON com.Comercio = u.IdUsuario
+       WHERE p.IdPublicacion = ?`,
+      [id]
+    );
+
+    if (publicacion.length === 0) {
+      return res.status(404).json({ error: 'Publicación no encontrada' });
+    }
+
+    const pub = publicacion[0];
+    
+    // Eliminar productos relacionados primero
+    await queryPromise('DELETE FROM producto WHERE PublicacionComercio = ?', [id]);
+    
+    // Eliminar opiniones relacionadas
+    await queryPromise('DELETE FROM opiniones WHERE Publicacion = ?', [id]);
+    
+    // Eliminar publicación de grúa si existe
+    await queryPromise('DELETE FROM publicaciongrua WHERE Publicacion = ?', [id]);
+    
+    // Eliminar la publicación
+    await queryPromise('DELETE FROM publicacion WHERE IdPublicacion = ?', [id]);
+
+    // Enviar correo al comerciante
+    try {
+      await enviarCorreo({
+        to: pub.Correo,
+        subject: '⚠️ Tu publicación ha sido eliminada - RPM Market',
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+              .header { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+              .content { background: white; padding: 30px; }
+              .footer { background: #333; color: white; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; font-size: 12px; }
+              .alert-box { background: #ffe6e6; border-left: 4px solid #e74c3c; padding: 15px; margin: 20px 0; border-radius: 5px; }
+              .product-info { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; }
+              .observation-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 5px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>⚠️ Publicación Eliminada</h1>
+              </div>
+              <div class="content">
+                <p>Hola <strong>${pub.Nombre} ${pub.Apellido}</strong>,</p>
+                
+                <div class="alert-box">
+                  <strong>⚠️ Notificación Importante:</strong>
+                  <p>Te informamos que el equipo de administración de RPM Market ha eliminado una de tus publicaciones.</p>
+                </div>
+                
+                <div class="product-info">
+                  <h3>📦 Detalles de la publicación eliminada:</h3>
+                  <p><strong>Producto:</strong> ${pub.NombreProducto}</p>
+                  <p><strong>Precio:</strong> $${Number(pub.Precio).toLocaleString('es-CO')}</p>
+                  <p><strong>ID Publicación:</strong> ${pub.IdPublicacion}</p>
+                </div>
+                
+                <div class="observation-box">
+                  <h4>📝 Motivo de la eliminación:</h4>
+                  <p>${observacion}</p>
+                </div>
+                
+                <p>Si tienes alguna duda o deseas más información sobre esta decisión, por favor contáctanos respondiendo a este correo o a través de nuestros canales de atención.</p>
+                
+                <p>Si consideras que fue un error, puedes crear una nueva publicación siguiendo nuestras políticas y términos de uso.</p>
+                
+                <p style="margin-top: 20px;">
+                  <strong>Gracias por tu comprensión.</strong><br>
+                  <em>Equipo de RPM Market</em>
+                </p>
+              </div>
+              <div class="footer">
+                <p><strong>RPM Market</strong></p>
+                <p>📧 rpmservice2026@gmail.com | 📞 301 403 8181</p>
+                <p>© 2026 RPM Market - Todos los derechos reservados</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `
+      });
+      console.log(`✅ Correo de notificación enviado a: ${pub.Correo}`);
+    } catch (emailError) {
+      console.warn('⚠️ Error al enviar correo de notificación:', emailError.message);
+    }
+
+    console.log('✅ Publicación eliminada correctamente');
+    res.json({ 
+      success: true, 
+      message: 'Publicación eliminada y notificación enviada al comerciante' 
+    });
+
+  } catch (error) {
+    console.error('❌ Error al eliminar publicación:', error);
+    res.status(500).json({ error: 'Error en el servidor al eliminar publicación.' });
+  }
+});
+
+// ===============================
 // Obtener todas las PQR (Centro de Ayuda)
 // ===============================
 app.get('/api/admin/pqr', verificarAdmin, async (req, res) => {
@@ -4389,17 +4983,142 @@ app.get('/api/admin/pqr', verificarAdmin, async (req, res) => {
               ca.Rol, 
               ca.Asunto, 
               ca.Descripcion,
-              u.Nombre || ' ' || u.Apellido as NombreUsuario,
-              ca.FechaCreacion
+              ca.Respuesta,
+              ca.FechaRespuesta,
+              ca.Respondida,
+              (u.Nombre || ' ' || u.Apellido) as NombreUsuario,
+              datetime('now') as FechaCreacion
        FROM centroayuda ca
        LEFT JOIN usuario u ON ca.Perfil = u.IdUsuario
        ORDER BY ca.IdAyuda DESC`
     );
 
+    console.log("✅ PQR cargadas:", pqrs.length, "registros");
     res.json({ pqrs });
 
   } catch (error) {
     console.error('❌ Error al obtener PQR:', error);
+    console.error('❌ Stack:', error.stack);
     res.status(500).json({ error: 'Error en el servidor al consultar PQR.' });
+  }
+});
+
+// ===============================
+// Responder una PQR y enviar notificación por correo
+// ===============================
+app.post('/api/admin/pqr/responder', verificarAdmin, async (req, res) => {
+  try {
+    const { idPQR, respuesta } = req.body;
+
+    if (!idPQR || !respuesta) {
+      return res.status(400).json({ error: 'ID de PQR y respuesta son requeridos' });
+    }
+
+    console.log(`📝 Respondiendo PQR ${idPQR}`);
+
+    // Obtener información de la PQR y el usuario
+    const pqrInfo = await queryPromise(
+      `SELECT ca.*, u.Correo, u.Nombre, u.Apellido 
+       FROM centroayuda ca
+       LEFT JOIN usuario u ON ca.Perfil = u.IdUsuario
+       WHERE ca.IdAyuda = ?`,
+      [idPQR]
+    );
+
+    if (!pqrInfo || pqrInfo.length === 0) {
+      return res.status(404).json({ error: 'PQR no encontrada' });
+    }
+
+    const pqr = pqrInfo[0];
+
+    // Actualizar la PQR con la respuesta
+    await queryPromise(
+      `UPDATE centroayuda 
+       SET Respuesta = ?, 
+           FechaRespuesta = datetime('now'),
+           Respondida = 1
+       WHERE IdAyuda = ?`,
+      [respuesta, idPQR]
+    );
+
+    console.log(`✅ PQR ${idPQR} respondida correctamente`);
+
+    // Enviar correo de notificación si existe el correo del usuario
+    if (pqr.Correo) {
+      try {
+        const nombreUsuario = `${pqr.Nombre || ''} ${pqr.Apellido || ''}`.trim() || 'Usuario';
+        
+        await enviarCorreo({
+          to: pqr.Correo,
+          subject: `Respuesta a tu ${pqr.TipoSolicitud}: ${pqr.Asunto}`,
+          html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                .content { background: #f9f9f9; padding: 30px; border-left: 4px solid #667eea; }
+                .footer { background: #333; color: white; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; }
+                .badge { display: inline-block; padding: 5px 10px; border-radius: 5px; font-size: 12px; font-weight: bold; }
+                .badge-queja { background: #dc3545; color: white; }
+                .badge-reclamo { background: #ffc107; color: #333; }
+                .badge-sugerencia { background: #17a2b8; color: white; }
+                .respuesta-box { background: white; border-left: 4px solid #28a745; padding: 15px; margin: 15px 0; border-radius: 5px; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1>✅ Hemos Respondido tu Solicitud</h1>
+                </div>
+                <div class="content">
+                  <p>Hola <strong>${nombreUsuario}</strong>,</p>
+                  <p>Hemos revisado y respondido tu solicitud en el Centro de Ayuda de <strong>RPM Market</strong>.</p>
+                  
+                  <h3>📋 Detalles de tu solicitud:</h3>
+                  <p><strong>Tipo:</strong> <span class="badge badge-${pqr.TipoSolicitud.toLowerCase()}">${pqr.TipoSolicitud}</span></p>
+                  <p><strong>Asunto:</strong> ${pqr.Asunto}</p>
+                  <p><strong>Tu mensaje:</strong></p>
+                  <div style="background: #fff; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    ${pqr.Descripcion}
+                  </div>
+                  
+                  <h3>💬 Nuestra respuesta:</h3>
+                  <div class="respuesta-box">
+                    ${respuesta.replace(/\n/g, '<br>')}
+                  </div>
+                  
+                  <p>Si tienes más preguntas o inquietudes, no dudes en contactarnos nuevamente.</p>
+                  
+                  <p>Gracias por confiar en <strong>RPM Market</strong>.</p>
+                </div>
+                <div class="footer">
+                  <p><strong>RPM Market</strong></p>
+                  <p>📧 Email: rpmservice2026@gmail.com | 📞 Teléfono: 301 403 8181</p>
+                  <p style="font-size: 12px; margin-top: 10px;">Este es un correo automático, por favor no responder.</p>
+                </div>
+              </div>
+            </body>
+            </html>
+          `
+        });
+        console.log(`📧 Notificación enviada a ${pqr.Correo}`);
+      } catch (emailError) {
+        console.warn('⚠️ No se pudo enviar el correo de notificación:', emailError.message);
+        // Continuar aunque falle el envío del correo
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'PQR respondida correctamente',
+      emailSent: !!pqr.Correo 
+    });
+
+  } catch (error) {
+    console.error('❌ Error al responder PQR:', error);
+    res.status(500).json({ error: 'Error en el servidor al responder PQR.' });
   }
 });

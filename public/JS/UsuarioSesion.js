@@ -35,18 +35,12 @@ async function cargarUsuarioHeader() {
       } else if (data.foto) {
         fotoEl.src = '/' + data.foto;
       } else {
-        fotoEl.src = "/General/IMAGENINGRESO/imagen_perfil.png";
+        fotoEl.src = "/imagen/imagen_perfil.png";
       }
+      console.log("✅ Foto asignada:", fotoEl.src);
     }
   } catch (error) {
     console.warn("⚠️ Error en cargarUsuarioHeader:", error.message);
-    
-    // Ocultar el dropdown completo si no hay usuario logueado
-    const dropdown = document.querySelector('.dropdown');
-    if (dropdown) {
-      console.log("🔵 Ocultando dropdown (no hay sesión)");
-      dropdown.style.display = 'none';
-    }
   }
 }
 
@@ -71,3 +65,34 @@ async function verificarSesion(usuarioEsperadoTipo = null) {
     return null;
   }
 }
+
+// 🚀 Ejecutar automáticamente cuando se carga la página
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log("🔵 UsuarioSesion.js - DOMContentLoaded ejecutándose");
+  
+  try {
+    const res = await fetch("/api/usuario-actual");
+    
+    if (res.ok) {
+      // Hay sesión activa - cargar datos del usuario
+      await cargarUsuarioHeader();
+      
+      // Mostrar contenedor de perfil si existe
+      const perfilContainer = document.getElementById('perfil-container-detalle');
+      if (perfilContainer) perfilContainer.style.display = 'block';
+      
+      // Ocultar botón de ingresar si existe
+      const linkIngresar = document.getElementById('link-ingresar-detalle');
+      if (linkIngresar) linkIngresar.style.display = 'none';
+    } else {
+      // No hay sesión
+      const perfilContainer = document.getElementById('perfil-container-detalle');
+      if (perfilContainer) perfilContainer.style.display = 'none';
+      
+      const linkIngresar = document.getElementById('link-ingresar-detalle');
+      if (linkIngresar) linkIngresar.style.display = 'block';
+    }
+  } catch (error) {
+    console.error("Error en inicialización de UsuarioSesion:", error);
+  }
+});

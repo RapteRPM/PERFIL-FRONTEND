@@ -178,6 +178,49 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-success" id="btn-responder-pqr" onclick="mostrarFormularioRespuesta()">
+          <i class="fas fa-reply mr-2"></i>Responder
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Responder PQR -->
+<div class="modal fade" id="modalResponderPQR" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="fas fa-reply mr-2"></i>Responder PQR</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="info-pqr-respuesta" class="mb-3 p-3 bg-light rounded">
+          <!-- Información de la PQR a responder -->
+        </div>
+        
+        <form id="form-responder-pqr">
+          <input type="hidden" id="id-pqr-respuesta">
+          <div class="mb-3">
+            <label for="respuesta-texto" class="form-label"><strong>Tu Respuesta:</strong></label>
+            <textarea 
+              id="respuesta-texto" 
+              class="form-control" 
+              rows="6" 
+              placeholder="Escribe aquí tu respuesta al usuario..."
+              required
+            ></textarea>
+            <div class="form-text">
+              <i class="fas fa-info-circle"></i> Esta respuesta se enviará por correo electrónico al usuario.
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success" onclick="enviarRespuesta()">
+          <i class="fas fa-paper-plane mr-2"></i>Enviar Respuesta
+        </button>
       </div>
     </div>
   </div>
@@ -192,7 +235,7 @@
     </div>
     <div>
       <h4 class="text-lg font-bold mb-2">Atención al Cliente</h4>
-      <p>Email: infoRPM@gmail.com</p>
+      <p>Email: rpmservice2026@gmail.com</p>
       <p>Teléfono: 301 403 8181</p>
     </div>
     <div>

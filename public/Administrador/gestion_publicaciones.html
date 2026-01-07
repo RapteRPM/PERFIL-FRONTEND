@@ -145,6 +145,50 @@
   </div>
 </div>
 
+<!-- Modal Eliminar Publicación -->
+<div class="modal fade" id="modalEliminar" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title">
+          <i class="fas fa-trash-alt mr-2"></i>Eliminar Publicación
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning">
+          <i class="fas fa-exclamation-triangle mr-2"></i>
+          <strong>¿Estás seguro?</strong> Esta acción no se puede deshacer.
+        </div>
+        <div id="info-publicacion-eliminar" class="mb-3 p-3 bg-light rounded">
+          <!-- Info de la publicación -->
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold">
+            <i class="fas fa-comment-dots mr-2"></i>Motivo de eliminación *
+          </label>
+          <textarea 
+            id="observacion-eliminacion" 
+            class="form-control" 
+            rows="4" 
+            placeholder="Describe el motivo por el cual se elimina esta publicación. Esta información será enviada al comerciante por correo."
+            required
+          ></textarea>
+          <small class="text-muted">El comerciante recibirá un correo con esta observación.</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="fas fa-times mr-2"></i>Cancelar
+        </button>
+        <button type="button" class="btn btn-danger" id="btn-confirmar-eliminar">
+          <i class="fas fa-trash-alt mr-2"></i>Eliminar Publicación
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- FOOTER -->
 <footer class="footer text-white py-8 px-4 mt-10">
   <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -154,7 +198,7 @@
     </div>
     <div>
       <h4 class="text-lg font-bold mb-2">Atención al Cliente</h4>
-      <p>Email: infoRPM@gmail.com</p>
+      <p>Email: rpmservice2026@gmail.com</p>
       <p>Teléfono: 301 403 8181</p>
     </div>
     <div>

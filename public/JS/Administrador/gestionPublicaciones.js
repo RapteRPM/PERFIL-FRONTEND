@@ -141,9 +141,14 @@ function actualizarGrid() {
             <i class="fas fa-store mr-1"></i>${pub.NombreComercio}
           </p>
           <p class="text-blue-600 font-bold text-xl mb-3">$${formatearPrecio(pub.Precio)}</p>
-          <button class="btn btn-primary btn-sm w-full" onclick="verDetalles(${pub.IdPublicacion})">
-            <i class="fas fa-eye mr-2"></i>Ver Detalles
-          </button>
+          <div class="grid grid-cols-2 gap-2">
+            <button class="btn btn-primary btn-sm" onclick="verDetalles(${pub.IdPublicacion})">
+              <i class="fas fa-eye mr-1"></i>Ver
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="abrirModalEliminar(${pub.IdPublicacion})">
+              <i class="fas fa-trash mr-1"></i>Eliminar
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -152,8 +157,14 @@ function actualizarGrid() {
   actualizarPaginacion();
 }
 
-// Ver detalles de una publicación
-async function verDetalles(idPublicacion) {
+// Ver detalles de una publicación (redirigir a la página de detalle)
+function verDetalles(idPublicacion) {
+  // Redirigir a la página de detalle del producto
+  window.location.href = `/Natural/Detalle_producto.html?id=${idPublicacion}`;
+}
+
+// Abrir modal para eliminar publicación
+function abrirModalEliminar(idPublicacion) {
   const publicacion = publicacionesData.find(p => p.IdPublicacion === idPublicacion);
   if (!publicacion) return;
   
@@ -170,30 +181,76 @@ async function verDetalles(idPublicacion) {
     }
   }
   
-  const badgeEstado = publicacion.Estado > 0
-    ? '<span class="badge bg-success">Disponible</span>'
-    : '<span class="badge bg-danger">Agotado</span>';
-  
-  const detallesHTML = `
-    <div class="row">
-      <div class="col-md-5">
-        <img src="${imagen}" alt="${publicacion.NombreProducto}" class="img-fluid rounded">
-      </div>
-      <div class="col-md-7">
-        <h3 class="mb-3">${publicacion.NombreProducto}</h3>
-        <p><strong>ID:</strong> ${publicacion.IdPublicacion}</p>
-        <p><strong>Comerciante:</strong> ${publicacion.NombreComercio}</p>
-        <p><strong>Documento Comerciante:</strong> ${publicacion.Comerciante}</p>
-        <p><strong>Precio:</strong> <span class="text-primary fs-4">$${formatearPrecio(publicacion.Precio)}</span></p>
-        <p><strong>Stock:</strong> ${publicacion.Estado || 0} unidades</p>
-        <p><strong>Estado:</strong> ${badgeEstado}</p>
+  const infoHTML = `
+    <div class="d-flex align-items-center">
+      <img src="${imagen}" alt="${publicacion.NombreProducto}" class="rounded" style="width: 80px; height: 80px; object-fit: cover;">
+      <div class="ms-3">
+        <h6 class="mb-1 fw-bold">${publicacion.NombreProducto}</h6>
+        <p class="mb-0 text-muted small">
+          <i class="fas fa-store mr-1"></i>${publicacion.NombreComercio}<br>
+          <i class="fas fa-dollar-sign mr-1"></i>$${formatearPrecio(publicacion.Precio)}
+        </p>
       </div>
     </div>
   `;
   
-  document.getElementById('detalles-producto').innerHTML = detallesHTML;
-  const modal = new bootstrap.Modal(document.getElementById('modalDetalles'));
+  document.getElementById('info-publicacion-eliminar').innerHTML = infoHTML;
+  document.getElementById('observacion-eliminacion').value = '';
+  
+  // Guardar el ID en el botón
+  const btnConfirmar = document.getElementById('btn-confirmar-eliminar');
+  btnConfirmar.onclick = () => eliminarPublicacion(idPublicacion);
+  
+  const modal = new bootstrap.Modal(document.getElementById('modalEliminar'));
   modal.show();
+}
+
+// Eliminar publicación
+async function eliminarPublicacion(idPublicacion) {
+  const observacion = document.getElementById('observacion-eliminacion').value.trim();
+  
+  if (!observacion) {
+    alert('Por favor, ingresa el motivo de la eliminación');
+    return;
+  }
+  
+  const btnConfirmar = document.getElementById('btn-confirmar-eliminar');
+  const textoOriginal = btnConfirmar.innerHTML;
+  btnConfirmar.disabled = true;
+  btnConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Eliminando...';
+  
+  try {
+    const response = await fetch(`/api/admin/publicacion/${idPublicacion}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ observacion })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al eliminar publicación');
+    }
+    
+    const data = await response.json();
+    
+    // Cerrar modal
+    bootstrap.Modal.getInstance(document.getElementById('modalEliminar')).hide();
+    
+    // Mostrar mensaje de éxito
+    alert('Publicación eliminada correctamente. Se ha enviado un correo al comerciante.');
+    
+    // Recargar publicaciones
+    cargarPublicaciones();
+    
+  } catch (error) {
+    console.error('Error:', error);
+    alert(`Error: ${error.message}`);
+  } finally {
+    btnConfirmar.disabled = false;
+    btnConfirmar.innerHTML = textoOriginal;
+  }
 }
 
 // Formatear precio

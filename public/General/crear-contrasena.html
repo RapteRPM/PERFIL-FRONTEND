@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crear Contraseña - RPM Market</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .card {
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      max-width: 500px;
+      width: 100%;
+    }
+    .card-header {
+      background: white;
+      border-radius: 15px 15px 0 0 !important;
+      text-align: center;
+      padding: 30px;
+    }
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 15px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-center: center;
+      color: white;
+      font-size: 2rem;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      padding: 12px;
+      font-weight: bold;
+      transition: transform 0.2s;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    .password-field {
+      position: relative;
+    }
+    .toggle-password {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      color: #6c757d;
+    }
+    .password-strength {
+      height: 5px;
+      margin-top: 10px;
+      border-radius: 5px;
+      background: #e9ecef;
+      overflow: hidden;
+    }
+    .password-strength-bar {
+      height: 100%;
+      transition: all 0.3s;
+    }
+    .loading {
+      display: none;
+    }
+    .alert {
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="card-header">
+        <div class="logo">
+          <i class="fas fa-lock"></i>
+        </div>
+        <h2 class="mb-0">Crear Contraseña</h2>
+        <p class="text-muted mb-0">RPM Market</p>
+      </div>
+      <div class="card-body p-4">
+        <!-- Loading inicial -->
+        <div id="loading-inicial" class="text-center py-4">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Verificando...</span>
+          </div>
+          <p class="mt-3 text-muted">Verificando tu enlace...</p>
+        </div>
+
+        <!-- Formulario -->
+        <div id="formulario" style="display: none;">
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            <strong id="nombre-usuario"></strong>, completa el registro creando tu contraseña.
+          </div>
+
+          <form id="formCrearContrasena">
+            <div class="mb-3">
+              <label for="contrasena" class="form-label">
+                <i class="fas fa-key"></i> Nueva Contraseña
+              </label>
+              <div class="password-field">
+                <input 
+                  type="password" 
+                  class="form-control" 
+                  id="contrasena" 
+                  placeholder="Ingresa tu contraseña"
+                  required
+                  minlength="6"
+                >
+                <i class="fas fa-eye toggle-password" id="togglePassword1"></i>
+              </div>
+              <div class="password-strength">
+                <div class="password-strength-bar" id="strengthBar"></div>
+              </div>
+              <small class="text-muted">Mínimo 6 caracteres</small>
+            </div>
+
+            <div class="mb-3">
+              <label for="confirmarContrasena" class="form-label">
+                <i class="fas fa-check"></i> Confirmar Contraseña
+              </label>
+              <div class="password-field">
+                <input 
+                  type="password" 
+                  class="form-control" 
+                  id="confirmarContrasena" 
+                  placeholder="Confirma tu contraseña"
+                  required
+                >
+                <i class="fas fa-eye toggle-password" id="togglePassword2"></i>
+              </div>
+            </div>
+
+            <div class="alert alert-warning" id="infoAprobacion" style="display: none;">
+              <i class="fas fa-clock"></i>
+              Tu cuenta también requiere aprobación del administrador antes de poder iniciar sesión.
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100" id="btnCrear">
+              <i class="fas fa-check-circle"></i> Crear Contraseña
+            </button>
+
+            <div class="loading text-center mt-3" id="loading">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Procesando...</span>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Error -->
+        <div id="error-mensaje" class="alert alert-danger" style="display: none;">
+          <i class="fas fa-exclamation-triangle"></i>
+          <span id="error-text"></span>
+        </div>
+
+        <!-- Éxito -->
+        <div id="exito-mensaje" style="display: none;">
+          <div class="alert alert-success">
+            <i class="fas fa-check-circle"></i>
+            <strong>¡Contraseña creada exitosamente!</strong>
+          </div>
+          <p class="text-center mb-3" id="mensaje-exito"></p>
+          <a href="/General/Ingreso.html" class="btn btn-primary w-100">
+            <i class="fas fa-sign-in-alt"></i> Ir a Iniciar Sesión
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let tokenActual = null;
+    let usuarioData = null;
+
+    // Obtener token de la URL
+    const urlParams = new URLSearchParams(window.location.search);
+    tokenActual = urlParams.get('token');
+
+    // Verificar token al cargar la página
+    window.addEventListener('DOMContentLoaded', verificarToken);
+
+    async function verificarToken() {
+      if (!tokenActual) {
+        mostrarError('No se proporcionó un token válido.');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/verificar-token-contrasena', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: tokenActual })
+        });
+
+        const data = await response.json();
+
+        if (data.valido) {
+          usuarioData = data.usuario;
+          document.getElementById('nombre-usuario').textContent = 
+            `${usuarioData.nombre} ${usuarioData.apellido}`;
+          
+          // Mostrar info de aprobación si es necesario
+          if (usuarioData.tipoUsuario === 'Comerciante' || usuarioData.tipoUsuario === 'PrestadorServicio') {
+            document.getElementById('infoAprobacion').style.display = 'block';
+          }
+
+          document.getElementById('loading-inicial').style.display = 'none';
+          document.getElementById('formulario').style.display = 'block';
+        } else {
+          mostrarError(data.error || 'El enlace es inválido o ha expirado.');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        mostrarError('Error al verificar el enlace. Por favor, intenta nuevamente.');
+      }
+    }
+
+    // Toggle password visibility
+    document.getElementById('togglePassword1').addEventListener('click', function() {
+      togglePasswordVisibility('contrasena', this);
+    });
+
+    document.getElementById('togglePassword2').addEventListener('click', function() {
+      togglePasswordVisibility('confirmarContrasena', this);
+    });
+
+    function togglePasswordVisibility(inputId, icon) {
+      const input = document.getElementById(inputId);
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+      } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+      }
+    }
+
+    // Password strength indicator
+    document.getElementById('contrasena').addEventListener('input', function(e) {
+      const password = e.target.value;
+      const strengthBar = document.getElementById('strengthBar');
+      
+      let strength = 0;
+      if (password.length >= 6) strength += 25;
+      if (password.length >= 8) strength += 25;
+      if (/[A-Z]/.test(password)) strength += 25;
+      if (/[0-9]/.test(password)) strength += 25;
+
+      strengthBar.style.width = strength + '%';
+      
+      if (strength < 50) {
+        strengthBar.style.background = '#dc3545';
+      } else if (strength < 75) {
+        strengthBar.style.background = '#ffc107';
+      } else {
+        strengthBar.style.background = '#28a745';
+      }
+    });
+
+    // Submit form
+    document.getElementById('formCrearContrasena').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const contrasena = document.getElementById('contrasena').value;
+      const confirmar = document.getElementById('confirmarContrasena').value;
+
+      if (contrasena !== confirmar) {
+        alert('Las contraseñas no coinciden');
+        return;
+      }
+
+      if (contrasena.length < 6) {
+        alert('La contraseña debe tener al menos 6 caracteres');
+        return;
+      }
+
+      document.getElementById('btnCrear').disabled = true;
+      document.getElementById('loading').style.display = 'block';
+
+      try {
+        const response = await fetch('/api/crear-contrasena-con-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            token: tokenActual, 
+            contrasena: contrasena 
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          document.getElementById('formulario').style.display = 'none';
+          document.getElementById('exito-mensaje').style.display = 'block';
+          
+          if (usuarioData.tipoUsuario === 'Comerciante' || usuarioData.tipoUsuario === 'PrestadorServicio') {
+            document.getElementById('mensaje-exito').textContent = 
+              'Tu cuenta está pendiente de aprobación por un administrador. Te notificaremos cuando esté activa.';
+          } else {
+            document.getElementById('mensaje-exito').textContent = 
+              '¡Ya puedes iniciar sesión con tus credenciales!';
+          }
+        } else {
+          mostrarError(data.error || 'Error al crear la contraseña');
+          document.getElementById('btnCrear').disabled = false;
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        mostrarError('Error al crear la contraseña. Por favor, intenta nuevamente.');
+        document.getElementById('btnCrear').disabled = false;
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+      }
+    });
+
+    function mostrarError(mensaje) {
+      document.getElementById('loading-inicial').style.display = 'none';
+      document.getElementById('formulario').style.display = 'none';
+      document.getElementById('error-mensaje').style.display = 'block';
+      document.getElementById('error-text').textContent = mensaje;
+    }
+  </script>
+</body>
+</html>
