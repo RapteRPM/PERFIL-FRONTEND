@@ -4867,17 +4867,45 @@ app.delete('/api/admin/usuario/:id', verificarAdmin, async (req, res) => {
 // ===============================
 app.get('/api/admin/publicaciones', verificarAdmin, async (req, res) => {
   try {
-    console.log("📦 Cargando todas las publicaciones");
+    console.log("📦 Cargando todas las publicaciones (comercios y grúas)");
 
-    const publicaciones = await queryPromise(
-      `SELECT p.IdPublicacion, p.NombreProducto, p.Precio, p.ImagenProducto as ImagenPrincipal, 
+    // Consultar publicaciones de comercios
+    const publicacionesComercios = await queryPromise(
+      `SELECT p.IdPublicacion, 
+              p.NombreProducto, 
+              p.Precio, 
+              p.ImagenProducto as ImagenPrincipal, 
               p.Stock as Estado, 
               COALESCE(u.Nombre || ' ' || u.Apellido, 'Doc: ' || p.Comerciante) as NombreComercio,
-              p.Comerciante
+              p.Comerciante,
+              u.TipoUsuario,
+              0 as EsGrua
        FROM publicacion p
        LEFT JOIN usuario u ON p.Comerciante = u.Documento
        ORDER BY p.IdPublicacion DESC`
     );
+
+    // Consultar publicaciones de grúas
+    const publicacionesGruas = await queryPromise(
+      `SELECT pg.IdPublicacionGrua as IdPublicacion,
+              pg.TituloPublicacion as NombreProducto,
+              pg.TarifaBase as Precio,
+              pg.FotoPublicacion as ImagenPrincipal,
+              1 as Estado,
+              COALESCE(u.Nombre || ' ' || u.Apellido, 'Usuario: ' || ps.usuario) as NombreComercio,
+              ps.usuario as Comerciante,
+              u.TipoUsuario,
+              1 as EsGrua
+       FROM publicaciongrua pg
+       JOIN prestadorservicio ps ON pg.Servicio = ps.IdServicio
+       LEFT JOIN usuario u ON ps.usuario = u.IdUsuario
+       ORDER BY pg.IdPublicacionGrua DESC`
+    );
+
+    // Combinar ambos arrays
+    const publicaciones = [...publicacionesComercios, ...publicacionesGruas];
+    
+    console.log(`✅ Total publicaciones: ${publicaciones.length} (Comercios: ${publicacionesComercios.length}, Grúas: ${publicacionesGruas.length})`);
 
     res.json({ publicaciones });
 
@@ -4892,47 +4920,85 @@ app.get('/api/admin/publicaciones', verificarAdmin, async (req, res) => {
 // ===============================
 app.delete('/api/admin/publicacion/:id', verificarAdmin, async (req, res) => {
   const { id } = req.params;
-  const { observacion } = req.body;
+  const { observacion, esGrua } = req.body;
 
   try {
-    console.log(`🗑️ Admin eliminando publicación ${id}`);
+    console.log(`🗑️ Admin eliminando publicación ${id} (Grúa: ${esGrua})`);
 
     if (!observacion || observacion.trim().length === 0) {
       return res.status(400).json({ error: 'La observación es requerida' });
     }
 
-    // Obtener información de la publicación y del comerciante
-    const publicacion = await queryPromise(
-      `SELECT p.*, u.Correo, u.Nombre, u.Apellido, com.NombreComercio
-       FROM publicacion p
-       JOIN usuario u ON p.Comerciante = u.Documento
-       LEFT JOIN comerciante com ON com.Comercio = u.IdUsuario
-       WHERE p.IdPublicacion = ?`,
-      [id]
-    );
+    let pub, correoUsuario, nombreUsuario, apellidoUsuario;
 
-    if (publicacion.length === 0) {
-      return res.status(404).json({ error: 'Publicación no encontrada' });
+    // Determinar si es una publicación de grúa o comercio
+    if (esGrua) {
+      // Es una publicación de grúa
+      const publicacionGrua = await queryPromise(
+        `SELECT pg.*, u.Correo, u.Nombre, u.Apellido
+         FROM publicaciongrua pg
+         JOIN prestadorservicio ps ON pg.Servicio = ps.IdServicio
+         JOIN usuario u ON ps.usuario = u.IdUsuario
+         WHERE pg.IdPublicacionGrua = ?`,
+        [id]
+      );
+
+      if (publicacionGrua.length === 0) {
+        return res.status(404).json({ error: 'Publicación de grúa no encontrada' });
+      }
+
+      pub = publicacionGrua[0];
+      correoUsuario = pub.Correo;
+      nombreUsuario = pub.Nombre;
+      apellidoUsuario = pub.Apellido;
+
+      // Eliminar solicitudes relacionadas
+      await queryPromise('DELETE FROM controlagendaservicios WHERE PublicacionGrua = ?', [id]);
+      
+      // Eliminar opiniones si existen
+      await queryPromise('DELETE FROM opiniones WHERE PublicacionGrua = ?', [id]);
+      
+      // Eliminar la publicación de grúa
+      await queryPromise('DELETE FROM publicaciongrua WHERE IdPublicacionGrua = ?', [id]);
+
+    } else {
+      // Es una publicación de comercio
+      const publicacion = await queryPromise(
+        `SELECT p.*, u.Correo, u.Nombre, u.Apellido, com.NombreComercio
+         FROM publicacion p
+         JOIN usuario u ON p.Comerciante = u.Documento
+         LEFT JOIN comerciante com ON com.Comercio = u.IdUsuario
+         WHERE p.IdPublicacion = ?`,
+        [id]
+      );
+
+      if (publicacion.length === 0) {
+        return res.status(404).json({ error: 'Publicación no encontrada' });
+      }
+
+      pub = publicacion[0];
+      correoUsuario = pub.Correo;
+      nombreUsuario = pub.Nombre;
+      apellidoUsuario = pub.Apellido;
+      
+      // Eliminar productos relacionados primero
+      await queryPromise('DELETE FROM producto WHERE PublicacionComercio = ?', [id]);
+      
+      // Eliminar opiniones relacionadas
+      await queryPromise('DELETE FROM opiniones WHERE Publicacion = ?', [id]);
+      
+      // Eliminar la publicación
+      await queryPromise('DELETE FROM publicacion WHERE IdPublicacion = ?', [id]);
     }
 
-    const pub = publicacion[0];
-    
-    // Eliminar productos relacionados primero
-    await queryPromise('DELETE FROM producto WHERE PublicacionComercio = ?', [id]);
-    
-    // Eliminar opiniones relacionadas
-    await queryPromise('DELETE FROM opiniones WHERE Publicacion = ?', [id]);
-    
-    // Eliminar publicación de grúa si existe
-    await queryPromise('DELETE FROM publicaciongrua WHERE Publicacion = ?', [id]);
-    
-    // Eliminar la publicación
-    await queryPromise('DELETE FROM publicacion WHERE IdPublicacion = ?', [id]);
+    // Enviar correo al usuario
+    const nombreProducto = pub.TituloPublicacion || pub.NombreProducto;
+    const precioProducto = pub.TarifaBase || pub.Precio;
+    const tipoPublicacion = esGrua ? 'servicio de grúa' : 'producto';
 
-    // Enviar correo al comerciante
     try {
       await enviarCorreo({
-        to: pub.Correo,
+        to: correoUsuario,
         subject: '⚠️ Tu publicación ha sido eliminada - RPM Market',
         html: `
           <!DOCTYPE html>
@@ -4955,7 +5021,7 @@ app.delete('/api/admin/publicacion/:id', verificarAdmin, async (req, res) => {
                 <h1>⚠️ Publicación Eliminada</h1>
               </div>
               <div class="content">
-                <p>Hola <strong>${pub.Nombre} ${pub.Apellido}</strong>,</p>
+                <p>Hola <strong>${nombreUsuario} ${apellidoUsuario}</strong>,</p>
                 
                 <div class="alert-box">
                   <strong>⚠️ Notificación Importante:</strong>
@@ -4963,10 +5029,11 @@ app.delete('/api/admin/publicacion/:id', verificarAdmin, async (req, res) => {
                 </div>
                 
                 <div class="product-info">
-                  <h3>📦 Detalles de la publicación eliminada:</h3>
-                  <p><strong>Producto:</strong> ${pub.NombreProducto}</p>
-                  <p><strong>Precio:</strong> $${Number(pub.Precio).toLocaleString('es-CO')}</p>
-                  <p><strong>ID Publicación:</strong> ${pub.IdPublicacion}</p>
+                  <h3>${esGrua ? '🚛' : '📦'} Detalles de la publicación eliminada:</h3>
+                  <p><strong>Tipo:</strong> ${tipoPublicacion}</p>
+                  <p><strong>${esGrua ? 'Servicio' : 'Producto'}:</strong> ${nombreProducto}</p>
+                  <p><strong>${esGrua ? 'Tarifa' : 'Precio'}:</strong> $${Number(precioProducto).toLocaleString('es-CO')}</p>
+                  <p><strong>ID Publicación:</strong> ${id}</p>
                 </div>
                 
                 <div class="observation-box">
@@ -4993,7 +5060,7 @@ app.delete('/api/admin/publicacion/:id', verificarAdmin, async (req, res) => {
           </html>
         `
       });
-      console.log(`✅ Correo de notificación enviado a: ${pub.Correo}`);
+      console.log(`✅ Correo de notificación enviado a: ${correoUsuario}`);
     } catch (emailError) {
       console.warn('⚠️ Error al enviar correo de notificación:', emailError.message);
     }
@@ -5001,7 +5068,7 @@ app.delete('/api/admin/publicacion/:id', verificarAdmin, async (req, res) => {
     console.log('✅ Publicación eliminada correctamente');
     res.json({ 
       success: true, 
-      message: 'Publicación eliminada y notificación enviada al comerciante' 
+      message: 'Publicación eliminada y notificación enviada' 
     });
 
   } catch (error) {
