@@ -1,31 +1,6 @@
-nohup: ignoring input
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
 ⚠️ MySQL no disponible, usando SQLite como fallback
 ✅ Base de datos SQLite creada en: /workspaces/PERFIL-FRONTEND/rpm_market.db
 ⚠️ Error en statement SQL: UNIQUE constraint failed: categoria.NombreCategoria
 ✅ Esquema SQLite inicializado desde rpm_market.sql
 🚀 Servidor escuchando en: http://localhost:3000/General/index.html
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 5 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 5 publicaciones
-📥 GET /api/marketplace-gruas
-✅ Encontradas 5 grúas
-📥 Solicitud recibida con ID: 6
-📊 Resultado de la consulta: [
-  {
-    IdPublicacionGrua: 6,
-    TituloPublicacion: 'GRUAS POR TODO USAQUEN Y LISBOA',
-    DescripcionServicio: 'gruas hasta las 10 pm',
-    ZonaCobertura: 'Lisboa',
-    TarifaBase: 25000,
-    FotoPublicacion: '["imagen/PrestadorServicios/52386189/publicaciones/6/1766891218461-248316042.jpg","imagen/PrestadorServicios/52386189/publicaciones/6/1766891218565-571627666.jpg","imagen/PrestadorServicios/52386189/publicaciones/6/1766891218648-48805670.jpeg"]',
-    IdUsuario: 52386189,
-    NombrePrestador: 'alberto luis',
-    Telefono: '3134681258',
-    Correo: 'alberto@duarte.com'
-  }
-]
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 5 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 5 publicaciones

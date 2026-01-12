@@ -68,10 +68,18 @@ document.addEventListener("DOMContentLoaded", () => {
         if (esNuevoRegistro) {
           alert("✅ Contraseña creada con éxito. Ya puedes iniciar sesión.");
         } else {
-          alert("✅ Contraseña actualizada con éxito.");
+          alert("✅ Contraseña actualizada con éxito. Tu sesión se cerrará por seguridad.");
         }
+        
+        // Limpiar completamente el localStorage y sessionStorage
+        localStorage.removeItem("usuarioRecuperacion");
+        localStorage.removeItem("usuarioActivo");
+        sessionStorage.clear();
+        localStorage.clear();
+        
         form.reset();
-        localStorage.removeItem("usuarioRecuperacion"); // Limpieza
+        
+        // Redirigir al login
         window.location.href = "Ingreso.html";
       } else {
         alert(`❌ Error: ${result.msg || "No se pudo actualizar la contraseña."}`);

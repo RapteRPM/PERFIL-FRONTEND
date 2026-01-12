@@ -349,20 +349,76 @@ app.put('/api/usuarios/:id/contrasena', async (req, res) => {
 
   try {
     console.log(`🔐 Actualizando contraseña para usuario: ${id}`);
-    const hash = await bcrypt.hash(nuevaContrasena, 10);
-
-    const result = await queryPromise(
-      'UPDATE credenciales SET Contrasena = ?, ContrasenaTemporal = "No" WHERE Usuario = ?',
-      [hash, id]
+    
+    // Verificar si el usuario existe
+    const [credencial] = await pool.query(
+      'SELECT Usuario, Contrasena FROM credenciales WHERE Usuario = ?',
+      [id]
     );
 
-    if (result.changes === 0) {
+    if (!credencial || credencial.length === 0) {
       console.log(`⚠️ No se encontró el usuario ${id} en credenciales`);
       return res.status(404).json({ msg: 'Usuario no encontrado.' });
     }
 
+    // Obtener el historial de contraseñas (últimas 5 contraseñas)
+    const [historialContrasenas] = await pool.query(
+      'SELECT ContrasenaHash FROM historial_contrasenas WHERE Usuario = ? ORDER BY FechaCambio DESC LIMIT 5',
+      [id]
+    );
+
+    // Verificar si la nueva contraseña ya fue usada anteriormente
+    for (const row of historialContrasenas) {
+      const esIgual = await bcrypt.compare(nuevaContrasena, row.ContrasenaHash);
+      if (esIgual) {
+        console.log(`⚠️ La contraseña ya fue utilizada anteriormente por el usuario: ${id}`);
+        return res.status(400).json({ 
+          msg: 'Esta contraseña ya fue utilizada anteriormente. Por favor, elige una contraseña diferente.' 
+        });
+      }
+    }
+
+    // Hashear la nueva contraseña
+    const hash = await bcrypt.hash(nuevaContrasena, 10);
+
+    // Actualizar la contraseña en credenciales
+    const [result] = await pool.query(
+      "UPDATE credenciales SET Contrasena = ?, ContrasenaTemporal = 'No' WHERE Usuario = ?",
+      [hash, id]
+    );
+
+    if (result.affectedRows === 0) {
+      console.log(`⚠️ No se pudo actualizar la contraseña del usuario ${id}`);
+      return res.status(500).json({ msg: 'No se pudo actualizar la contraseña.' });
+    }
+
+    // Guardar en el historial de contraseñas
+    await pool.query(
+      'INSERT INTO historial_contrasenas (Usuario, ContrasenaHash) VALUES (?, ?)',
+      [id, hash]
+    );
+
+    // Destruir la sesión del usuario para forzar nuevo login
+    if (req.session) {
+      req.session.destroy((err) => {
+        if (err) {
+          console.error('Error al destruir sesión:', err);
+        } else {
+          console.log(`🚪 Sesión cerrada para usuario: ${id}`);
+        }
+      });
+    }
+
+    // Limpiar la cookie de sesión
+    res.clearCookie('connect.sid', {
+      path: '/',
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax'
+    });
+
     console.log(`✅ Contraseña actualizada para usuario: ${id}`);
-    res.json({ msg: 'Contraseña actualizada correctamente.' });
+    res.json({ msg: 'Contraseña actualizada correctamente.', cerrarSesion: true });
   } catch (error) {
     console.error('❌ Error actualizando contraseña:', error);
     res.status(500).json({ msg: 'Error del servidor.' });
@@ -508,6 +564,8 @@ app.get('/api/historial', async (req, res) => {
         cas.Estado AS estado,
         NULL AS idFactura,
         'grua' AS tipo,
+        cas.FechaServicio AS fechaEntrega,
+        cas.HoraServicio AS horaEntrega,
         cas.FechaModificadaPor AS fechaModificada,
         cas.NotificacionVista AS notificacionVista
       FROM controlagendaservicios cas
@@ -1824,13 +1882,13 @@ app.post('/api/crear-contrasena-con-token', async (req, res) => {
 
     // ACTUALIZAR la contraseña (no crear nueva)
     await queryPromise(
-      'UPDATE credenciales SET Contrasena = ?, ContrasenaTemporal = "No" WHERE Usuario = ?',
+      "UPDATE credenciales SET Contrasena = ?, ContrasenaTemporal = 'No' WHERE Usuario = ?",
       [hashNuevaContrasena, idUsuario]
     );
 
     // Marcar el token como usado
     await queryPromise(
-      'UPDATE tokens_verificacion SET Usado = "Si" WHERE IdToken = ?',
+      "UPDATE tokens_verificacion SET Usado = 'Si' WHERE IdToken = ?",
       [tokenData.IdToken]
     );
 
@@ -2953,7 +3011,7 @@ app.get('/api/detallePublicacion/:id', async (req, res) => {
             return res.status(404).json({ msg: 'Publicación no encontrada' });
         }
 
-        // Consulta de opiniones con respuestas
+        // Consulta de opiniones (sin respuestas - feature no implementada)
         const [opiniones] = await pool.query(
             `SELECT 
                 o.IdOpinion, 
@@ -2968,23 +3026,6 @@ app.get('/api/detallePublicacion/:id', async (req, res) => {
             ORDER BY o.FechaOpinion DESC`,
             [idPublicacion]
         );
-
-        // Obtener respuestas para cada opinión
-        for (let opinion of opiniones) {
-            const [respuestas] = await pool.query(
-                `SELECT 
-                    r.IdRespuesta,
-                    r.Respuesta,
-                    r.FechaRespuesta,
-                    c.NombreComercio
-                FROM respuestas_opiniones r
-                JOIN comerciante c ON r.IdComerciante = c.Comercio
-                WHERE r.IdOpinion = ?
-                ORDER BY r.FechaRespuesta ASC`,
-                [opinion.IdOpinion]
-            );
-            opinion.Respuestas = respuestas;
-        }
 
         // Guardar la imagen como string directamente (sin parse)
             let imagenes = [];
