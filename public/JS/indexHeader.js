@@ -1,5 +1,7 @@
 document.addEventListener("DOMContentLoaded", async () => {
   console.log("🔵 indexHeader.js - Iniciando carga...");
+  console.log("🔵 URL actual:", window.location.href);
+  console.log("🔵 Cookies:", document.cookie);
   
   const header = document.querySelector("header");
   const nav = document.querySelector("nav.nav2");
@@ -19,6 +21,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.log("🔵 Verificando sesión en el servidor...");
     const res = await fetch("/api/verificar-sesion");
     console.log("🔵 Response status:", res.status);
+    console.log("🔵 Response headers:", [...res.headers.entries()]);
     if (res.ok) {
       usuario = await res.json();
       console.log("✅ Usuario encontrado:", usuario);
@@ -78,6 +81,21 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Crear el bloque de perfil en el HEADER (lado derecho, separado del logo)
   const nombreMostrar = usuario.nombreComercio || usuario.nombre || 'Usuario';
   
+  // Determinar rutas según tipo de usuario
+  let rutaPerfil = '/Natural/perfil_usuario.html';
+  let rutaEditar = '/Natural/Editar_perfil.html';
+  
+  if (usuario.tipo === 'Comerciante') {
+    rutaPerfil = '/Comerciante/perfil_comerciante.html';
+    rutaEditar = '/Comerciante/EditarPerfil_comerciante.html';
+  } else if (usuario.tipo === 'PrestadorServicios' || usuario.tipo === 'PrestadorServicio') {
+    rutaPerfil = '/PrestadorServicios/perfil_servicios.html';
+    rutaEditar = '/PrestadorServicios/configuracion_prestador.html';
+  } else if (usuario.tipo === 'Administrador') {
+    rutaPerfil = '/Administrador/panel_admin.html';
+    rutaEditar = '/Administrador/panel_admin.html';
+  }
+  
   const perfilHTML = `
     <div class="dropdown position-relative">
       <button class="btn text-white text-decoration-none d-flex align-items-center gap-2 p-0 bg-transparent border-0" 
@@ -97,10 +115,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       </button>
       <ul class="dropdown-menu dropdown-menu-end shadow position-absolute" id="menuDropdownPerfil" style="display: none; right: 0; top: 100%; margin-top: 0.5rem; z-index: 1050;">
         <li>
-          <a class="dropdown-item" href="/Natural/perfil_usuario.html">Ver Perfil</a>
+          <a class="dropdown-item" href="${rutaPerfil}">Ver Perfil</a>
         </li>
         <li>
-          <a class="dropdown-item" href="/Natural/Editar_perfil.html">Configurar Perfil</a>
+          <a class="dropdown-item" href="${rutaEditar}">Configurar Perfil</a>
         </li>
         <li><hr class="dropdown-divider"></li>
         <li>

@@ -84,7 +84,8 @@ app.use(
       // Sin maxAge - la sesión termina al cerrar el navegador
       httpOnly: true,
       secure: false, // Cambiar a true en producción con HTTPS
-      sameSite: 'lax'
+      sameSite: 'lax',
+      path: '/' // Asegurar que la cookie esté disponible en todas las rutas
     },
   })
 );
@@ -211,20 +212,31 @@ app.post('/api/login', async (req, res) => {
     };
 
     console.log("✅ Usuario autenticado:", req.session.usuario);
+    console.log("🔍 Session ID creado:", req.sessionID);
     
-    // Redirección automática para administradores
-    let redirect = null;
-    if (req.session.usuario.tipo === "Administrador") {
-      redirect = "/Administrador/panel_admin.html";
-    }
-    
-    res.json({
-      success: true,
-      message: "Inicio de sesión exitoso",
-      tipo: req.session.usuario.tipo,
-      usuario: req.session.usuario.nombre,
-      idUsuario: req.session.usuario.id,
-      redirect: redirect
+    // Forzar el guardado de la sesión antes de responder
+    req.session.save((err) => {
+      if (err) {
+        console.error("❌ Error al guardar sesión:", err);
+        return res.status(500).json({ error: "Error al crear sesión" });
+      }
+      
+      console.log("✅ Sesión guardada correctamente");
+      
+      // Redirección automática para administradores
+      let redirect = null;
+      if (req.session.usuario.tipo === "Administrador") {
+        redirect = "/Administrador/panel_admin.html";
+      }
+      
+      res.json({
+        success: true,
+        message: "Inicio de sesión exitoso",
+        tipo: req.session.usuario.tipo,
+        usuario: req.session.usuario.nombre,
+        idUsuario: req.session.usuario.id,
+        redirect: redirect
+      });
     });
 
   } catch (err) {
@@ -474,8 +486,13 @@ app.get('/logout', (req, res) => {
 // 🧠 Verificar sesión activa
 // ===============================
 app.get('/api/verificar-sesion', (req, res) => {
+  console.log("🔍 [verificar-sesion] Verificando sesión...");
+  console.log("🔍 [verificar-sesion] Session ID:", req.sessionID);
+  console.log("🔍 [verificar-sesion] Usuario en sesión:", req.session?.usuario ? 'SÍ' : 'NO');
+  
   if (req.session?.usuario) {
     // Devolver los datos del usuario si hay sesión activa
+    console.log("✅ [verificar-sesion] Sesión activa para:", req.session.usuario.nombre);
     res.json({
       activa: true,
       id: req.session.usuario.id,
@@ -487,6 +504,7 @@ app.get('/api/verificar-sesion', (req, res) => {
       nombreComercio: req.session.usuario.nombreComercio || null
     });
   } else {
+    console.log("⚠️ [verificar-sesion] No hay sesión activa");
     res.json({ activa: false });
   }
 });
@@ -706,57 +724,57 @@ app.put('/api/historial/estado/:id', async (req, res) => {
 //  ACTUALIZAR ESTADO DE SOLICITUD DE GRÚA
 // ===============================
 app.put('/api/historial/grua/estado/:id', async (req, res) => {
-  const { id } = req.params;
-  const { estado } = req.body;
+    const { id } = req.params;
+      const { estado } = req.body;
 
-  try {
-    // Verificar que la solicitud existe y obtener su estado actual
-    const solicitud = await queryPromise(
-      'SELECT IdSolicitudServicio, Estado FROM controlagendaservicios WHERE IdSolicitudServicio = ?',
-      [id]
-    );
+        try {
+            // Verificar que la solicitud existe y obtener su estado actual
+                const solicitud = await queryPromise(
+                      'SELECT IdSolicitudServicio, Estado FROM controlagendaservicios WHERE IdSolicitudServicio = ?',
+                            [id]
+                                );
 
-    if (!solicitud || solicitud.length === 0) {
-      return res.status(404).json({ success: false, message: 'Solicitud de grúa no encontrada.' });
-    }
+                                    if (!solicitud || solicitud.length === 0) {
+                                          return res.status(404).json({ success: false, message: 'Solicitud de grúa no encontrada.' });
+                                              }
 
-    const estadoActual = solicitud[0].Estado;
+                                                  const estadoActual = solicitud[0].Estado;
 
-    // Validar que no se puede modificar un servicio ya finalizado o cancelado
-    if (['Completado', 'Terminado', 'Cancelado', 'Rechazado'].includes(estadoActual)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: `No se puede modificar un servicio que ya está ${estadoActual.toLowerCase()}.` 
-      });
-    }
+                                                      // Validar que no se puede modificar un servicio ya finalizado o cancelado
+                                                          if (['Completado', 'Terminado', 'Cancelado', 'Rechazado'].includes(estadoActual)) {
+                                                                return res.status(400).json({ 
+                                                                        success: false, 
+                                                                                message: `No se puede modificar un servicio que ya está ${estadoActual.toLowerCase()}.` 
+                                                                                      });
+                                                                                          }
 
-    // Validar que solo se pueda marcar como "Terminado"/"Completado" si está "Aceptado"
-    if ((estado === 'Terminado' || estado === 'Completado') && estadoActual !== 'Aceptado') {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Solo puedes marcar como completado un servicio que ha sido aceptado por el prestador.' 
-      });
-    }
+                                                                                              // Validar que solo se pueda marcar como "Terminado"/"Completado" si está "Aceptado"
+                                                                                                  if ((estado === 'Terminado' || estado === 'Completado') && estadoActual !== 'Aceptado') {
+                                                                                                        return res.status(400).json({ 
+                                                                                                                success: false, 
+                                                                                                                        message: 'Solo puedes marcar como completado un servicio que ha sido aceptado por el prestador.' 
+                                                                                                                              });
+                                                                                                                                  }
 
-    // Normalizar Terminado a Completado
-    const estadoFinal = estado === 'Terminado' ? 'Completado' : estado;
+                                                                                                                                      // Normalizar Terminado a Completado
+                                                                                                                                          const estadoFinal = estado === 'Terminado' ? 'Completado' : estado;
 
-    // Actualizar estado de la solicitud de grúa
-    await queryPromise(
-      'UPDATE controlagendaservicios SET Estado = ? WHERE IdSolicitudServicio = ?',
-      [estadoFinal, id]
-    );
+                                                                                                                                              // Actualizar estado de la solicitud de grúa
+                                                                                                                                                  await queryPromise(
+                                                                                                                                                        'UPDATE controlagendaservicios SET Estado = ? WHERE IdSolicitudServicio = ?',
+                                                                                                                                                              [estadoFinal, id]
+                                                                                                                                                                  );
 
-    res.status(200).json({
-      success: true,
-      message: `Estado de la solicitud de grúa #${id} actualizado a '${estadoFinal}'.`
-    });
+                                                                                                                                                                      res.status(200).json({
+                                                                                                                                                                            success: true,
+                                                                                                                                                                                  message: `Estado de la solicitud de grúa #${id} actualizado a '${estadoFinal}'.`
+                                                                                                                                                                                      });
 
-  } catch (error) {
-    console.error('❌ Error al actualizar estado de grúa:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor.' });
-  }
-});
+                                                                                                                                                                                        } catch (error) {
+                                                                                                                                                                                            console.error('❌ Error al actualizar estado de grúa:', error);
+                                                                                                                                                                                                res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+                                                                                                                                                                                                  }
+                                                                                                                                                                                                  });
 
 // ===============================
 //  ELIMINAR SOLICITUD DE GRÚA
@@ -1011,12 +1029,17 @@ app.get('/api/historial-ventas', async (req, res) => {
         df.Total AS total,
         df.Cantidad AS cantidad,
         f.MetodoPago AS metodoPago,
-        df.Estado AS estado
+        df.Estado AS estado,
+        ca.FechaServicio AS fechaEntrega,
+        ca.HoraServicio AS horaEntrega,
+        ca.ModoServicio AS modoEntrega
       FROM detallefactura df
       JOIN factura f ON df.Factura = f.IdFactura
       JOIN publicacion pub ON df.Publicacion = pub.IdPublicacion
       JOIN categoria c ON pub.Categoria = c.IdCategoria
       LEFT JOIN usuario u ON f.Usuario = u.IdUsuario
+      LEFT JOIN detallefacturacomercio dfc ON df.IdDetalleFactura = dfc.IdDetalleFacturaComercio
+      LEFT JOIN controlagendacomercio ca ON dfc.IdDetalleFacturaComercio = ca.DetFacturacomercio
       WHERE pub.Comerciante = ?
     `;
 
@@ -2390,7 +2413,9 @@ app.get('/api/dashboard/comerciante', async (req, res) => {
     }
 
     const idUsuario = req.session.usuario.id;
-    console.log('📊 Cargando dashboard del comerciante:', idUsuario);
+    const { dia, categoria, anio } = req.query;
+    
+    console.log('📊 Cargando dashboard del comerciante:', idUsuario, 'Filtros:', { dia, categoria, anio });
 
     // 🔍 Obtener el NIT del comerciante logueado
     const comercianteRows = await queryPromise(
@@ -2405,7 +2430,7 @@ app.get('/api/dashboard/comerciante', async (req, res) => {
     const nitComercio = comercianteRows[0].NitComercio;
 
     // 🧾 Consultar las ventas del comerciante usando detallefactura
-    const result = await queryPromise(`
+    let query = `
       SELECT 
         c.NombreComercio,
         cat.NombreCategoria,
@@ -2419,9 +2444,32 @@ app.get('/api/dashboard/comerciante', async (req, res) => {
       INNER JOIN categoria cat ON p.Categoria = cat.IdCategoria
       INNER JOIN comerciante c ON p.Comerciante = c.NitComercio
       WHERE c.NitComercio = ?
+    `;
+    
+    const params = [nitComercio];
+    
+    // Agregar filtros dinámicos
+    if (dia) {
+      query += ' AND DATE(f.FechaCompra) = ?';
+      params.push(dia);
+    }
+    
+    if (categoria) {
+      query += ' AND cat.NombreCategoria = ?';
+      params.push(categoria);
+    }
+    
+    if (anio) {
+      query += ' AND YEAR(f.FechaCompra) = ?';
+      params.push(anio);
+    }
+    
+    query += `
       GROUP BY cat.NombreCategoria, p.NombreProducto, fechaCompra
       ORDER BY fechaCompra DESC
-    `, [nitComercio]);
+    `;
+
+    const result = await queryPromise(query, params);
 
     // 💰 Calcular totales
     let totalVentas = 0;

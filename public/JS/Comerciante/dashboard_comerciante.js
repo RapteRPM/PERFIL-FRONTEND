@@ -1,18 +1,62 @@
+let chartInstance = null; // Guardar instancia del gráfico para poder actualizarlo
+let datosCompletos = []; // Guardar todos los datos sin filtrar
+
 document.addEventListener('DOMContentLoaded', async () => {
+  console.log('🔵 Dashboard comerciante - Iniciando...');
+  await cargarDashboard();
+  
+  // Configurar listeners para los filtros
+  const filtroDia = document.getElementById('dia');
+  const filtroMes = document.getElementById('mes');
+  const filtroAnio = document.getElementById('anio');
+  
+  if (filtroDia) {
+    filtroDia.addEventListener('change', aplicarFiltros);
+  }
+  if (filtroMes) {
+    filtroMes.addEventListener('change', aplicarFiltros);
+  }
+  if (filtroAnio) {
+    filtroAnio.addEventListener('change', aplicarFiltros);
+  }
+});
+
+async function cargarDashboard(filtros = {}) {
   try {
-    const res = await fetch('/api/dashboard/comerciante', {
+    console.log('🔵 Solicitando /api/dashboard/comerciante...');
+    
+    // Construir URL con parámetros de filtro
+    let url = '/api/dashboard/comerciante';
+    const params = new URLSearchParams();
+    if (filtros.dia) params.append('dia', filtros.dia);
+    if (filtros.categoria) params.append('categoria', filtros.categoria);
+    if (filtros.anio) params.append('anio', filtros.anio);
+    
+    if (params.toString()) {
+      url += '?' + params.toString();
+    }
+    
+    console.log('🔵 URL:', url);
+    
+    const res = await fetch(url, {
       credentials: 'include'
     });
+    console.log('🔵 Response status:', res.status);
     const data = await res.json();
+    console.log('🔵 Datos recibidos:', data);
 
     if (data.error) {
-      console.error('Error en el dashboard:', data.error);
+      console.error('❌ Error en el dashboard:', data.error);
       return;
     }
+
+    // Guardar datos completos
+    datosCompletos = data;
 
     // 🧮 Actualizar datos en las tarjetas principales
     const totalVentasEl = document.getElementById('totalProductos');
     const totalRecaudadoEl = document.getElementById('totalRecaudado');
+    console.log('🔵 Elementos encontrados:', {totalVentasEl: !!totalVentasEl, totalRecaudadoEl: !!totalRecaudadoEl});
     if (totalVentasEl) totalVentasEl.textContent = data.totalVentas || 0;
     if (totalRecaudadoEl) totalRecaudadoEl.textContent = `$${data.totalRecaudado.toLocaleString()}`;
 
@@ -22,35 +66,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (ventasHoyEl) ventasHoyEl.textContent = `$${data.ventasHoy.toLocaleString()}`;
     if (ventasSemanaEl) ventasSemanaEl.textContent = `$${data.ventasSemana.toLocaleString()}`;
 
+    console.log('🔵 Datos de categorías:', {categorias: data.categorias, ventas: data.ventasPorCategoria});
+
     // 📊 Gráfica de ventas por categoría
-    if (data.categorias && data.ventasPorCategoria) {
-      const ctx = document.getElementById('graficoVentas').getContext('2d');
-      new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: data.categorias,
-          datasets: [{
-            label: 'Ventas por categoría',
-            data: data.ventasPorCategoria,
-            backgroundColor: ['#ff6b00', '#ff9100', '#ffd180'],
-            borderColor: '#ffffff',
-            borderWidth: 1
-          }]
-        },
-        options: {
-          plugins: {
-            legend: { labels: { color: '#ffffff' } }
-          },
-          scales: {
-            x: { ticks: { color: '#ffffff' } },
-            y: { ticks: { color: '#ffffff' } }
-          }
-        }
-      });
-    }
+    actualizarGrafico(data);
 
     // 💡 Mostrar totales por categoría
     const promedioDiv = document.getElementById('promedioCategorias');
+    console.log('🔵 Elemento promedioCategorias:', !!promedioDiv);
     if (promedioDiv && data.categorias && data.ventasPorCategoria) {
       promedioDiv.innerHTML = '';
       data.categorias.forEach((cat, i) => {
@@ -60,9 +83,90 @@ document.addEventListener('DOMContentLoaded', async () => {
         p.innerHTML = `📦 ${cat}: <strong>$${monto.toLocaleString()}</strong>`;
         promedioDiv.appendChild(p);
       });
+      console.log('✅ Promedios por categoría actualizados');
     }
+
+    console.log('✅ Dashboard cargado completamente');
 
   } catch (error) {
     console.error('❌ Error al cargar dashboard:', error);
   }
-});
+}
+
+function actualizarGrafico(data) {
+  if (!data.categorias || !data.ventasPorCategoria) return;
+  
+  const ctx = document.getElementById('graficoVentas');
+  if (!ctx) return;
+  
+  // Destruir gráfico anterior si existe
+  if (chartInstance) {
+    chartInstance.destroy();
+  }
+  
+  console.log('🔵 Creando/actualizando gráfico con Chart.js...');
+  chartInstance = new Chart(ctx.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: data.categorias,
+      datasets: [{
+        label: 'Ventas por categoría',
+        data: data.ventasPorCategoria,
+        backgroundColor: ['#ff6b00', '#ff9100', '#ffd180', '#ffb74d', '#ffa726'],
+        borderColor: '#ffffff',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { 
+          labels: { color: '#ffffff' },
+          display: true
+        },
+        title: {
+          display: true,
+          text: 'Ventas por Categoría',
+          color: '#ffffff'
+        }
+      },
+      scales: {
+        x: { 
+          ticks: { color: '#ffffff' },
+          grid: { color: 'rgba(255,255,255,0.2)' }
+        },
+        y: { 
+          ticks: { color: '#ffffff' },
+          grid: { color: 'rgba(255,255,255,0.2)' },
+          beginAtZero: true
+        }
+      }
+    }
+  });
+  console.log('✅ Gráfico creado/actualizado');
+}
+
+function aplicarFiltros() {
+  console.log('🔵 Aplicando filtros...');
+  const dia = document.getElementById('dia')?.value || '';
+  const categoriaSelect = document.getElementById('mes')?.value || '';
+  const anio = document.getElementById('anio')?.value || '';
+  
+  // Mapear el texto del select a la categoría correcta
+  let categoria = '';
+  if (categoriaSelect && categoriaSelect !== 'Selecciona...') {
+    if (categoriaSelect.toLowerCase().includes('repuesto')) categoria = 'Repuestos';
+    else if (categoriaSelect.toLowerCase().includes('accesorio')) categoria = 'Accesorios';
+    else if (categoriaSelect.toLowerCase().includes('mecanico')) categoria = 'Servicio mecanico';
+  }
+  
+  const filtros = {};
+  if (dia) filtros.dia = dia;
+  if (categoria) filtros.categoria = categoria;
+  if (anio) filtros.anio = anio;
+  
+  console.log('🔵 Filtros aplicados:', filtros);
+  
+  // Recargar dashboard con filtros
+  cargarDashboard(filtros);
+}

@@ -1,6 +1,97 @@
-[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+nohup: ignoring input
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
 ⚠️ MySQL no disponible, usando SQLite como fallback
 ✅ Base de datos SQLite creada en: /workspaces/PERFIL-FRONTEND/rpm_market.db
 ⚠️ Error en statement SQL: UNIQUE constraint failed: categoria.NombreCategoria
 ✅ Esquema SQLite inicializado desde rpm_market.sql
 🚀 Servidor escuchando en: http://localhost:3000/General/index.html
+🔍 [verificar-sesion] Verificando sesión...
+🔍 [verificar-sesion] Session ID: _xjhNqU49g9MFbB6shHdK-kDtTJck7OL
+🔍 [verificar-sesion] Usuario en sesión: NO
+⚠️ [verificar-sesion] No hay sesión activa
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 2 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 2 publicaciones
+🧠 Usuario encontrado: {
+  IdCredencial: 9,
+  Usuario: 52343847,
+  NombreUsuario: 'sebastianduarte-25@outlook.com',
+  Contrasena: '$2b$10$A4wQLLDxxg8Yuz/TtYLOde/Bxb/v4wTG3rP5D47h2BC39hxnxo1l6',
+  ContrasenaTemporal: 'No',
+  TipoUsuario: 'Natural',
+  Nombre: 'david sebastian',
+  Apellido: 'duarte rojas',
+  FotoPerfil: 'imagen/Natural/52343847/1767754503397_494325.jpg',
+  Estado: 'Activo',
+  NombreComercio: null
+}
+✅ Usuario autenticado: {
+  id: 52343847,
+  nombre: 'david',
+  nombreCompleto: 'david sebastian',
+  apellido: 'duarte rojas',
+  tipo: 'Natural',
+  foto: 'imagen/Natural/52343847/1767754503397_494325.jpg',
+  nombreComercio: null
+}
+🔍 Session ID creado: eqdIM034MG_d7GOTsDi8dPf2Tr-3zaZI
+✅ Sesión guardada correctamente
+🔍 [verificar-sesion] Verificando sesión...
+🔍 [verificar-sesion] Session ID: eqdIM034MG_d7GOTsDi8dPf2Tr-3zaZI
+🔍 [verificar-sesion] Usuario en sesión: SÍ
+✅ [verificar-sesion] Sesión activa para: david
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 2 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 2 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 2 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 2 publicaciones
+🔍 [verificar-sesion] Verificando sesión...
+🔍 [verificar-sesion] Session ID: eqdIM034MG_d7GOTsDi8dPf2Tr-3zaZI
+🔍 [verificar-sesion] Usuario en sesión: SÍ
+✅ [verificar-sesion] Sesión activa para: david
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 2 publicaciones
+🔍 [verificar-sesion] Verificando sesión...
+🔍 [verificar-sesion] Session ID: oGC3xbn_WKwhgZm0yhsY-DVPiTEwceZN
+🔍 [verificar-sesion] Usuario en sesión: NO
+⚠️ [verificar-sesion] No hay sesión activa
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 2 publicaciones
+🧠 Usuario encontrado: {
+  IdCredencial: 9,
+  Usuario: 52343847,
+  NombreUsuario: 'sebastianduarte-25@outlook.com',
+  Contrasena: '$2b$10$A4wQLLDxxg8Yuz/TtYLOde/Bxb/v4wTG3rP5D47h2BC39hxnxo1l6',
+  ContrasenaTemporal: 'No',
+  TipoUsuario: 'Natural',
+  Nombre: 'david sebastian',
+  Apellido: 'duarte rojas',
+  FotoPerfil: 'imagen/Natural/52343847/1767754503397_494325.jpg',
+  Estado: 'Activo',
+  NombreComercio: null
+}
+✅ Usuario autenticado: {
+  id: 52343847,
+  nombre: 'david',
+  nombreCompleto: 'david sebastian',
+  apellido: 'duarte rojas',
+  tipo: 'Natural',
+  foto: 'imagen/Natural/52343847/1767754503397_494325.jpg',
+  nombreComercio: null
+}
+🔍 Session ID creado: xZy2Ou7T5_cv74XyuRR-Beh4pF_OKsfL
+✅ Sesión guardada correctamente
+🔍 [verificar-sesion] Verificando sesión...
+🔍 [verificar-sesion] Session ID: xZy2Ou7T5_cv74XyuRR-Beh4pF_OKsfL
+🔍 [verificar-sesion] Usuario en sesión: SÍ
+✅ [verificar-sesion] Sesión activa para: david
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 2 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 2 publicaciones
+📊 Consultando historial para usuario: 52343847
+✅ 4 registros encontrados

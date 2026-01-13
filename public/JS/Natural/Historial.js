@@ -1,19 +1,32 @@
 document.addEventListener('DOMContentLoaded', () => {
+  console.log("🔵 Historial.js cargado - DOMContentLoaded ejecutado");
+  
   const btnExcel = document.getElementById('btnExcel');
   const tabla = document.getElementById('tablaHistorial');
   const filtros = ['fechaInicio', 'fechaFin', 'tipoProducto', 'ordenPrecio'];
 
+  console.log("🔵 Elementos encontrados:", {
+    btnExcel: !!btnExcel,
+    tabla: !!tabla,
+    filtros: filtros.map(id => ({ id, existe: !!document.getElementById(id) }))
+  });
+
   const usuarioActivo = JSON.parse(localStorage.getItem('usuarioActivo'));
   const usuarioId = usuarioActivo?.id;
 
+  console.log("🔵 Usuario activo:", usuarioActivo);
+  console.log("🔵 Usuario ID:", usuarioId);
+
   if (!usuarioId) {
     console.error("❌ No se encontró usuario logueado.");
-    tabla.innerHTML = `<tr><td colspan="8" class="text-center text-danger">No se encontró información del usuario</td></tr>`;
+    tabla.innerHTML = `<tr><td colspan="9" class="text-center text-danger">No se encontró información del usuario</td></tr>`;
     return;
   }
 
   // 🔹 Cargar historial
   async function cargarHistorial() {
+    console.log("🔵 Iniciando carga de historial para usuario:", usuarioId);
+    
     const query = [
       `usuarioId=${encodeURIComponent(usuarioId)}`,
       ...filtros.map(id => {
@@ -23,12 +36,27 @@ document.addEventListener('DOMContentLoaded', () => {
     ].join('&');
 
     try {
-      const res = await fetch(`/api/historial?${query}`);
+      const res = await fetch(`/api/historial?${query}`, {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       if (!res.ok) throw new Error('Error en la petición');
       const data = await res.json();
 
+      console.log("📊 Datos recibidos del servidor:", data);
+      console.log("📊 Cantidad de registros:", data.length);
+
+      if (data.length > 0) {
+        console.log("📊 Primer registro de ejemplo:", data[0]);
+      }
+
       tabla.innerHTML = data.length
         ? data.map((item, i) => {
+            try {
             const estado = (item.estado || '').toLowerCase();
             const esGrua = item.tipo === 'grua';
             let estadoHtml = '';
@@ -95,30 +123,66 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const fecha = item.fecha ? new Date(item.fecha).toISOString().split('T')[0] : '';
 
-            // Mensaje de fecha de entrega (si está disponible) - solo para productos
-            if (!esGrua && item.fechaEntrega && item.horaEntrega) {
-              // Mostrar mensaje para cualquier modo que tenga fecha asignada
-              const tipoMensaje = item.modoEntrega === 'Visita al taller' 
-                ? 'Recogida programada' 
-                : 'Entrega programada';
-              mensajeFechaEntrega = `
-                <div class="mt-1">
-                  <small class="text-info">
-                    <i class="fas fa-calendar-check"></i> 
-                    ${tipoMensaje}: ${item.fechaEntrega} ${item.horaEntrega}
-                  </small>
+            // Fecha de entrega formateada
+            let fechaEntregaDisplay = '-';
+            if (!esGrua && item.fechaEntrega) {
+              fechaEntregaDisplay = `
+                <div class="text-primary fw-bold">
+                  <i class="fas fa-calendar-check"></i> ${item.fechaEntrega}
+                  ${item.horaEntrega ? `<br><small class="text-muted"><i class="fas fa-clock"></i> ${item.horaEntrega}</small>` : ''}
                 </div>
               `;
             } else if (!esGrua && item.modoEntrega === 'Domicilio' && !item.fechaEntrega) {
-              // Solo mostrar "pendiente" para domicilio sin fecha (contraentrega)
-              mensajeFechaEntrega = `
-                <div class="mt-1">
-                  <small class="text-warning">
-                    <i class="fas fa-clock"></i> 
-                    Fecha de entrega pendiente
-                  </small>
+              fechaEntregaDisplay = `
+                <small class="text-warning">
+                  <i class="fas fa-clock"></i> Pendiente
+                </small>
+              `;
+            } else if (esGrua && item.fechaEntrega) {
+              fechaEntregaDisplay = `
+                <div class="text-info fw-bold">
+                  <i class="fas fa-truck"></i> ${item.fechaEntrega}
+                  ${item.horaEntrega ? `<br><small class="text-muted"><i class="fas fa-clock"></i> ${item.horaEntrega}</small>` : ''}
                 </div>
               `;
+            }
+
+            // Mensaje de fecha de entrega (si está disponible) - solo para productos (esto va en la columna de producto)
+            mensajeFechaEntrega = ''; // Resetear la variable
+            if (!esGrua) {
+              // Para productos, solo mostrar el aviso en la columna producto si hay algo especial que notificar
+              // Ya no es necesario aquí porque la fecha ahora se muestra en su propia columna
+            } else if (esGrua) {
+              // Verificar si hay cambio de fecha no visto para grúas
+              if (item.fechaModificada && !item.notificacionVista) {
+                const fechaMod = new Date(item.fechaModificada);
+                const fechaModStr = fechaMod.toLocaleDateString('es-CO', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                });
+                
+                mensajeFechaEntrega = `
+                  <div class="mt-2 p-2 bg-warning text-dark rounded" style="border-left: 4px solid #ff9800;">
+                    <div class="d-flex align-items-start">
+                      <i class="fas fa-exclamation-triangle me-2 mt-1"></i>
+                      <div class="flex-grow-1">
+                        <strong>⚠️ El prestador modificó la fecha del servicio</strong>
+                        <br>
+                        <small>Modificado el ${fechaModStr}</small>
+                        <br>
+                        <button class="btn btn-sm btn-primary mt-1 btn-marcar-visto" 
+                                data-id="${item.idDetalleFactura}"
+                                style="font-size: 0.75rem;">
+                          <i class="fas fa-check"></i> Entendido
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }
             }
 
             // Botones de acción según el tipo
@@ -197,18 +261,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
                 <td>${item.categoria || ''}</td>
                 <td>${fecha}</td>
+                <td>${fechaEntregaDisplay}</td>
                 <td>$${Number(item.precio || 0).toLocaleString('es-CO')}</td>
                 <td>${item.metodoPago || ''}</td>
                 <td>${estadoHtml}</td>
                 <td>${botonesAccion}</td>
               </tr>
             `;
+            } catch (error) {
+              console.error('❌ Error procesando item del historial:', item, error);
+              return `<tr><td colspan="9" class="text-center text-danger">Error procesando registro ${i + 1}</td></tr>`;
+            }
           }).join('')
-        : `<tr><td colspan="8" class="text-center text-muted py-4">No hay resultados</td></tr>`;
+        : `<tr><td colspan="9" class="text-center text-muted py-4">No hay resultados</td></tr>`;
 
     } catch (error) {
       console.error('❌ Error al cargar historial:', error);
-      tabla.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error cargando historial</td></tr>`;
+      tabla.innerHTML = `<tr><td colspan="9" class="text-center text-danger">Error cargando historial</td></tr>`;
     }
   }
 
