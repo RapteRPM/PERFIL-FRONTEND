@@ -236,6 +236,7 @@ function toggleEstado(idUsuario, nuevoEstado) {
         headers: {
           'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({ estado: nuevoEstado })
       });
       
