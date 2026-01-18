@@ -1,0 +1,6 @@
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+⚠️ MySQL no disponible, usando SQLite como fallback
+✅ Base de datos SQLite creada en: /workspaces/PERFIL-FRONTEND/rpm_market.db
+⚠️ Error en statement SQL: UNIQUE constraint failed: categoria.NombreCategoria
+✅ Esquema SQLite inicializado desde rpm_market.sql
+🚀 Servidor escuchando en: http://localhost:3000/General/index.html

@@ -11,6 +11,79 @@ let usarSQLite = false;
 let sqliteDb = null;
 let mysqlPool = null;
 
+// Función auxiliar para restaurar datos si la BD está vacía
+const restaurarDatosVacios = (db) => {
+  try {
+    const count = db.prepare('SELECT COUNT(*) as total FROM usuario').get();
+    if (count.total === 0) {
+      console.log('⚠️  BD vacía. Restaurando datos de prueba...');
+      
+      // Insertar usuario administrador
+      db.prepare(`
+        INSERT INTO usuario (IdUsuario, TipoUsuario, Nombre, Apellido, Documento, Telefono, Correo, FotoPerfil, Estado)
+        VALUES (999999999, 'Administrador', 'Administrador', 'Sistema', '999999999', '3000000000', 'admin@rpm.com', 'imagen/imagen_perfil.png', 'Activo')
+      `).run();
+
+      db.prepare(`
+        INSERT INTO credenciales (Usuario, NombreUsuario, Contrasena)
+        VALUES (999999999, 'admin@rpm.com', '$2b$10$Auy9be68AJYCQq9KVKUYOOsPX7/0LbPwr9lN1Ewc1w0t/B1j5B/g6')
+      `).run();
+
+      // Insertar usuario natural
+      db.prepare(`
+        INSERT INTO usuario (IdUsuario, TipoUsuario, Nombre, Apellido, Documento, Telefono, Correo, FotoPerfil, Estado)
+        VALUES (123456789, 'Natural', 'Juan', 'Pérez', '123456789', '3001234567', 'juan@test.com', 'imagen/imagen_perfil.png', 'Activo')
+      `).run();
+
+      db.prepare(`
+        INSERT INTO credenciales (Usuario, NombreUsuario, Contrasena)
+        VALUES (123456789, 'juan@test.com', '$2b$10$Auy9be68AJYCQq9KVKUYOOsPX7/0LbPwr9lN1Ewc1w0t/B1j5B/g6')
+      `).run();
+
+      db.prepare(`
+        INSERT INTO perfilnatural (UsuarioNatural, Direccion, Barrio)
+        VALUES (123456789, 'Calle 123 #45-67', 'Centro')
+      `).run();
+
+      // Insertar usuario comerciante
+      db.prepare(`
+        INSERT INTO usuario (IdUsuario, TipoUsuario, Nombre, Apellido, Documento, Telefono, Correo, FotoPerfil, Estado)
+        VALUES (987654321, 'Comerciante', 'María', 'González', '987654321', '3009876543', 'maria@test.com', 'imagen/imagen_perfil.png', 'Activo')
+      `).run();
+
+      db.prepare(`
+        INSERT INTO credenciales (Usuario, NombreUsuario, Contrasena)
+        VALUES (987654321, 'maria@test.com', '$2b$10$Auy9be68AJYCQq9KVKUYOOsPX7/0LbPwr9lN1Ewc1w0t/B1j5B/g6')
+      `).run();
+
+      db.prepare(`
+        INSERT INTO comerciante (NitComercio, Comercio, NombreComercio, Direccion, Barrio, DiasAtencion, HoraInicio, HoraFin, Latitud, Longitud)
+        VALUES ('900123456', 987654321, 'Repuestos María', 'Avenida 68 #45-12', 'Kennedy', 'Lunes a Sábado', '08:00', '18:00', 4.6097, -74.0817)
+      `).run();
+
+      // Insertar usuario prestador inactivo
+      db.prepare(`
+        INSERT INTO usuario (IdUsuario, TipoUsuario, Nombre, Apellido, Documento, Telefono, Correo, FotoPerfil, Estado)
+        VALUES (555555555, 'PrestadorServicio', 'Carlos', 'Ramírez', '555555555', '3005555555', 'carlos@test.com', 'imagen/imagen_perfil.png', 'Inactivo')
+      `).run();
+
+      db.prepare(`
+        INSERT INTO credenciales (Usuario, NombreUsuario, Contrasena)
+        VALUES (555555555, 'carlos@test.com', '$2b$10$Auy9be68AJYCQq9KVKUYOOsPX7/0LbPwr9lN1Ewc1w0t/B1j5B/g6')
+      `).run();
+
+      db.prepare(`
+        INSERT INTO prestadorservicio (Usuario, Direccion, Barrio, Certificado, DiasAtencion, HoraInicio, HoraFin)
+        VALUES (555555555, 'Calle 80 #10-20', 'Suba', 'imagen/certificado.pdf', 'Todos los días', '00:00', '23:59')
+      `).run();
+
+      console.log('✅ Datos de prueba restaurados');
+    }
+  } catch (err) {
+    console.warn('⚠️ No se pudo restaurar datos:', err.message);
+  }
+};
+
 // Intentar conectar a MySQL primero
 try {
   mysqlPool = mysql.createPool({
@@ -63,8 +136,9 @@ try {
         try {
           sqliteDb.exec(statement + ';');
         } catch (execErr) {
-          // Ignorar errores de tablas que ya existen
-          if (!execErr.message.includes('already exists')) {
+          // Ignorar errores comunes de inicialización
+          if (!execErr.message.includes('already exists') && 
+              !execErr.message.includes('UNIQUE constraint failed')) {
             console.warn('⚠️ Error en statement SQL:', execErr.message);
           }
         }
@@ -72,6 +146,9 @@ try {
     });
     
     console.log('✅ Esquema SQLite inicializado desde rpm_market.sql');
+    
+    // Restaurar datos si la BD está vacía
+    restaurarDatosVacios(sqliteDb);
   } catch (sqlErr) {
     console.error('❌ Error al inicializar esquema SQLite:', sqlErr.message);
   }
