@@ -3886,15 +3886,18 @@ app.get('/api/factura/:id', async (req, res) => {
 
     const factura = facturaRows[0];
 
-    // 2️⃣ Obtener los productos asociados a la factura
+    // 2️⃣ Obtener los productos asociados a la factura con datos del comercio
     const [detalleRows] = await pool.query(`
       SELECT 
-      p.NombreProducto,
-      df.Cantidad,
-      df.PrecioUnitario,
-      df.Total
+        p.NombreProducto,
+        df.Cantidad,
+        df.PrecioUnitario,
+        df.Total,
+        com.NombreComercio,
+        com.Direccion AS DireccionComercio
       FROM detallefactura df
       JOIN publicacion p ON df.Publicacion = p.IdPublicacion
+      LEFT JOIN comerciante com ON p.Comerciante = com.NitComercio
       WHERE df.Factura = ?
     `, [id]);
 

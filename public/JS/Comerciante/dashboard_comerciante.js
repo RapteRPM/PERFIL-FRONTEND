@@ -42,11 +42,21 @@ async function cargarDashboard(filtros = {}) {
       credentials: 'include'
     });
     console.log('🔵 Response status:', res.status);
+    
+    // Si no hay sesión, redirigir al login
+    if (res.status === 401) {
+      console.warn('⚠️ No hay sesión activa, redirigiendo al login...');
+      window.location.href = '../General/Ingreso.html';
+      return;
+    }
+    
     const data = await res.json();
     console.log('🔵 Datos recibidos:', data);
 
     if (data.error) {
       console.error('❌ Error en el dashboard:', data.error);
+      // Aún así mostrar un gráfico vacío
+      actualizarGrafico({ categorias: [], ventasPorCategoria: [] });
       return;
     }
 
@@ -74,28 +84,36 @@ async function cargarDashboard(filtros = {}) {
     // 💡 Mostrar totales por categoría
     const promedioDiv = document.getElementById('promedioCategorias');
     console.log('🔵 Elemento promedioCategorias:', !!promedioDiv);
-    if (promedioDiv && data.categorias && data.ventasPorCategoria) {
+    if (promedioDiv) {
       promedioDiv.innerHTML = '';
-      data.categorias.forEach((cat, i) => {
-        const monto = data.ventasPorCategoria[i] || 0;
+      
+      if (data.categorias && data.categorias.length > 0) {
+        data.categorias.forEach((cat, i) => {
+          const monto = data.ventasPorCategoria[i] || 0;
+          const p = document.createElement('p');
+          p.className = 'card-text';
+          p.innerHTML = `📦 ${cat}: <strong>$${monto.toLocaleString()}</strong>`;
+          promedioDiv.appendChild(p);
+        });
+        console.log('✅ Promedios por categoría actualizados');
+      } else {
         const p = document.createElement('p');
-        p.className = 'card-text';
-        p.innerHTML = `📦 ${cat}: <strong>$${monto.toLocaleString()}</strong>`;
+        p.className = 'card-text text-muted';
+        p.innerHTML = '📊 <em>Sin ventas aún</em>';
         promedioDiv.appendChild(p);
-      });
-      console.log('✅ Promedios por categoría actualizados');
+      }
     }
 
     console.log('✅ Dashboard cargado completamente');
 
   } catch (error) {
     console.error('❌ Error al cargar dashboard:', error);
+    // Mostrar gráfico vacío en caso de error de conexión
+    actualizarGrafico({ categorias: [], ventasPorCategoria: [] });
   }
 }
 
 function actualizarGrafico(data) {
-  if (!data.categorias || !data.ventasPorCategoria) return;
-  
   const ctx = document.getElementById('graficoVentas');
   if (!ctx) return;
   
@@ -104,15 +122,65 @@ function actualizarGrafico(data) {
     chartInstance.destroy();
   }
   
+  // Si no hay categorías o están vacías, mostrar mensaje
+  const categorias = data.categorias || [];
+  const ventasPorCategoria = data.ventasPorCategoria || [];
+  
+  if (categorias.length === 0) {
+    console.log('🔵 No hay ventas registradas, mostrando mensaje');
+    // Mostrar gráfico con mensaje de "Sin datos"
+    chartInstance = new Chart(ctx.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: ['Sin ventas registradas'],
+        datasets: [{
+          label: 'Ventas por categoría',
+          data: [0],
+          backgroundColor: ['#6c757d'],
+          borderColor: '#ffffff',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { 
+            labels: { color: '#ffffff' },
+            display: true
+          },
+          title: {
+            display: true,
+            text: 'Aún no tienes ventas registradas',
+            color: '#ffc107',
+            font: { size: 16 }
+          }
+        },
+        scales: {
+          x: { 
+            ticks: { color: '#ffffff' },
+            grid: { color: 'rgba(255,255,255,0.2)' }
+          },
+          y: { 
+            ticks: { color: '#ffffff' },
+            grid: { color: 'rgba(255,255,255,0.2)' },
+            beginAtZero: true,
+            max: 100
+          }
+        }
+      }
+    });
+    return;
+  }
+  
   console.log('🔵 Creando/actualizando gráfico con Chart.js...');
   chartInstance = new Chart(ctx.getContext('2d'), {
     type: 'bar',
     data: {
-      labels: data.categorias,
+      labels: categorias,
       datasets: [{
-        label: 'Ventas por categoría',
-        data: data.ventasPorCategoria,
-        backgroundColor: ['#ff6b00', '#ff9100', '#ffd180', '#ffb74d', '#ffa726'],
+        label: 'Ventas por categoría ($)',
+        data: ventasPorCategoria,
+        backgroundColor: ['#ff6b00', '#ff9100', '#ffd180', '#ffb74d', '#ffa726', '#ffab00'],
         borderColor: '#ffffff',
         borderWidth: 1
       }]
@@ -149,20 +217,12 @@ function actualizarGrafico(data) {
 function aplicarFiltros() {
   console.log('🔵 Aplicando filtros...');
   const dia = document.getElementById('dia')?.value || '';
-  const categoriaSelect = document.getElementById('mes')?.value || '';
+  const categoria = document.getElementById('mes')?.value || ''; // Ya tiene el valor correcto del select
   const anio = document.getElementById('anio')?.value || '';
-  
-  // Mapear el texto del select a la categoría correcta
-  let categoria = '';
-  if (categoriaSelect && categoriaSelect !== 'Selecciona...') {
-    if (categoriaSelect.toLowerCase().includes('repuesto')) categoria = 'Repuestos';
-    else if (categoriaSelect.toLowerCase().includes('accesorio')) categoria = 'Accesorios';
-    else if (categoriaSelect.toLowerCase().includes('mecanico')) categoria = 'Servicio mecanico';
-  }
   
   const filtros = {};
   if (dia) filtros.dia = dia;
-  if (categoria) filtros.categoria = categoria;
+  if (categoria) filtros.categoria = categoria; // Si es vacío (Todos), no se envía y muestra todas las categorías
   if (anio) filtros.anio = anio;
   
   console.log('🔵 Filtros aplicados:', filtros);
