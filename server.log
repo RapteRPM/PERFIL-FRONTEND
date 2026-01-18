@@ -1,86 +1,339 @@
-[dotenv@17.2.3] injecting env (2) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+nohup: ignoring input
+[dotenv@17.2.3] injecting env (7) from .env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
 ⚠️ MySQL no disponible, usando SQLite como fallback
+📝 NOTA: Esto es aceptable en DESARROLLO, pero NO en PRODUCCIÓN
 ✅ Base de datos SQLite creada en: /workspaces/PERFIL-FRONTEND/rpm_market.db
 ✅ Esquema SQLite inicializado desde rpm_market.sql
+📊 Base de datos SQLite: 4 usuarios encontrados
 🚀 Servidor escuchando en: http://localhost:3000/General/index.html
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 1 publicaciones
 🔍 [verificar-sesion] Verificando sesión...
-🔍 [verificar-sesion] Session ID: zAZbWXK23g4IF5155inL3vQSis6EFLMP
+🔍 [verificar-sesion] Session ID: pymEt2WbD2CoGaat5t-maoXyTBmQ35dL
 🔍 [verificar-sesion] Usuario en sesión: NO
 ⚠️ [verificar-sesion] No hay sesión activa
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 1 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 1 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 1 publicaciones
+🔍 [verificar-sesion] Verificando sesión...
+🔍 [verificar-sesion] Session ID: S28RzskUGogxWQEOzLRAuxsZJ2RRh6u9
+🔍 [verificar-sesion] Usuario en sesión: NO
+⚠️ [verificar-sesion] No hay sesión activa
+🧠 Usuario encontrado: {
+  IdCredencial: 1,
+  Usuario: 999999999,
+  NombreUsuario: 'admin@rpm.com',
+  Contrasena: '$2b$10$KQdCL9/UuzBB5Kzl6BjZie2v4yc0XqA4yHDFVeBYQi3KWC1mRwDS.',
+  ContrasenaTemporal: 'No',
+  TipoUsuario: 'Administrador',
+  Nombre: 'Administrador',
+  Apellido: 'Sistema',
+  FotoPerfil: 'imagen/imagen_perfil.png',
+  Estado: 'Activo',
+  NombreComercio: null
+}
+✅ Usuario autenticado: {
+  id: 999999999,
+  nombre: 'Administrador',
+  nombreCompleto: 'Administrador',
+  apellido: 'Sistema',
+  tipo: 'Administrador',
+  foto: 'imagen/imagen_perfil.png',
+  nombreComercio: null
+}
+🔍 Session ID creado: VtZ3FIhFPh-8tFzqSFHdxJk_CsdNnsDr
+✅ Sesión guardada correctamente
+📊 Cargando estadísticas del panel de administración
+👥 Cargando todos los usuarios
+🔄 Cambiando estado del usuario 1019138679 a Inactivo
+🔄 Cambiando estado del usuario 1019138679 a Activo
+📦 Cargando todas las publicaciones (comercios y grúas)
+✅ Total publicaciones: 1 (Comercios: 1, Grúas: 0)
+📊 Cargando estadísticas del panel de administración
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 1 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 1 publicaciones
+🔍 [verificar-sesion] Verificando sesión...
+🔍 [verificar-sesion] Session ID: ruqw6EAqYZs0CWgLwskqsNZvVuWvyjUL
+🔍 [verificar-sesion] Usuario en sesión: NO
+⚠️ [verificar-sesion] No hay sesión activa
+🧠 Usuario encontrado: {
+  IdCredencial: 1,
+  Usuario: 999999999,
+  NombreUsuario: 'admin@rpm.com',
+  Contrasena: '$2b$10$KQdCL9/UuzBB5Kzl6BjZie2v4yc0XqA4yHDFVeBYQi3KWC1mRwDS.',
+  ContrasenaTemporal: 'No',
+  TipoUsuario: 'Administrador',
+  Nombre: 'Administrador',
+  Apellido: 'Sistema',
+  FotoPerfil: 'imagen/imagen_perfil.png',
+  Estado: 'Activo',
+  NombreComercio: null
+}
+✅ Usuario autenticado: {
+  id: 999999999,
+  nombre: 'Administrador',
+  nombreCompleto: 'Administrador',
+  apellido: 'Sistema',
+  tipo: 'Administrador',
+  foto: 'imagen/imagen_perfil.png',
+  nombreComercio: null
+}
+🔍 Session ID creado: 0uXHTacOqacWWObKz-DHFzozLLmcl4mf
+✅ Sesión guardada correctamente
+📊 Cargando estadísticas del panel de administración
+👥 Cargando todos los usuarios
+📊 Cargando estadísticas del panel de administración
+👥 Cargando todos los usuarios
+🔄 Cambiando estado del usuario 1019138679 a Inactivo
+🔄 Cambiando estado del usuario 1019138679 a Activo
+🗑️ Eliminando usuario 1001092582
+🗑️ Eliminando registros relacionados...
+✅ Tokens eliminados
+✅ Historial contraseñas eliminado
+✅ Opiniones eliminadas
+✅ Opiniones grúas eliminadas
+✅ PQRs eliminadas
+📋 NitComercio encontrado: 123456789
+✅ Opiniones de publicaciones eliminadas
+✅ Items carrito de publicaciones eliminados
+✅ Detalles factura eliminados
+✅ Agenda comercio por detalles eliminada
+✅ Detalles factura comercio eliminados
+✅ Productos eliminados
+✅ Publicaciones comerciante eliminadas
+✅ Agenda servicios usuario eliminada
+✅ Carrito eliminado
+✅ Agenda comercio eliminada
+✅ Facturas eliminadas
+✅ Perfil prestador eliminado
+✅ Perfil comerciante eliminado
+✅ Perfil natural eliminado
+✅ Credenciales eliminadas
+✅ Usuario eliminado de la tabla usuario
+✅ Usuario y registros relacionados eliminados correctamente
+📊 Cargando estadísticas del panel de administración
+📦 Cargando todas las publicaciones (comercios y grúas)
+✅ Total publicaciones: 0 (Comercios: 0, Grúas: 0)
+📝 Cargando todas las PQR
+✅ PQR cargadas: 2 registros
+🧠 Usuario encontrado: {
+  IdCredencial: 7,
+  Usuario: 52343847,
+  NombreUsuario: 'liliana1976rojas@gmail.com',
+  Contrasena: '$2b$10$PPDiwufx/gZgZ1iJEJ7Wn.RDJmuCO0YKpHXHowWEeGsWZuwYApt.m',
+  ContrasenaTemporal: 'No',
+  TipoUsuario: 'Natural',
+  Nombre: 'Liliana',
+  Apellido: 'rojas pineda',
+  FotoPerfil: 'imagen/Natural/52343847/1768767447406_928649.jpg',
+  Estado: 'Activo',
+  NombreComercio: null
+}
+✅ Usuario autenticado: {
+  id: 52343847,
+  nombre: 'Liliana',
+  nombreCompleto: 'Liliana',
+  apellido: 'rojas pineda',
+  tipo: 'Natural',
+  foto: 'imagen/Natural/52343847/1768767447406_928649.jpg',
+  nombreComercio: null
+}
+🔍 Session ID creado: 0uXHTacOqacWWObKz-DHFzozLLmcl4mf
+✅ Sesión guardada correctamente
+🔍 [verificar-sesion] Verificando sesión...
+🔍 [verificar-sesion] Session ID: 0uXHTacOqacWWObKz-DHFzozLLmcl4mf
+🔍 [verificar-sesion] Usuario en sesión: SÍ
+✅ [verificar-sesion] Sesión activa para: Liliana
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 0 publicaciones
 📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
 ✅ Encontradas 0 publicaciones
 📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
 ✅ Encontradas 0 publicaciones
+🔍 [verificar-sesion] Verificando sesión...
+🔍 [verificar-sesion] Session ID: 0uXHTacOqacWWObKz-DHFzozLLmcl4mf
+🔍 [verificar-sesion] Usuario en sesión: SÍ
+✅ [verificar-sesion] Sesión activa para: Liliana
+🔍 [verificar-sesion] Verificando sesión...
+🔍 [verificar-sesion] Session ID: 0uXHTacOqacWWObKz-DHFzozLLmcl4mf
+🔍 [verificar-sesion] Usuario en sesión: SÍ
+✅ [verificar-sesion] Sesión activa para: Liliana
 📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
 ✅ Encontradas 0 publicaciones
 🔍 [verificar-sesion] Verificando sesión...
-🔍 [verificar-sesion] Session ID: ZnThWG0-RT98yqoV8hDk2VWIcp5loSm3
-🔍 [verificar-sesion] Usuario en sesión: NO
-⚠️ [verificar-sesion] No hay sesión activa
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+🔍 [verificar-sesion] Session ID: 0uXHTacOqacWWObKz-DHFzozLLmcl4mf
+🔍 [verificar-sesion] Usuario en sesión: SÍ
+✅ [verificar-sesion] Sesión activa para: Liliana
+📥 GET /api/marketplace-gruas
+✅ Encontradas 0 grúas
+🔍 [verificar-sesion] Verificando sesión...
+🔍 [verificar-sesion] Session ID: 0uXHTacOqacWWObKz-DHFzozLLmcl4mf
+🔍 [verificar-sesion] Usuario en sesión: SÍ
+✅ [verificar-sesion] Sesión activa para: Liliana
+🔍 [verificar-sesion] Verificando sesión...
+🔍 [verificar-sesion] Session ID: 0uXHTacOqacWWObKz-DHFzozLLmcl4mf
+🔍 [verificar-sesion] Usuario en sesión: SÍ
+✅ [verificar-sesion] Sesión activa para: Liliana
+🔍 [verificar-sesion] Verificando sesión...
+🔍 [verificar-sesion] Session ID: 0uXHTacOqacWWObKz-DHFzozLLmcl4mf
+🔍 [verificar-sesion] Usuario en sesión: SÍ
+✅ [verificar-sesion] Sesión activa para: Liliana
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
 ✅ Encontradas 0 publicaciones
+📊 Consultando historial para usuario: 52343847
+✅ 0 registros encontrados
+🔍 [verificar-sesion] Verificando sesión...
+🔍 [verificar-sesion] Session ID: 0uXHTacOqacWWObKz-DHFzozLLmcl4mf
+🔍 [verificar-sesion] Usuario en sesión: SÍ
+✅ [verificar-sesion] Sesión activa para: Liliana
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 0 publicaciones
+🔍 [verificar-sesion] Verificando sesión...
+🔍 [verificar-sesion] Session ID: 0uXHTacOqacWWObKz-DHFzozLLmcl4mf
+🔍 [verificar-sesion] Usuario en sesión: SÍ
+✅ [verificar-sesion] Sesión activa para: Liliana
+🔍 [verificar-sesion] Verificando sesión...
+🔍 [verificar-sesion] Session ID: 0uXHTacOqacWWObKz-DHFzozLLmcl4mf
+🔍 [verificar-sesion] Usuario en sesión: SÍ
+✅ [verificar-sesion] Sesión activa para: Liliana
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 0 publicaciones
+🔍 [verificar-sesion] Verificando sesión...
+🔍 [verificar-sesion] Session ID: 0uXHTacOqacWWObKz-DHFzozLLmcl4mf
+🔍 [verificar-sesion] Usuario en sesión: SÍ
+✅ [verificar-sesion] Sesión activa para: Liliana
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 0 publicaciones
+📖 Obteniendo perfil natural para usuario: 52343847
+✅ Perfil encontrado para: Liliana rojas pineda
+📝 Actualizando perfil natural para usuario: 52343847
+📸 Nueva foto detectada: kit de arrastre.jpg
+🗑️ Foto anterior eliminada
+✅ Foto actualizada: imagen/Natural/52343847/1768778808983_769163.jpg
+✅ Datos de usuario actualizados
+✅ Perfil natural actualizado
 🚀 === INICIO REGISTRO (PENDIENTE) === 🚀
 📦 Datos recibidos: [Object: null prototype] {
-  TipoUsuario: 'PrestadorServicio',
-  Usuario: '1019138679',
-  Nombre: 'karolay',
-  Apellido: 'lopez',
-  Correo: 'karolaynlopez15@gmail.com',
-  Telefono: '3208440365',
-  Direccion: '',
-  Barrio: 'britalia',
-  RedesSociales: '@karolpez',
+  TipoUsuario: 'Comerciante',
+  Usuario: '1001092582',
+  Nombre: 'david sebastian',
+  Apellido: 'duarte rojas',
+  Correo: 'sebastianduarte-25@outlook.com',
+  Direccion: 'Carrera 152#139- 35',
+  Telefono: '3014038181',
+  Barrio: 'Santa rita',
   DiasAtencion: 'Lunes - Viernes',
-  HoraInicio: '02:30',
-  HoraFin: '14:30'
+  RedesSociales: '@selkar',
+  NombreComercio: 'selkar fc',
+  NitComercio: '12345678',
+  HoraInicio: '06:27',
+  HoraFin: '18:27',
+  latitud: '4.7421445',
+  longitud: '-74.1223165'
 }
 📸 Archivos recibidos: [Object: null prototype] {
   FotoPerfil: [
     {
       fieldname: 'FotoPerfil',
-      originalname: 'pse-logo.png',
+      originalname: 'perfil millos.jpg',
       encoding: '7bit',
-      mimetype: 'image/png',
+      mimetype: 'image/jpeg',
       destination: '/workspaces/PERFIL-FRONTEND/public/imagen/temp',
-      filename: '1768764665939-781498439.png',
-      path: '/workspaces/PERFIL-FRONTEND/public/imagen/temp/1768764665939-781498439.png',
-      size: 63846
-    }
-  ],
-  Certificado: [
-    {
-      fieldname: 'Certificado',
-      originalname: 'medicamentos.pdf',
-      encoding: '7bit',
-      mimetype: 'application/pdf',
-      destination: '/workspaces/PERFIL-FRONTEND/public/imagen/temp',
-      filename: '1768764665944-649738068.pdf',
-      path: '/workspaces/PERFIL-FRONTEND/public/imagen/temp/1768764665944-649738068.pdf',
-      size: 191600
+      filename: '1768778875964-958238226.jpg',
+      path: '/workspaces/PERFIL-FRONTEND/public/imagen/temp/1768778875964-958238226.jpg',
+      size: 1476663
     }
   ]
 }
-📝 Registro PENDIENTE creado: 1019138679 - Token: 833010fcfb...
+📝 Registro PENDIENTE creado: 1001092582 - Token: 128c61d47e...
 ⏳ El usuario se creará cuando complete la verificación del código
-📨 Correo enviado correctamente a karolaynlopez15@gmail.com
-📧 Código de verificación enviado a karolaynlopez15@gmail.com (registro pendiente)
-✅ Código verificado correctamente para registro pendiente 1019138679
-🚀 Creando usuario REAL desde registro pendiente: 1019138679
+📨 Correo enviado correctamente a sebastianduarte-25@outlook.com
+📧 Código de verificación enviado a sebastianduarte-25@outlook.com (registro pendiente)
+✅ Código verificado correctamente para registro pendiente 1001092582
+🚀 Creando usuario REAL desde registro pendiente: 1001092582
 ✅ Usuario insertado en tabla usuario
 ✅ Credenciales creadas
-✅ Perfil prestador de servicio creado
-✅ Registro completado exitosamente para usuario: 1019138679
+✅ Perfil comerciante creado
+✅ Registro completado exitosamente para usuario: 1001092582
 🧠 Usuario encontrado: {
-  IdCredencial: 5,
-  Usuario: 1019138679,
-  NombreUsuario: 'karolaynlopez15@gmail.com',
-  Contrasena: '$2b$10$XDKxsXssLPbg.bZgI4bQMeqU9rOwj/FNJuV3MmrlOP8O/dlth8/T2',
+  IdCredencial: 8,
+  Usuario: 1001092582,
+  NombreUsuario: 'sebastianduarte-25@outlook.com',
+  Contrasena: '$2b$10$veTWMAOM.n/afcCMGlWysuu47Cvzvek/4WUlKOZseviqYUzYtp1zm',
   ContrasenaTemporal: 'No',
-  TipoUsuario: 'PrestadorServicio',
-  Nombre: 'karolay',
-  Apellido: 'lopez',
-  FotoPerfil: 'imagen/PrestadorServicios/1019138679/1768764665975_348438.png',
+  TipoUsuario: 'Comerciante',
+  Nombre: 'david sebastian',
+  Apellido: 'duarte rojas',
+  FotoPerfil: 'imagen/Comerciante/1001092582/1768778876119_633021.jpg',
   Estado: 'Inactivo',
+  NombreComercio: 'selkar fc'
+}
+⚠️ Usuario inactivo intentando iniciar sesión: sebastianduarte-25@outlook.com
+🧠 Usuario encontrado: {
+  IdCredencial: 1,
+  Usuario: 999999999,
+  NombreUsuario: 'admin@rpm.com',
+  Contrasena: '$2b$10$KQdCL9/UuzBB5Kzl6BjZie2v4yc0XqA4yHDFVeBYQi3KWC1mRwDS.',
+  ContrasenaTemporal: 'No',
+  TipoUsuario: 'Administrador',
+  Nombre: 'Administrador',
+  Apellido: 'Sistema',
+  FotoPerfil: 'imagen/imagen_perfil.png',
+  Estado: 'Activo',
   NombreComercio: null
 }
-⚠️ Usuario inactivo intentando iniciar sesión: karolaynlopez15@gmail.com
+✅ Usuario autenticado: {
+  id: 999999999,
+  nombre: 'Administrador',
+  nombreCompleto: 'Administrador',
+  apellido: 'Sistema',
+  tipo: 'Administrador',
+  foto: 'imagen/imagen_perfil.png',
+  nombreComercio: null
+}
+🔍 Session ID creado: 0uXHTacOqacWWObKz-DHFzozLLmcl4mf
+✅ Sesión guardada correctamente
+📊 Cargando estadísticas del panel de administración
+👥 Cargando todos los usuarios
+🔄 Cambiando estado del usuario 1001092582 a Activo
+🧠 Usuario encontrado: {
+  IdCredencial: 8,
+  Usuario: 1001092582,
+  NombreUsuario: 'sebastianduarte-25@outlook.com',
+  Contrasena: '$2b$10$veTWMAOM.n/afcCMGlWysuu47Cvzvek/4WUlKOZseviqYUzYtp1zm',
+  ContrasenaTemporal: 'No',
+  TipoUsuario: 'Comerciante',
+  Nombre: 'david sebastian',
+  Apellido: 'duarte rojas',
+  FotoPerfil: 'imagen/Comerciante/1001092582/1768778876119_633021.jpg',
+  Estado: 'Activo',
+  NombreComercio: 'selkar fc'
+}
+✅ Usuario autenticado: {
+  id: 1001092582,
+  nombre: 'david',
+  nombreCompleto: 'david sebastian',
+  apellido: 'duarte rojas',
+  tipo: 'Comerciante',
+  foto: 'imagen/Comerciante/1001092582/1768778876119_633021.jpg',
+  nombreComercio: 'selkar fc'
+}
+🔍 Session ID creado: 2UxGRtnzYrlKFudvVQmB3wXto5kaNTII
+✅ Sesión guardada correctamente
+📊 Cargando dashboard del comerciante: 1001092582 Filtros: { dia: undefined, categoria: undefined, anio: undefined }
+✅ Dashboard del comerciante cargado correctamente
+✅ Publicación creada con ID: 3
+📋 Obteniendo publicaciones para comerciante: 1001092582
+✅ NIT del comercio: 12345678
+✅ 1 publicaciones encontradas
+✅ Publicación actualizada correctamente
+📋 Obteniendo publicaciones para comerciante: 1001092582
+✅ NIT del comercio: 12345678
+✅ 1 publicaciones encontradas
+📊 Cargando dashboard del comerciante: 1001092582 Filtros: { dia: undefined, categoria: undefined, anio: undefined }
+✅ Dashboard del comerciante cargado correctamente
