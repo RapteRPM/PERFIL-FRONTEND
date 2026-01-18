@@ -5466,8 +5466,8 @@ app.delete('/api/admin/publicacion/:id', verificarAdmin, async (req, res) => {
       const publicacion = await queryPromise(
         `SELECT p.*, u.Correo, u.Nombre, u.Apellido, com.NombreComercio
          FROM publicacion p
-         JOIN usuario u ON p.Comerciante = u.Documento
-         LEFT JOIN comerciante com ON com.Comercio = u.IdUsuario
+         JOIN comerciante com ON p.Comerciante = com.NitComercio
+         JOIN usuario u ON com.Comercio = u.IdUsuario
          WHERE p.IdPublicacion = ?`,
         [id]
       );
@@ -5481,13 +5481,32 @@ app.delete('/api/admin/publicacion/:id', verificarAdmin, async (req, res) => {
       nombreUsuario = pub.Nombre;
       apellidoUsuario = pub.Apellido;
       
-      // Eliminar productos relacionados primero
-      await queryPromise('DELETE FROM producto WHERE PublicacionComercio = ?', [id]);
+      // Eliminar en orden correcto para evitar errores de FK
+      // 1. Eliminar del carrito
+      await queryPromise('DELETE FROM carrito WHERE Publicacion = ?', [id]);
       
-      // Eliminar opiniones relacionadas
+      // 2. Obtener IDs de detallefacturacomercio para eliminar controlagendacomercio
+      const detallesComercio = await queryPromise(
+        'SELECT IdDetalleFacturaComercio FROM detallefacturacomercio WHERE Publicacion = ?', 
+        [id]
+      );
+      
+      // 3. Eliminar controlagendacomercio que referencian a detallefacturacomercio
+      for (const detalle of detallesComercio) {
+        await queryPromise('DELETE FROM controlagendacomercio WHERE DetFacturacomercio = ?', [detalle.IdDetalleFacturaComercio]);
+      }
+      
+      // 4. Eliminar detalles de factura
+      await queryPromise('DELETE FROM detallefactura WHERE Publicacion = ?', [id]);
+      await queryPromise('DELETE FROM detallefacturacomercio WHERE Publicacion = ?', [id]);
+      
+      // 5. Eliminar opiniones relacionadas
       await queryPromise('DELETE FROM opiniones WHERE Publicacion = ?', [id]);
       
-      // Eliminar la publicación
+      // 6. Eliminar productos relacionados
+      await queryPromise('DELETE FROM producto WHERE PublicacionComercio = ?', [id]);
+      
+      // 7. Finalmente eliminar la publicación
       await queryPromise('DELETE FROM publicacion WHERE IdPublicacion = ?', [id]);
     }
 
