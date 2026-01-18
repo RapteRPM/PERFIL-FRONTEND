@@ -192,6 +192,10 @@ CREATE TABLE centroayuda (
   Rol ENUM('Usuario Natural','Comerciante','PrestadorServicio') NOT NULL,
   Asunto VARCHAR(100) DEFAULT NULL,
   Descripcion TEXT,
+  Respuesta TEXT DEFAULT NULL,
+  FechaRespuesta DATETIME DEFAULT NULL,
+  Respondida ENUM('Si', 'No') DEFAULT 'No',
+  FechaCreacion DATETIME DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT centroayuda FOREIGN KEY (Perfil) REFERENCES usuario (IdUsuario)
 );
 
@@ -233,6 +237,31 @@ CREATE TABLE tokens_verificacion (
   FechaExpiracion DATETIME NOT NULL,
   Usado ENUM('Si','No') DEFAULT 'No',
   CONSTRAINT fk_token_usuario FOREIGN KEY (Usuario) REFERENCES usuario (IdUsuario) ON DELETE CASCADE
+);
+
+-- Tabla para registros pendientes de verificación
+-- Los usuarios se crean aquí primero y solo se mueven a las tablas reales
+-- cuando completan la verificación del código y crean su contraseña
+CREATE TABLE registros_pendientes (
+  IdRegistro INT PRIMARY KEY AUTO_INCREMENT,
+  Token VARCHAR(100) NOT NULL UNIQUE,
+  IdUsuario INT NOT NULL,
+  TipoUsuario VARCHAR(30) NOT NULL,
+  Nombre VARCHAR(50) NOT NULL,
+  Apellido VARCHAR(50) NOT NULL,
+  Documento VARCHAR(20) NOT NULL,
+  Telefono VARCHAR(20),
+  Correo VARCHAR(100) NOT NULL,
+  FotoPerfil VARCHAR(255) NOT NULL,
+  -- Campos específicos de perfil (JSON para flexibilidad)
+  DatosPerfil TEXT,
+  -- Verificación
+  CodigoVerificacion VARCHAR(4) DEFAULT NULL,
+  CodigoEnviado ENUM('Si','No') DEFAULT 'No',
+  CodigoVerificado ENUM('Si','No') DEFAULT 'No',
+  FechaCreacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FechaExpiracion DATETIME NOT NULL,
+  Estado ENUM('Pendiente','Completado','Expirado') DEFAULT 'Pendiente'
 );
 
 CREATE TABLE historial_contrasenas (

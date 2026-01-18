@@ -1281,6 +1281,8 @@ const queryPromise = async (sql, params = []) => {
 };
 
 // Ruta unificada de registro
+// NOTA: Este endpoint ahora guarda los datos en registros_pendientes
+// El usuario REAL solo se crea cuando completa la verificación del código
 app.post(
   '/api/registro',
   upload.fields([
@@ -1288,7 +1290,7 @@ app.post(
     { name: 'Certificado', maxCount: 1 },
   ]),
   async (req, res) => {
-    console.log('🚀 === INICIO REGISTRO === 🚀');
+    console.log('🚀 === INICIO REGISTRO (PENDIENTE) === 🚀');
     try {
       const data = req.body || {};
       const files = req.files || {};
@@ -1320,7 +1322,7 @@ app.post(
       if (!fotoPerfilFile)
         return res.status(400).json({ error: 'Debe subir una foto de perfil' });
 
-      // Verificar si ya existe el usuario por ID
+      // Verificar si ya existe el usuario por ID (en usuarios reales)
       const usuarioExistente = await queryPromise(
         'SELECT IdUsuario FROM usuario WHERE IdUsuario = ?',
         [idUsuarioValue]
@@ -1330,7 +1332,7 @@ app.post(
         return res.status(409).json({ error: 'El número de documento ya está registrado. Por favor, utilice otro número de documento.' });
       }
 
-      // Verificar si ya existe el correo
+      // Verificar si ya existe el correo (en usuarios reales)
       const correoExistente = await queryPromise(
         'SELECT IdUsuario FROM usuario WHERE Correo = ?',
         [data.Correo]
@@ -1340,219 +1342,117 @@ app.post(
         return res.status(409).json({ error: 'El correo electrónico ya está registrado. Por favor, utilice otro correo.' });
       }
 
-      // Determinar el estado inicial del usuario
-      // Comerciantes y Prestadores de Servicio quedan Inactivos hasta que el admin los apruebe
-      // Usuarios Naturales y Administradores quedan Activos inmediatamente
-      const estadoInicial = (tipoUsuarioSQL === 'Comerciante' || tipoUsuarioSQL === 'PrestadorServicio') 
-        ? 'Inactivo' 
-        : 'Activo';
+      // Verificar si hay un registro pendiente con el mismo documento o correo
+      const pendienteExistente = await queryPromise(
+        `SELECT IdRegistro FROM registros_pendientes 
+         WHERE (IdUsuario = ? OR Correo = ?) AND Estado = 'Pendiente'`,
+        [idUsuarioValue, data.Correo]
+      );
+      
+      // Si existe un registro pendiente, lo eliminamos para permitir re-registro
+      if (pendienteExistente.length > 0) {
+        console.log(`🗑️ Eliminando registro pendiente anterior para ${idUsuarioValue}`);
+        await queryPromise(
+          `DELETE FROM registros_pendientes WHERE IdUsuario = ? OR Correo = ?`,
+          [idUsuarioValue, data.Correo]
+        );
+      }
 
-      console.log(`📝 Estado inicial del usuario: ${estadoInicial} (Tipo: ${tipoUsuarioSQL})`);
-
-      // Insertar en usuario (tabla en minúsculas para MySQL case-sensitive)
-      const insertUsuarioSQL = `
-        INSERT INTO usuario
-          (IdUsuario, TipoUsuario, Nombre, Apellido, Documento, Telefono, Correo, FotoPerfil, Estado)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `;
-      const usuarioValues = [
-        idUsuarioValue,
-        tipoUsuarioSQL,
-        nombre,
-        apellido,
-        idUsuarioValue,
-        data.Telefono || null,
-        data.Correo || null,
-        fotoPerfilFile.filename,
-        estadoInicial,
-      ];
-
-      await queryPromise(insertUsuarioSQL, usuarioValues);
-
-      // Mover la foto a su carpeta final
-      const finalUserDir = path.join(
+      // Mover la foto a carpeta temporal del usuario pendiente
+      const pendingDir = path.join(
         process.cwd(),
         'public',
         'imagen',
-        tipoFolder,
-        idUsuarioValue
+        'pendientes',
+        idUsuarioValue.toString()
       );
-      fs.mkdirSync(finalUserDir, { recursive: true });
+      fs.mkdirSync(pendingDir, { recursive: true });
 
-      const finalFotoName = `${Date.now()}_${Math.round(
-        Math.random() * 1e6
-      )}${path.extname(fotoPerfilFile.originalname)}`;
-      const finalFotoPath = path.join(finalUserDir, finalFotoName);
-      fs.renameSync(fotoPerfilFile.path, finalFotoPath);
-      const fotoRuta = path
-        .join('imagen', tipoFolder, idUsuarioValue, finalFotoName)
-        .replace(/\\/g, '/');
+      const fotoName = `${Date.now()}_${Math.round(Math.random() * 1e6)}${path.extname(fotoPerfilFile.originalname)}`;
+      const fotoPath = path.join(pendingDir, fotoName);
+      fs.renameSync(fotoPerfilFile.path, fotoPath);
+      const fotoRuta = path.join('imagen', 'pendientes', idUsuarioValue.toString(), fotoName).replace(/\\/g, '/');
 
-      await queryPromise(
-        'UPDATE usuario SET FotoPerfil = ? WHERE IdUsuario = ?',
-        [fotoRuta, idUsuarioValue]
-      );
+      // Preparar datos del perfil específico según tipo de usuario
+      let datosPerfil = {};
+      let certificadoRuta = null;
 
-      // � CREAR CREDENCIALES CON CONTRASEÑA TEMPORAL
-      // La contraseña temporal será el documento del usuario hasheado
-      const contrasenaTemporal = idUsuarioValue.toString();
-      const hashTemporal = await bcrypt.hash(contrasenaTemporal, 10);
-      
-      await queryPromise(
-        `INSERT INTO credenciales (Usuario, NombreUsuario, Contrasena, ContrasenaTemporal)
-         VALUES (?, ?, ?, 'Si')`,
-        [idUsuarioValue, data.Correo, hashTemporal]
-      );
-      
-      console.log('🔑 Credenciales temporales creadas');
-
-      // 📧 Generar token y enviar correo para que el usuario configure su contraseña
-      const token = generarToken();
-      const fechaExpiracion = new Date();
-      fechaExpiracion.setHours(fechaExpiracion.getHours() + 24); // Token válido por 24 horas
-
-      await queryPromise(
-        `INSERT INTO tokens_verificacion (Usuario, Token, TipoToken, FechaExpiracion)
-         VALUES (?, ?, 'CrearContrasena', ?)`,
-        [idUsuarioValue, token, fechaExpiracion.toISOString()]
-      );
-
-      // Crear link de verificación (se usa para redirigir al usuario)
-      const linkCrearContrasena = `${req.protocol}://${req.get('host')}/General/crear-contrasena.html?token=${token}`;
-
-      // NOTA: El correo con el código de verificación se envía automáticamente 
-      // cuando el usuario llega a la página crear-contrasena.html
-      console.log(`📧 Token creado para: ${data.Correo} - El código se enviará al cargar la página`);
-
-      // Insertar perfil correspondiente
       if (tipoKey === 'natural') {
-        console.log('📝 Insertando perfil natural...');
-        await queryPromise(
-          `INSERT INTO perfilnatural (UsuarioNatural, Direccion, Barrio)
-           VALUES (?, ?, ?)`,
-          [idUsuarioValue, data.Direccion || null, data.Barrio || null]
-        );
-        console.log('✅ Perfil natural creado');
-
+        datosPerfil = {
+          Direccion: data.Direccion || null,
+          Barrio: data.Barrio || null
+        };
       } else if (tipoKey === 'comerciante') {
-        // 🗺️ 1. Armar dirección completa para geocodificar
-        const direccionCompleta = `${data.Direccion || ''}, ${data.Barrio || ''}, Bogotá, Colombia`;
-
-        let latitud = 4.710989;
-        let longitud = -74.072092;
-
-        try {
-          console.log(`📍 Buscando coordenadas para: ${direccionCompleta}`);
-          const geoResponse = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(direccionCompleta)}`,
-            {
-              headers: {
-                'User-Agent': 'RPM-Market/1.0 (contacto@rpm-market.com)',
-              },
-            }
-          );
-          const geoData = await geoResponse.json();
-
-          if (geoData && geoData.length > 0) {
-            latitud = parseFloat(geoData[0].lat);
-            longitud = parseFloat(geoData[0].lon);
-            console.log(`✅ Coordenadas obtenidas: ${latitud}, ${longitud}`);
-          } else {
-            console.warn('⚠️ No se encontraron coordenadas exactas, se usarán valores por defecto.');
-          }
-        } catch (geoError) {
-          console.error('❌ Error obteniendo coordenadas:', geoError);
-        }
-
-        // 🏪 2. Insertar registro del comerciante
-        console.log('📝 Insertando comerciante en la base de datos...');
-        try {
-          await queryPromise(
-            `INSERT INTO comerciante
-              (NitComercio, Comercio, NombreComercio, Direccion, Barrio, RedesSociales, DiasAtencion, HoraInicio, HoraFin, Latitud, Longitud)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `,
-            [
-              data.NitComercio || null,
-              idUsuarioValue,
-              data.NombreComercio || null,
-              data.Direccion || null,
-              data.Barrio || null,
-              data.RedesSociales || null,
-              data.DiasAtencion || null,
-              data.HoraInicio || null,
-              data.HoraFin || null,
-              latitud,
-              longitud,
-            ]
-          );
-          console.log('✅ Comerciante creado exitosamente');
-        } catch (insertError) {
-          console.error('❌ Error al insertar comerciante:', insertError);
-          throw insertError;
-        }
-
-        console.log(`✅ Comerciante registrado con coordenadas: ${latitud}, ${longitud}`);
-
-      } else if (
-        tipoKey === 'servicio' ||
-        tipoKey === 'prestadorservicio' ||
-        tipoKey === 'prestadorservicios'
-      ) {
+        datosPerfil = {
+          NitComercio: data.NitComercio || null,
+          NombreComercio: data.NombreComercio || null,
+          Direccion: data.Direccion || null,
+          Barrio: data.Barrio || null,
+          RedesSociales: data.RedesSociales || null,
+          DiasAtencion: data.DiasAtencion || null,
+          HoraInicio: data.HoraInicio || null,
+          HoraFin: data.HoraFin || null
+        };
+      } else if (tipoKey === 'servicio' || tipoKey === 'prestadorservicio' || tipoKey === 'prestadorservicios') {
         const certificadoFile = files.Certificado ? files.Certificado[0] : null;
         if (!certificadoFile)
           return res.status(400).json({ error: 'Debe subir un certificado válido' });
 
-        const finalCertName = `${Date.now()}_${Math.round(
-          Math.random() * 1e6
-        )}${path.extname(certificadoFile.originalname)}`;
-        const finalCertPath = path.join(finalUserDir, finalCertName);
-        fs.renameSync(certificadoFile.path, finalCertPath);
-        const certRuta = path
-          .join('imagen', tipoFolder, idUsuarioValue, finalCertName)
-          .replace(/\\/g, '/');
+        const certName = `${Date.now()}_${Math.round(Math.random() * 1e6)}${path.extname(certificadoFile.originalname)}`;
+        const certPath = path.join(pendingDir, certName);
+        fs.renameSync(certificadoFile.path, certPath);
+        certificadoRuta = path.join('imagen', 'pendientes', idUsuarioValue.toString(), certName).replace(/\\/g, '/');
 
-        await queryPromise(
-          `INSERT INTO prestadorservicio
-            (Usuario, Direccion, Barrio, RedesSociales, Certificado, DiasAtencion, HoraInicio, HoraFin)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            idUsuarioValue,
-            data.Direccion || null,
-            data.Barrio || null,
-            data.RedesSociales || null,
-            certRuta,
-            data.DiasAtencion || null,
-            data.HoraInicio || null,
-            data.HoraFin || null,
-          ]
-        );
+        datosPerfil = {
+          Direccion: data.Direccion || null,
+          Barrio: data.Barrio || null,
+          RedesSociales: data.RedesSociales || null,
+          Certificado: certificadoRuta,
+          DiasAtencion: data.DiasAtencion || null,
+          HoraInicio: data.HoraInicio || null,
+          HoraFin: data.HoraFin || null
+        };
       }
 
-      console.log(`✅ Registro completo: ${idUsuarioValue}`);
-      
-      // Mensaje diferente según el estado inicial del usuario
-      // Siempre devolver el token para redirigir a la página de crear contraseña
-      if (estadoInicial === 'Inactivo') {
-        res.status(200).json({
-          mensaje: `Registro exitoso. Ahora crea tu contraseña y verifica tu correo.`,
-          usuario: idUsuarioValue,
-          estado: 'Inactivo',
-          requiereAprobacion: true,
-          requiereContrasena: true,
-          correo: data.Correo,
-          token: token // Incluir token para redirigir
-        });
-      } else {
-        res.status(200).json({
-          mensaje: `Registro exitoso. Ahora crea tu contraseña y verifica tu correo.`,
-          usuario: idUsuarioValue,
-          estado: 'Activo',
-          requiereContrasena: true,
-          correo: data.Correo,
-          token: token // Incluir token para redirigir
-        });
-      }
+      // Generar token único
+      const token = generarToken();
+      const fechaExpiracion = new Date();
+      fechaExpiracion.setHours(fechaExpiracion.getHours() + 24); // 24 horas para completar
+
+      // Guardar en registros_pendientes (NO en usuario)
+      await queryPromise(
+        `INSERT INTO registros_pendientes 
+          (Token, IdUsuario, TipoUsuario, Nombre, Apellido, Documento, Telefono, Correo, FotoPerfil, DatosPerfil, FechaExpiracion)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          token,
+          idUsuarioValue,
+          tipoUsuarioSQL,
+          nombre,
+          apellido,
+          idUsuarioValue,
+          data.Telefono || null,
+          data.Correo,
+          fotoRuta,
+          JSON.stringify(datosPerfil),
+          fechaExpiracion.toISOString()
+        ]
+      );
+
+      console.log(`📝 Registro PENDIENTE creado: ${idUsuarioValue} - Token: ${token.substring(0, 10)}...`);
+      console.log(`⏳ El usuario se creará cuando complete la verificación del código`);
+
+      // Determinar si requiere aprobación (para mostrar mensaje al usuario)
+      const requiereAprobacion = (tipoUsuarioSQL === 'Comerciante' || tipoUsuarioSQL === 'PrestadorServicio');
+
+      res.status(200).json({
+        mensaje: `Registro iniciado. Ahora verifica tu correo y crea tu contraseña.`,
+        usuario: idUsuarioValue,
+        requiereAprobacion: requiereAprobacion,
+        requiereContrasena: true,
+        correo: data.Correo,
+        token: token
+      });
 
     } catch (error) {
       console.error('');
@@ -1562,7 +1462,6 @@ app.post(
       console.error(error);
       console.error('='.repeat(60));
       console.error('');
-      // Devolver detalles del error en la respuesta para debugging
       return res.status(500).json({ 
         error: 'Error al procesar registro',
         details: process.env.NODE_ENV === 'production' ? error.message : error.stack,
@@ -1583,135 +1482,6 @@ function generarToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
-/**
- * POST /api/enviar-token-creacion-contrasena
- * Envía un correo con link para crear contraseña
- */
-app.post('/api/enviar-token-creacion-contrasena', async (req, res) => {
-  try {
-    const { idUsuario } = req.body;
-
-    if (!idUsuario) {
-      return res.status(400).json({ error: 'ID de usuario requerido' });
-    }
-
-    // Verificar que el usuario existe
-    const [usuario] = await queryPromise(
-      'SELECT * FROM usuario WHERE IdUsuario = ?',
-      [idUsuario]
-    );
-
-    if (!usuario) {
-      return res.status(404).json({ error: 'Usuario no encontrado' });
-    }
-
-    // Verificar si tiene contraseña temporal
-    const [credenciales] = await queryPromise(
-      'SELECT ContrasenaTemporal FROM credenciales WHERE Usuario = ?',
-      [idUsuario]
-    );
-
-    if (!credenciales) {
-      return res.status(404).json({ error: 'No se encontraron credenciales para este usuario' });
-    }
-
-    if (credenciales.ContrasenaTemporal === 'No') {
-      return res.status(400).json({ error: 'El usuario ya configuró su contraseña' });
-    }
-
-    // Generar token
-    const token = generarToken();
-    const fechaExpiracion = new Date();
-    fechaExpiracion.setHours(fechaExpiracion.getHours() + 24); // Token válido por 24 horas
-
-    // Guardar token en la base de datos
-    await queryPromise(
-      `INSERT INTO tokens_verificacion (Usuario, Token, TipoToken, FechaExpiracion)
-       VALUES (?, ?, 'CrearContrasena', ?)`,
-      [idUsuario, token, fechaExpiracion.toISOString()]
-    );
-
-    // Crear link de verificación
-    const linkCrearContrasena = `${req.protocol}://${req.get('host')}/General/crear-contrasena.html?token=${token}`;
-
-    // Enviar correo
-    await enviarCorreo({
-      to: usuario.Correo,
-      subject: '🔐 Crea tu Contraseña - RPM Market',
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
-            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-            .content { background: white; padding: 30px; }
-            .button { display: inline-block; padding: 15px 30px; background: #667eea; color: white !important; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 20px 0; }
-            .button:hover { background: #5568d3; }
-            .footer { background: #333; color: white; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; font-size: 12px; }
-            .alert-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 5px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>🎉 ¡Bienvenido a RPM Market!</h1>
-            </div>
-            <div class="content">
-              <p>Hola <strong>${usuario.Nombre} ${usuario.Apellido}</strong>,</p>
-              
-              <p>Tu registro en RPM Market ha sido exitoso. Para completar la configuración de tu cuenta, necesitas crear tu contraseña.</p>
-              
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${linkCrearContrasena}" class="button">
-                  🔐 Crear Mi Contraseña
-                </a>
-              </div>
-              
-              <div class="alert-box">
-                <strong>⚠️ Importante:</strong>
-                <ul>
-                  <li>Este enlace es válido por <strong>24 horas</strong></li>
-                  <li>Solo puedes usarlo una vez</li>
-                  <li>${usuario.TipoUsuario === 'Comerciante' || usuario.TipoUsuario === 'PrestadorServicio' 
-                    ? 'Tu cuenta también requiere aprobación de un administrador antes de poder iniciar sesión' 
-                    : 'Una vez crees tu contraseña, podrás iniciar sesión inmediatamente'}</li>
-                </ul>
-              </div>
-              
-              <p style="font-size: 12px; color: #666; margin-top: 20px;">
-                Si no solicitaste este registro, por favor ignora este correo.
-              </p>
-              
-              <p style="font-size: 12px; color: #666;">
-                Si el botón no funciona, copia y pega este enlace en tu navegador:<br>
-                <a href="${linkCrearContrasena}">${linkCrearContrasena}</a>
-              </p>
-            </div>
-            <div class="footer">
-              <p><strong>RPM Market</strong></p>
-              <p>📧 rpmservice2026@gmail.com | 📞 301 403 8181</p>
-              <p>© 2026 RPM Market - Todos los derechos reservados</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `
-    });
-
-    console.log(`✅ Token de creación de contraseña enviado a: ${usuario.Correo}`);
-    res.json({ 
-      success: true, 
-      mensaje: 'Correo enviado exitosamente. Por favor revisa tu bandeja de entrada.' 
-    });
-
-  } catch (error) {
-    console.error('❌ Error al enviar token de creación de contraseña:', error);
-    res.status(500).json({ error: 'Error al enviar el correo', detalles: error.message });
-  }
-});
-
 // ===============================
 // 🔐 SISTEMA DE VERIFICACIÓN POR CÓDIGO DE 4 DÍGITOS
 // ===============================
@@ -1726,6 +1496,7 @@ function generarCodigo4Digitos() {
 /**
  * POST /api/enviar-codigo-verificacion
  * Genera y envía un código de 4 dígitos al correo del usuario
+ * Ahora busca primero en registros_pendientes
  */
 app.post('/api/enviar-codigo-verificacion', async (req, res) => {
   try {
@@ -1735,7 +1506,68 @@ app.post('/api/enviar-codigo-verificacion', async (req, res) => {
       return res.status(400).json({ error: 'Token requerido' });
     }
 
-    // Buscar token y datos del usuario
+    // Primero buscar en registros_pendientes (nuevo flujo)
+    let [registroPendiente] = await queryPromise(
+      `SELECT * FROM registros_pendientes WHERE Token = ? AND Estado = 'Pendiente'`,
+      [token]
+    );
+
+    if (registroPendiente) {
+      // Verificar expiración
+      const ahora = new Date();
+      const fechaExpiracion = new Date(registroPendiente.FechaExpiracion);
+
+      if (ahora > fechaExpiracion) {
+        return res.status(400).json({ error: 'El enlace ha expirado. Por favor, regístrate nuevamente.' });
+      }
+
+      // Generar código de 4 dígitos
+      const codigo = generarCodigo4Digitos();
+
+      // Guardar código en la BD
+      await queryPromise(
+        `UPDATE registros_pendientes SET CodigoVerificacion = ?, CodigoEnviado = 'Si', CodigoVerificado = 'No' WHERE IdRegistro = ?`,
+        [codigo, registroPendiente.IdRegistro]
+      );
+
+      // Enviar correo con el código
+      const correoDestino = registroPendiente.Correo;
+      const nombreUsuario = `${registroPendiente.Nombre} ${registroPendiente.Apellido}`;
+
+      await enviarCorreo({
+        to: correoDestino,
+        subject: '🔐 Código de Verificación - RPM Market',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="text-align: center; background: linear-gradient(135deg, #d10000 0%, #a30000 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0;">🔐 Código de Verificación</h1>
+            </div>
+            <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+              <p style="font-size: 16px;">Hola <strong>${nombreUsuario}</strong>,</p>
+              <p style="font-size: 16px;">Tu código de verificación para completar el registro en RPM Market es:</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <span style="background: linear-gradient(135deg, #d10000 0%, #a30000 100%); color: white; font-size: 36px; font-weight: bold; padding: 15px 40px; border-radius: 10px; letter-spacing: 10px;">${codigo}</span>
+              </div>
+              <p style="font-size: 14px; color: #666;">Este código es válido por <strong>10 minutos</strong>.</p>
+              <p style="font-size: 14px; color: #666;">Si no solicitaste este código, puedes ignorar este correo.</p>
+              <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+              <p style="font-size: 12px; color: #999; text-align: center;">RPM Market - Tu mercado de repuestos y servicios</p>
+            </div>
+          </div>
+        `
+      });
+
+      const correoOculto = correoDestino.replace(/(.{2})(.*)(@.*)/, '$1***$3');
+      console.log(`📧 Código de verificación enviado a ${correoDestino} (registro pendiente)`);
+
+      return res.json({
+        success: true,
+        mensaje: 'Código de verificación enviado',
+        correo: correoOculto
+      });
+    }
+
+    // Si no está en pendientes, buscar en tokens_verificacion (flujo antiguo para compatibilidad)
     const [tokenData] = await queryPromise(
       `SELECT t.*, u.Nombre, u.Apellido, u.Correo, u.TipoUsuario 
        FROM tokens_verificacion t
@@ -1774,14 +1606,14 @@ app.post('/api/enviar-codigo-verificacion', async (req, res) => {
       subject: '🔐 Código de Verificación - RPM Market',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+          <div style="text-align: center; background: linear-gradient(135deg, #d10000 0%, #a30000 100%); padding: 30px; border-radius: 10px 10px 0 0;">
             <h1 style="color: white; margin: 0;">🔐 Código de Verificación</h1>
           </div>
           <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
             <p style="font-size: 16px;">Hola <strong>${nombreUsuario}</strong>,</p>
             <p style="font-size: 16px;">Tu código de verificación para completar el registro en RPM Market es:</p>
             <div style="text-align: center; margin: 30px 0;">
-              <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 36px; font-weight: bold; padding: 15px 40px; border-radius: 10px; letter-spacing: 10px;">${codigo}</span>
+              <span style="background: linear-gradient(135deg, #d10000 0%, #a30000 100%); color: white; font-size: 36px; font-weight: bold; padding: 15px 40px; border-radius: 10px; letter-spacing: 10px;">${codigo}</span>
             </div>
             <p style="font-size: 14px; color: #666;">Este código es válido por <strong>10 minutos</strong>.</p>
             <p style="font-size: 14px; color: #666;">Si no solicitaste este código, puedes ignorar este correo.</p>
@@ -1812,6 +1644,7 @@ app.post('/api/enviar-codigo-verificacion', async (req, res) => {
 /**
  * POST /api/verificar-codigo
  * Verifica si el código de 4 dígitos es correcto
+ * Ahora busca primero en registros_pendientes
  */
 app.post('/api/verificar-codigo', async (req, res) => {
   try {
@@ -1821,7 +1654,39 @@ app.post('/api/verificar-codigo', async (req, res) => {
       return res.status(400).json({ error: 'Token y código son requeridos' });
     }
 
-    // Buscar token
+    // Primero buscar en registros_pendientes
+    let [registroPendiente] = await queryPromise(
+      `SELECT * FROM registros_pendientes WHERE Token = ? AND Estado = 'Pendiente'`,
+      [token]
+    );
+
+    if (registroPendiente) {
+      // Verificar que se haya enviado un código
+      if (registroPendiente.CodigoEnviado !== 'Si') {
+        return res.status(400).json({ error: 'No se ha enviado un código de verificación' });
+      }
+
+      // Verificar código
+      if (registroPendiente.CodigoVerificacion !== codigo) {
+        return res.status(400).json({ error: 'Código incorrecto. Verifica e intenta nuevamente.' });
+      }
+
+      // Marcar código como verificado
+      await queryPromise(
+        `UPDATE registros_pendientes SET CodigoVerificado = 'Si' WHERE IdRegistro = ?`,
+        [registroPendiente.IdRegistro]
+      );
+
+      console.log(`✅ Código verificado correctamente para registro pendiente ${registroPendiente.IdUsuario}`);
+
+      return res.json({
+        success: true,
+        verificado: true,
+        mensaje: 'Código verificado correctamente'
+      });
+    }
+
+    // Si no está en pendientes, buscar en tokens_verificacion (flujo antiguo)
     const [tokenData] = await queryPromise(
       `SELECT * FROM tokens_verificacion 
        WHERE Token = ? AND TipoToken = 'CrearContrasena' AND Usado = 'No'`,
@@ -1865,6 +1730,7 @@ app.post('/api/verificar-codigo', async (req, res) => {
 /**
  * POST /api/reenviar-codigo
  * Genera y reenvía un nuevo código de 4 dígitos
+ * Ahora busca primero en registros_pendientes
  */
 app.post('/api/reenviar-codigo', async (req, res) => {
   try {
@@ -1874,7 +1740,54 @@ app.post('/api/reenviar-codigo', async (req, res) => {
       return res.status(400).json({ error: 'Token requerido' });
     }
 
-    // Buscar token y datos del usuario
+    // Primero buscar en registros_pendientes
+    let [registroPendiente] = await queryPromise(
+      `SELECT * FROM registros_pendientes WHERE Token = ? AND Estado = 'Pendiente'`,
+      [token]
+    );
+
+    if (registroPendiente) {
+      // Generar nuevo código
+      const nuevoCodigo = generarCodigo4Digitos();
+
+      // Actualizar en BD
+      await queryPromise(
+        `UPDATE registros_pendientes SET CodigoVerificacion = ?, CodigoVerificado = 'No' WHERE IdRegistro = ?`,
+        [nuevoCodigo, registroPendiente.IdRegistro]
+      );
+
+      // Enviar correo
+      await enviarCorreo({
+        to: registroPendiente.Correo,
+        subject: '🔐 Nuevo Código de Verificación - RPM Market',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="text-align: center; background: linear-gradient(135deg, #d10000 0%, #a30000 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0;">🔐 Nuevo Código</h1>
+            </div>
+            <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+              <p style="font-size: 16px;">Hola <strong>${registroPendiente.Nombre}</strong>,</p>
+              <p style="font-size: 16px;">Tu nuevo código de verificación es:</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <span style="background: linear-gradient(135deg, #d10000 0%, #a30000 100%); color: white; font-size: 36px; font-weight: bold; padding: 15px 40px; border-radius: 10px; letter-spacing: 10px;">${nuevoCodigo}</span>
+              </div>
+              <p style="font-size: 14px; color: #666;">Este código es válido por <strong>10 minutos</strong>.</p>
+            </div>
+          </div>
+        `
+      });
+
+      const correoOculto = registroPendiente.Correo.replace(/(.{2})(.*)(@.*)/, '$1***$3');
+      console.log(`📧 Nuevo código enviado a ${registroPendiente.Correo} (registro pendiente)`);
+
+      return res.json({
+        success: true,
+        mensaje: 'Nuevo código enviado',
+        correo: correoOculto
+      });
+    }
+
+    // Si no está en pendientes, buscar en tokens_verificacion (flujo antiguo)
     const [tokenData] = await queryPromise(
       `SELECT t.*, u.Nombre, u.Apellido, u.Correo 
        FROM tokens_verificacion t
@@ -1902,14 +1815,14 @@ app.post('/api/reenviar-codigo', async (req, res) => {
       subject: '🔐 Nuevo Código de Verificación - RPM Market',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+          <div style="text-align: center; background: linear-gradient(135deg, #d10000 0%, #a30000 100%); padding: 30px; border-radius: 10px 10px 0 0;">
             <h1 style="color: white; margin: 0;">🔐 Nuevo Código</h1>
           </div>
           <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
             <p style="font-size: 16px;">Hola <strong>${tokenData.Nombre}</strong>,</p>
             <p style="font-size: 16px;">Tu nuevo código de verificación es:</p>
             <div style="text-align: center; margin: 30px 0;">
-              <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 36px; font-weight: bold; padding: 15px 40px; border-radius: 10px; letter-spacing: 10px;">${nuevoCodigo}</span>
+              <span style="background: linear-gradient(135deg, #d10000 0%, #a30000 100%); color: white; font-size: 36px; font-weight: bold; padding: 15px 40px; border-radius: 10px; letter-spacing: 10px;">${nuevoCodigo}</span>
             </div>
             <p style="font-size: 14px; color: #666;">Este código es válido por <strong>10 minutos</strong>.</p>
           </div>
@@ -1935,7 +1848,7 @@ app.post('/api/reenviar-codigo', async (req, res) => {
 
 /**
  * POST /api/verificar-token-contrasena
- * Verifica si un token es válido
+ * Verifica si un token es válido (ahora busca en registros_pendientes)
  */
 app.post('/api/verificar-token-contrasena', async (req, res) => {
   try {
@@ -1945,9 +1858,40 @@ app.post('/api/verificar-token-contrasena', async (req, res) => {
       return res.status(400).json({ error: 'Token requerido' });
     }
 
-    // Buscar token
+    // Buscar en registros_pendientes
+    const [registroPendiente] = await queryPromise(
+      `SELECT * FROM registros_pendientes 
+       WHERE Token = ? AND Estado = 'Pendiente'`,
+      [token]
+    );
+
+    if (registroPendiente) {
+      // Verificar expiración
+      const ahora = new Date();
+      const fechaExpiracion = new Date(registroPendiente.FechaExpiracion);
+
+      if (ahora > fechaExpiracion) {
+        return res.status(400).json({ 
+          valido: false, 
+          error: 'El enlace ha expirado. Por favor, regístrate nuevamente.' 
+        });
+      }
+
+      return res.json({
+        valido: true,
+        usuario: {
+          id: registroPendiente.IdUsuario,
+          nombre: registroPendiente.Nombre,
+          apellido: registroPendiente.Apellido,
+          tipoUsuario: registroPendiente.TipoUsuario,
+          correo: registroPendiente.Correo
+        }
+      });
+    }
+
+    // Si no está en pendientes, buscar en tokens_verificacion (para recuperación de contraseña)
     const [tokenData] = await queryPromise(
-      `SELECT t.*, u.Nombre, u.Apellido, u.TipoUsuario 
+      `SELECT t.*, u.Nombre, u.Apellido, u.TipoUsuario, u.Correo
        FROM tokens_verificacion t
        JOIN usuario u ON t.Usuario = u.IdUsuario
        WHERE t.Token = ? AND t.TipoToken = 'CrearContrasena' AND t.Usado = 'No'`,
@@ -1978,7 +1922,8 @@ app.post('/api/verificar-token-contrasena', async (req, res) => {
         id: tokenData.Usuario,
         nombre: tokenData.Nombre,
         apellido: tokenData.Apellido,
-        tipoUsuario: tokenData.TipoUsuario
+        tipoUsuario: tokenData.TipoUsuario,
+        correo: tokenData.Correo
       }
     });
 
@@ -1990,7 +1935,8 @@ app.post('/api/verificar-token-contrasena', async (req, res) => {
 
 /**
  * POST /api/crear-contrasena-con-token
- * Actualiza la contraseña temporal del usuario con su contraseña definitiva
+ * CREA el usuario REAL desde registros_pendientes cuando se completa la verificación
+ * Este es el paso final del registro - solo aquí se inserta en las tablas reales
  * REQUIERE: Código de verificación previamente validado
  */
 app.post('/api/crear-contrasena-con-token', async (req, res) => {
@@ -2001,7 +1947,199 @@ app.post('/api/crear-contrasena-con-token', async (req, res) => {
       return res.status(400).json({ error: 'Token y contraseña son requeridos' });
     }
 
-    // Verificar token
+    // Primero buscar en registros_pendientes (nuevo flujo)
+    let [registroPendiente] = await queryPromise(
+      `SELECT * FROM registros_pendientes WHERE Token = ? AND Estado = 'Pendiente'`,
+      [token]
+    );
+
+    if (registroPendiente) {
+      // Verificar que el código haya sido verificado
+      if (registroPendiente.CodigoVerificado !== 'Si') {
+        return res.status(400).json({ error: 'Debes verificar tu código de correo electrónico primero' });
+      }
+
+      // Verificar expiración
+      const ahora = new Date();
+      const fechaExpiracion = new Date(registroPendiente.FechaExpiracion);
+
+      if (ahora > fechaExpiracion) {
+        return res.status(400).json({ error: 'El enlace ha expirado. Por favor, regístrate nuevamente.' });
+      }
+
+      console.log(`🚀 Creando usuario REAL desde registro pendiente: ${registroPendiente.IdUsuario}`);
+
+      // Parsear datos del perfil
+      const datosPerfil = JSON.parse(registroPendiente.DatosPerfil || '{}');
+
+      // Determinar el estado inicial
+      const estadoInicial = (registroPendiente.TipoUsuario === 'Comerciante' || registroPendiente.TipoUsuario === 'PrestadorServicio') 
+        ? 'Inactivo' 
+        : 'Activo';
+
+      // Determinar carpeta según tipo de usuario
+      const tipoFolderMap = {
+        'Natural': 'Natural',
+        'Comerciante': 'Comerciante',
+        'PrestadorServicio': 'PrestadorServicios'
+      };
+      const tipoFolder = tipoFolderMap[registroPendiente.TipoUsuario] || 'Otros';
+
+      // Mover archivos de pendientes a carpeta final
+      const pendingDir = path.join(process.cwd(), 'public', 'imagen', 'pendientes', registroPendiente.IdUsuario.toString());
+      const finalUserDir = path.join(process.cwd(), 'public', 'imagen', tipoFolder, registroPendiente.IdUsuario.toString());
+      
+      let fotoRutaFinal = registroPendiente.FotoPerfil;
+      let certRutaFinal = datosPerfil.Certificado || null;
+
+      try {
+        // Crear carpeta final si no existe
+        fs.mkdirSync(finalUserDir, { recursive: true });
+
+        // Mover foto de perfil
+        if (registroPendiente.FotoPerfil && registroPendiente.FotoPerfil.includes('pendientes')) {
+          const fotoOriginal = path.join(process.cwd(), 'public', registroPendiente.FotoPerfil);
+          if (fs.existsSync(fotoOriginal)) {
+            const fotoNombre = path.basename(fotoOriginal);
+            const fotoDestino = path.join(finalUserDir, fotoNombre);
+            fs.renameSync(fotoOriginal, fotoDestino);
+            fotoRutaFinal = path.join('imagen', tipoFolder, registroPendiente.IdUsuario.toString(), fotoNombre).replace(/\\/g, '/');
+          }
+        }
+
+        // Mover certificado si existe (para prestadores)
+        if (datosPerfil.Certificado && datosPerfil.Certificado.includes('pendientes')) {
+          const certOriginal = path.join(process.cwd(), 'public', datosPerfil.Certificado);
+          if (fs.existsSync(certOriginal)) {
+            const certNombre = path.basename(certOriginal);
+            const certDestino = path.join(finalUserDir, certNombre);
+            fs.renameSync(certOriginal, certDestino);
+            certRutaFinal = path.join('imagen', tipoFolder, registroPendiente.IdUsuario.toString(), certNombre).replace(/\\/g, '/');
+          }
+        }
+
+        // Eliminar carpeta de pendientes si está vacía
+        if (fs.existsSync(pendingDir)) {
+          const archivos = fs.readdirSync(pendingDir);
+          if (archivos.length === 0) {
+            fs.rmdirSync(pendingDir);
+          }
+        }
+      } catch (fileError) {
+        console.warn('⚠️ Error moviendo archivos:', fileError.message);
+        // Continuar con las rutas originales si hay error
+      }
+
+      // CREAR USUARIO REAL
+      await queryPromise(
+        `INSERT INTO usuario (IdUsuario, TipoUsuario, Nombre, Apellido, Documento, Telefono, Correo, FotoPerfil, Estado)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          registroPendiente.IdUsuario,
+          registroPendiente.TipoUsuario,
+          registroPendiente.Nombre,
+          registroPendiente.Apellido,
+          registroPendiente.Documento,
+          registroPendiente.Telefono,
+          registroPendiente.Correo,
+          fotoRutaFinal,
+          estadoInicial
+        ]
+      );
+      console.log('✅ Usuario insertado en tabla usuario');
+
+      // Hashear contraseña
+      const hashContrasena = await bcrypt.hash(contrasena, 10);
+
+      // CREAR CREDENCIALES
+      await queryPromise(
+        `INSERT INTO credenciales (Usuario, NombreUsuario, Contrasena, ContrasenaTemporal)
+         VALUES (?, ?, ?, 'No')`,
+        [registroPendiente.IdUsuario, registroPendiente.Correo, hashContrasena]
+      );
+      console.log('✅ Credenciales creadas');
+
+      // CREAR PERFIL ESPECÍFICO según tipo de usuario
+      if (registroPendiente.TipoUsuario === 'Natural') {
+        await queryPromise(
+          `INSERT INTO perfilnatural (UsuarioNatural, Direccion, Barrio)
+           VALUES (?, ?, ?)`,
+          [registroPendiente.IdUsuario, datosPerfil.Direccion || null, datosPerfil.Barrio || null]
+        );
+        console.log('✅ Perfil natural creado');
+
+      } else if (registroPendiente.TipoUsuario === 'Comerciante') {
+        // Geocodificar dirección
+        const direccionCompleta = `${datosPerfil.Direccion || ''}, ${datosPerfil.Barrio || ''}, Bogotá, Colombia`;
+        let latitud = 4.710989;
+        let longitud = -74.072092;
+
+        try {
+          const geoResponse = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(direccionCompleta)}`,
+            { headers: { 'User-Agent': 'RPM-Market/1.0 (contacto@rpm-market.com)' } }
+          );
+          const geoData = await geoResponse.json();
+          if (geoData && geoData.length > 0) {
+            latitud = parseFloat(geoData[0].lat);
+            longitud = parseFloat(geoData[0].lon);
+          }
+        } catch (geoError) {
+          console.warn('⚠️ Error geocodificando:', geoError.message);
+        }
+
+        await queryPromise(
+          `INSERT INTO comerciante (NitComercio, Comercio, NombreComercio, Direccion, Barrio, RedesSociales, DiasAtencion, HoraInicio, HoraFin, Latitud, Longitud)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            datosPerfil.NitComercio || null,
+            registroPendiente.IdUsuario,
+            datosPerfil.NombreComercio || null,
+            datosPerfil.Direccion || null,
+            datosPerfil.Barrio || null,
+            datosPerfil.RedesSociales || null,
+            datosPerfil.DiasAtencion || null,
+            datosPerfil.HoraInicio || null,
+            datosPerfil.HoraFin || null,
+            latitud,
+            longitud
+          ]
+        );
+        console.log('✅ Perfil comerciante creado');
+
+      } else if (registroPendiente.TipoUsuario === 'PrestadorServicio') {
+        await queryPromise(
+          `INSERT INTO prestadorservicio (Usuario, Direccion, Barrio, RedesSociales, Certificado, DiasAtencion, HoraInicio, HoraFin)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            registroPendiente.IdUsuario,
+            datosPerfil.Direccion || null,
+            datosPerfil.Barrio || null,
+            datosPerfil.RedesSociales || null,
+            certRutaFinal || datosPerfil.Certificado,
+            datosPerfil.DiasAtencion || null,
+            datosPerfil.HoraInicio || null,
+            datosPerfil.HoraFin || null
+          ]
+        );
+        console.log('✅ Perfil prestador de servicio creado');
+      }
+
+      // Marcar registro pendiente como completado
+      await queryPromise(
+        `UPDATE registros_pendientes SET Estado = 'Completado' WHERE IdRegistro = ?`,
+        [registroPendiente.IdRegistro]
+      );
+
+      console.log(`✅ Registro completado exitosamente para usuario: ${registroPendiente.IdUsuario}`);
+      
+      return res.json({ 
+        success: true, 
+        mensaje: 'Registro completado exitosamente. Ya puedes iniciar sesión.' 
+      });
+    }
+
+    // FLUJO ANTIGUO: Si no está en pendientes, buscar en tokens_verificacion
     const [tokenData] = await queryPromise(
       `SELECT * FROM tokens_verificacion 
        WHERE Token = ? AND TipoToken = 'CrearContrasena' AND Usado = 'No'`,

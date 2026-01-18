@@ -1,97 +1,86 @@
-nohup: ignoring input
-[dotenv@17.2.3] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.2.3] injecting env (2) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
 ⚠️ MySQL no disponible, usando SQLite como fallback
 ✅ Base de datos SQLite creada en: /workspaces/PERFIL-FRONTEND/rpm_market.db
-⚠️ Error en statement SQL: UNIQUE constraint failed: categoria.NombreCategoria
 ✅ Esquema SQLite inicializado desde rpm_market.sql
 🚀 Servidor escuchando en: http://localhost:3000/General/index.html
 🔍 [verificar-sesion] Verificando sesión...
-🔍 [verificar-sesion] Session ID: _xjhNqU49g9MFbB6shHdK-kDtTJck7OL
-🔍 [verificar-sesion] Usuario en sesión: NO
-⚠️ [verificar-sesion] No hay sesión activa
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 2 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 2 publicaciones
-🧠 Usuario encontrado: {
-  IdCredencial: 9,
-  Usuario: 52343847,
-  NombreUsuario: 'sebastianduarte-25@outlook.com',
-  Contrasena: '$2b$10$A4wQLLDxxg8Yuz/TtYLOde/Bxb/v4wTG3rP5D47h2BC39hxnxo1l6',
-  ContrasenaTemporal: 'No',
-  TipoUsuario: 'Natural',
-  Nombre: 'david sebastian',
-  Apellido: 'duarte rojas',
-  FotoPerfil: 'imagen/Natural/52343847/1767754503397_494325.jpg',
-  Estado: 'Activo',
-  NombreComercio: null
-}
-✅ Usuario autenticado: {
-  id: 52343847,
-  nombre: 'david',
-  nombreCompleto: 'david sebastian',
-  apellido: 'duarte rojas',
-  tipo: 'Natural',
-  foto: 'imagen/Natural/52343847/1767754503397_494325.jpg',
-  nombreComercio: null
-}
-🔍 Session ID creado: eqdIM034MG_d7GOTsDi8dPf2Tr-3zaZI
-✅ Sesión guardada correctamente
-🔍 [verificar-sesion] Verificando sesión...
-🔍 [verificar-sesion] Session ID: eqdIM034MG_d7GOTsDi8dPf2Tr-3zaZI
-🔍 [verificar-sesion] Usuario en sesión: SÍ
-✅ [verificar-sesion] Sesión activa para: david
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 2 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 2 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 2 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 2 publicaciones
-🔍 [verificar-sesion] Verificando sesión...
-🔍 [verificar-sesion] Session ID: eqdIM034MG_d7GOTsDi8dPf2Tr-3zaZI
-🔍 [verificar-sesion] Usuario en sesión: SÍ
-✅ [verificar-sesion] Sesión activa para: david
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 2 publicaciones
-🔍 [verificar-sesion] Verificando sesión...
-🔍 [verificar-sesion] Session ID: oGC3xbn_WKwhgZm0yhsY-DVPiTEwceZN
+🔍 [verificar-sesion] Session ID: zAZbWXK23g4IF5155inL3vQSis6EFLMP
 🔍 [verificar-sesion] Usuario en sesión: NO
 ⚠️ [verificar-sesion] No hay sesión activa
 📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 2 publicaciones
+✅ Encontradas 0 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 0 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 0 publicaciones
+🔍 [verificar-sesion] Verificando sesión...
+🔍 [verificar-sesion] Session ID: ZnThWG0-RT98yqoV8hDk2VWIcp5loSm3
+🔍 [verificar-sesion] Usuario en sesión: NO
+⚠️ [verificar-sesion] No hay sesión activa
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 0 publicaciones
+🚀 === INICIO REGISTRO (PENDIENTE) === 🚀
+📦 Datos recibidos: [Object: null prototype] {
+  TipoUsuario: 'PrestadorServicio',
+  Usuario: '1019138679',
+  Nombre: 'karolay',
+  Apellido: 'lopez',
+  Correo: 'karolaynlopez15@gmail.com',
+  Telefono: '3208440365',
+  Direccion: '',
+  Barrio: 'britalia',
+  RedesSociales: '@karolpez',
+  DiasAtencion: 'Lunes - Viernes',
+  HoraInicio: '02:30',
+  HoraFin: '14:30'
+}
+📸 Archivos recibidos: [Object: null prototype] {
+  FotoPerfil: [
+    {
+      fieldname: 'FotoPerfil',
+      originalname: 'pse-logo.png',
+      encoding: '7bit',
+      mimetype: 'image/png',
+      destination: '/workspaces/PERFIL-FRONTEND/public/imagen/temp',
+      filename: '1768764665939-781498439.png',
+      path: '/workspaces/PERFIL-FRONTEND/public/imagen/temp/1768764665939-781498439.png',
+      size: 63846
+    }
+  ],
+  Certificado: [
+    {
+      fieldname: 'Certificado',
+      originalname: 'medicamentos.pdf',
+      encoding: '7bit',
+      mimetype: 'application/pdf',
+      destination: '/workspaces/PERFIL-FRONTEND/public/imagen/temp',
+      filename: '1768764665944-649738068.pdf',
+      path: '/workspaces/PERFIL-FRONTEND/public/imagen/temp/1768764665944-649738068.pdf',
+      size: 191600
+    }
+  ]
+}
+📝 Registro PENDIENTE creado: 1019138679 - Token: 833010fcfb...
+⏳ El usuario se creará cuando complete la verificación del código
+📨 Correo enviado correctamente a karolaynlopez15@gmail.com
+📧 Código de verificación enviado a karolaynlopez15@gmail.com (registro pendiente)
+✅ Código verificado correctamente para registro pendiente 1019138679
+🚀 Creando usuario REAL desde registro pendiente: 1019138679
+✅ Usuario insertado en tabla usuario
+✅ Credenciales creadas
+✅ Perfil prestador de servicio creado
+✅ Registro completado exitosamente para usuario: 1019138679
 🧠 Usuario encontrado: {
-  IdCredencial: 9,
-  Usuario: 52343847,
-  NombreUsuario: 'sebastianduarte-25@outlook.com',
-  Contrasena: '$2b$10$A4wQLLDxxg8Yuz/TtYLOde/Bxb/v4wTG3rP5D47h2BC39hxnxo1l6',
+  IdCredencial: 5,
+  Usuario: 1019138679,
+  NombreUsuario: 'karolaynlopez15@gmail.com',
+  Contrasena: '$2b$10$XDKxsXssLPbg.bZgI4bQMeqU9rOwj/FNJuV3MmrlOP8O/dlth8/T2',
   ContrasenaTemporal: 'No',
-  TipoUsuario: 'Natural',
-  Nombre: 'david sebastian',
-  Apellido: 'duarte rojas',
-  FotoPerfil: 'imagen/Natural/52343847/1767754503397_494325.jpg',
-  Estado: 'Activo',
+  TipoUsuario: 'PrestadorServicio',
+  Nombre: 'karolay',
+  Apellido: 'lopez',
+  FotoPerfil: 'imagen/PrestadorServicios/1019138679/1768764665975_348438.png',
+  Estado: 'Inactivo',
   NombreComercio: null
 }
-✅ Usuario autenticado: {
-  id: 52343847,
-  nombre: 'david',
-  nombreCompleto: 'david sebastian',
-  apellido: 'duarte rojas',
-  tipo: 'Natural',
-  foto: 'imagen/Natural/52343847/1767754503397_494325.jpg',
-  nombreComercio: null
-}
-🔍 Session ID creado: xZy2Ou7T5_cv74XyuRR-Beh4pF_OKsfL
-✅ Sesión guardada correctamente
-🔍 [verificar-sesion] Verificando sesión...
-🔍 [verificar-sesion] Session ID: xZy2Ou7T5_cv74XyuRR-Beh4pF_OKsfL
-🔍 [verificar-sesion] Usuario en sesión: SÍ
-✅ [verificar-sesion] Sesión activa para: david
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 2 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 2 publicaciones
-📊 Consultando historial para usuario: 52343847
-✅ 4 registros encontrados
+⚠️ Usuario inactivo intentando iniciar sesión: karolaynlopez15@gmail.com
