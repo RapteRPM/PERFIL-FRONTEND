@@ -560,13 +560,20 @@ app.get('/api/historial', async (req, res) => {
         'producto' AS tipo,
         ca.FechaServicio AS fechaEntrega,
         ca.HoraServicio AS horaEntrega,
-        ca.ModoServicio AS modoEntrega
+        ca.ModoServicio AS modoEntrega,
+        ca.FechaModificadaPor AS fechaModificada,
+        ca.NotificacionVista AS notificacionVista,
+        ca.IdSolicitud AS idSolicitudComercio,
+        uc.Telefono AS telefonoComercio,
+        com.NombreComercio AS nombreComercio
       FROM detallefactura df
       LEFT JOIN factura f ON df.Factura = f.IdFactura
       INNER JOIN publicacion pub ON df.Publicacion = pub.IdPublicacion
       INNER JOIN categoria c ON pub.Categoria = c.IdCategoria
       LEFT JOIN detallefacturacomercio dfc ON df.IdDetalleFactura = dfc.IdDetalleFacturaComercio
       LEFT JOIN controlagendacomercio ca ON dfc.IdDetalleFacturaComercio = ca.DetFacturacomercio
+      LEFT JOIN comerciante com ON ca.Comercio = com.NitComercio
+      LEFT JOIN usuario uc ON com.Comercio = uc.IdUsuario
       WHERE df.VisibleUsuario = 1
     `;
 
@@ -3068,9 +3075,11 @@ app.put('/api/actualizar-fecha-pedido', async (req, res) => {
 
   try {
     // Actualizar fecha y hora en controlagendacomercio
+    // Marcar FechaModificadaPor y NotificacionVista = 0 para que el usuario vea la notificación
+    const ahora = new Date().toISOString();
     await queryPromise(
-      'UPDATE controlagendacomercio SET FechaServicio = ?, HoraServicio = ? WHERE IdSolicitud = ?',
-      [fecha, hora, id]
+      'UPDATE controlagendacomercio SET FechaServicio = ?, HoraServicio = ?, FechaModificadaPor = ?, NotificacionVista = 0 WHERE IdSolicitud = ?',
+      [fecha, hora, ahora, id]
     );
 
     res.json({ 
@@ -3080,6 +3089,61 @@ app.put('/api/actualizar-fecha-pedido', async (req, res) => {
   } catch (error) {
     console.error('Error al actualizar fecha:', error);
     res.status(500).json({ error: 'Error al actualizar fecha' });
+  }
+});
+
+// Endpoint para confirmar fecha de entrega (aceptar fecha propuesta por el cliente)
+app.put('/api/confirmar-fecha-pedido', async (req, res) => {
+  const usuario = req.session?.usuario;
+  const { id, fecha, hora, confirmar } = req.body;
+
+  if (!usuario) {
+    return res.status(401).json({ error: 'No autenticado' });
+  }
+
+  if (!id || !fecha || !hora) {
+    return res.status(400).json({ error: 'Faltan datos requeridos' });
+  }
+
+  try {
+    // Confirmar/actualizar fecha y hora en controlagendacomercio
+    // También marcamos el estado como "confirmado" si existe ese campo
+    await queryPromise(
+      'UPDATE controlagendacomercio SET FechaServicio = ?, HoraServicio = ?, Estado = COALESCE(NULLIF(Estado, "pendiente"), "confirmado") WHERE IdSolicitud = ?',
+      [fecha, hora, id]
+    );
+
+    res.json({ 
+      success: true,
+      message: '✅ Fecha de entrega confirmada correctamente' 
+    });
+  } catch (error) {
+    console.error('Error al confirmar fecha:', error);
+    res.status(500).json({ error: 'Error al confirmar fecha' });
+  }
+});
+
+// Endpoint para marcar notificación de cambio de fecha de comercio como vista
+app.put('/api/comercio/notificacion-vista/:id', async (req, res) => {
+  const { id } = req.params;
+
+  if (!id) {
+    return res.status(400).json({ error: 'ID de solicitud requerido' });
+  }
+
+  try {
+    await queryPromise(
+      'UPDATE controlagendacomercio SET NotificacionVista = 1 WHERE IdSolicitud = ?',
+      [id]
+    );
+
+    res.json({ 
+      success: true,
+      message: 'Notificación marcada como vista' 
+    });
+  } catch (error) {
+    console.error('Error al marcar notificación:', error);
+    res.status(500).json({ error: 'Error al marcar notificación' });
   }
 });
 
@@ -5455,8 +5519,8 @@ app.delete('/api/admin/publicacion/:id', verificarAdmin, async (req, res) => {
       // Eliminar solicitudes relacionadas
       await queryPromise('DELETE FROM controlagendaservicios WHERE PublicacionGrua = ?', [id]);
       
-      // Eliminar opiniones si existen
-      await queryPromise('DELETE FROM opiniones WHERE PublicacionGrua = ?', [id]);
+      // Eliminar opiniones de grúa si existen (tabla OpinionesGrua)
+      await queryPromise('DELETE FROM OpinionesGrua WHERE PublicacionGrua = ?', [id]);
       
       // Eliminar la publicación de grúa
       await queryPromise('DELETE FROM publicaciongrua WHERE IdPublicacionGrua = ?', [id]);

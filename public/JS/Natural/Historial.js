@@ -119,6 +119,41 @@ document.addEventListener('DOMContentLoaded', () => {
               } else {
                 estadoHtml = `<span class="badge bg-secondary">${item.estado || 'Desconocido'}</span>`;
               }
+
+              // Verificar si hay cambio de fecha no visto para productos de comerciantes
+              if (item.fechaModificada && !item.notificacionVista) {
+                const fechaMod = new Date(item.fechaModificada);
+                const fechaModStr = fechaMod.toLocaleDateString('es-CO', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                });
+                
+                mensajeFechaEntrega = `
+                  <div class="mt-2 p-2 bg-warning text-dark rounded" style="border-left: 4px solid #ff9800;">
+                    <div class="d-flex align-items-start">
+                      <i class="fas fa-exclamation-triangle me-2 mt-1"></i>
+                      <div class="flex-grow-1">
+                        <strong>⚠️ El comerciante asignó fecha de entrega</strong>
+                        <br>
+                        <small class="text-muted">Actualizado el ${fechaModStr}</small>
+                        <br>
+                        <span class="fw-bold text-primary">📅 Fecha: ${item.fechaEntrega || 'No definida'} ${item.horaEntrega ? `a las ${item.horaEntrega}` : ''}</span>
+                        ${item.telefonoComercio ? `<br><small class="text-success"><i class="fas fa-phone"></i> Contacto comercio: <a href="tel:${item.telefonoComercio}" class="text-success fw-bold">${item.telefonoComercio}</a></small>` : ''}
+                        ${item.nombreComercio ? `<br><small><i class="fas fa-store"></i> ${item.nombreComercio}</small>` : ''}
+                        <br>
+                        <button class="btn btn-sm btn-success mt-2 btn-marcar-visto-comercio" 
+                                data-id="${item.idSolicitudComercio}"
+                                style="font-size: 0.75rem;">
+                          <i class="fas fa-check"></i> Entendido
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }
             }
 
             const fecha = item.fecha ? new Date(item.fecha).toISOString().split('T')[0] : '';
@@ -130,12 +165,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="text-primary fw-bold">
                   <i class="fas fa-calendar-check"></i> ${item.fechaEntrega}
                   ${item.horaEntrega ? `<br><small class="text-muted"><i class="fas fa-clock"></i> ${item.horaEntrega}</small>` : ''}
+                  ${item.telefonoComercio ? `<br><small class="text-success"><i class="fas fa-phone"></i> <a href="tel:${item.telefonoComercio}" class="text-success">${item.telefonoComercio}</a></small>` : ''}
+                  ${item.nombreComercio ? `<br><small class="text-muted"><i class="fas fa-store"></i> ${item.nombreComercio}</small>` : ''}
                 </div>
               `;
             } else if (!esGrua && item.modoEntrega === 'Domicilio' && !item.fechaEntrega) {
               fechaEntregaDisplay = `
                 <small class="text-warning">
-                  <i class="fas fa-clock"></i> Pendiente
+                  <i class="fas fa-clock"></i> Pendiente de asignar por el comerciante
+                  ${item.telefonoComercio ? `<br><a href="tel:${item.telefonoComercio}" class="text-success"><i class="fas fa-phone"></i> ${item.telefonoComercio}</a>` : ''}
                 </small>
               `;
             } else if (esGrua && item.fechaEntrega) {
@@ -147,12 +185,9 @@ document.addEventListener('DOMContentLoaded', () => {
               `;
             }
 
-            // Mensaje de fecha de entrega (si está disponible) - solo para productos (esto va en la columna de producto)
-            mensajeFechaEntrega = ''; // Resetear la variable
-            if (!esGrua) {
-              // Para productos, solo mostrar el aviso en la columna producto si hay algo especial que notificar
-              // Ya no es necesario aquí porque la fecha ahora se muestra en su propia columna
-            } else if (esGrua) {
+            // Mensaje de fecha de entrega para grúas (si hay cambio de fecha no visto)
+            // Para productos ya se asignó arriba en la sección de estados, NO resetear
+            if (esGrua) {
               // Verificar si hay cambio de fecha no visto para grúas
               if (item.fechaModificada && !item.notificacionVista) {
                 const fechaMod = new Date(item.fechaModificada);
@@ -388,6 +423,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } catch (err) {
         console.error("❌ Error al marcar notificación:", err);
+        alert("Error al conectar con el servidor.");
+      }
+    }
+  });
+
+  // 🔹 Delegar evento para marcar notificación de cambio de fecha de COMERCIO como vista
+  document.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('btn-marcar-visto-comercio') || 
+        e.target.closest('.btn-marcar-visto-comercio')) {
+      
+      const btn = e.target.classList.contains('btn-marcar-visto-comercio') 
+        ? e.target 
+        : e.target.closest('.btn-marcar-visto-comercio');
+      
+      const solicitudId = btn.dataset.id;
+
+      try {
+        const res = await fetch(`/api/comercio/notificacion-vista/${solicitudId}`, { 
+          method: "PUT" 
+        });
+        const data = await res.json();
+        
+        if (res.ok && data.success) {
+          console.log("✅ Notificación de comercio marcada como vista");
+          cargarHistorial();
+        } else {
+          alert("❌ No se pudo marcar la notificación como vista.");
+        }
+      } catch (err) {
+        console.error("❌ Error al marcar notificación de comercio:", err);
         alert("Error al conectar con el servidor.");
       }
     }

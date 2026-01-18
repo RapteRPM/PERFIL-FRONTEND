@@ -228,8 +228,7 @@ function actualizarGrid() {
 function verDetalles(idPublicacion, esGrua) {
   if (esGrua) {
     // Redirigir a la página de detalle de grúa
-    alert('Vista de detalle de grúas en desarrollo');
-    // TODO: window.location.href = `/Natural/Detalle_grua.html?id=${idPublicacion}`;
+    window.location.href = `/Natural/detalle_publicaciongrua.html?id=${idPublicacion}`;
   } else {
     // Redirigir a la página de detalle del producto
     window.location.href = `/Natural/Detalle_producto.html?id=${idPublicacion}`;

@@ -58,10 +58,10 @@
 
       <!-- Menú para Usuario Natural -->
       <div class="hidden md:flex items-center space-x-6" id="menuNatural">
-        <a href="../General/index.html" class="hover:text-gray-200 transition">RPM Market</a>
+        <a id="link-rpm-market-grua" href="../General/index.html" class="hover:text-gray-200 transition">RPM Market</a>
         <a id="link-perfil-grua" href="perfil_usuario.html" class="hover:text-gray-200 transition" style="display: none;">Inicio</a>
-        <a href="../General/marketplace_gruas.html" class="hover:text-gray-200 transition">Market Grua</a>
-        <a href="../General/CentroAyuda.html" class="hover:text-gray-200 transition">Centro de ayuda</a>
+        <a id="link-market-grua" href="../General/marketplace_gruas.html" class="hover:text-gray-200 transition">Market Grua</a>
+        <a id="link-centro-ayuda-grua" href="../General/CentroAyuda.html" class="hover:text-gray-200 transition">Centro de ayuda</a>
       </div>
 
       <!-- Menú para Prestador -->
@@ -130,7 +130,7 @@
         </div>
 
         <!-- Botones -->
-        <div class="d-flex gap-3">
+        <div class="d-flex gap-3" id="botones-agendar">
           <button class="btn btn-primary w-50" data-bs-toggle="modal" data-bs-target="#modalAgendar">
             <i class="fas fa-calendar-plus"></i> Agendar
         </div>
@@ -253,6 +253,42 @@
       if (perfilContainer) perfilContainer.style.display = 'block';
       if (linkIngresar) linkIngresar.style.display = 'none';
       if (linkPerfilGrua) linkPerfilGrua.style.display = 'block';
+      
+      // Verificar si es administrador
+      try {
+        const usuario = JSON.parse(usuarioActivo);
+        if (usuario.tipo === 'Administrador') {
+          // Ocultar opciones que no aplican al admin
+          const linkRPMMarket = document.getElementById('link-rpm-market-grua');
+          const linkMarketGrua = document.getElementById('link-market-grua');
+          const linkCentroAyuda = document.getElementById('link-centro-ayuda-grua');
+          const menuPrestador = document.getElementById('menuPrestador');
+          const botonesAgendar = document.getElementById('botones-agendar');
+          const modalAgendar = document.getElementById('modalAgendar');
+          const formComentario = document.getElementById('form-comentario');
+          
+          if (linkRPMMarket) linkRPMMarket.style.display = 'none';
+          if (linkMarketGrua) linkMarketGrua.style.display = 'none';
+          if (linkCentroAyuda) linkCentroAyuda.style.display = 'none';
+          if (menuPrestador) menuPrestador.style.display = 'none';
+          
+          // Ocultar botón de agendar y modal para admin
+          if (botonesAgendar) botonesAgendar.style.display = 'none';
+          if (modalAgendar) modalAgendar.remove();
+          
+          // Ocultar solo el formulario de comentarios (no los comentarios existentes)
+          if (formComentario) formComentario.closest('.card').style.display = 'none';
+          
+          // Cambiar el link de inicio al panel admin
+          if (linkPerfilGrua) {
+            linkPerfilGrua.href = '../Administrador/panel_admin.html';
+            linkPerfilGrua.textContent = 'Panel Admin';
+            linkPerfilGrua.style.display = 'block';
+          }
+        }
+      } catch (e) {
+        console.log('Error al parsear usuario:', e);
+      }
     } else {
       // No hay sesión: ocultar perfil, mostrar botón ingresar
       if (perfilContainer) perfilContainer.style.display = 'none';

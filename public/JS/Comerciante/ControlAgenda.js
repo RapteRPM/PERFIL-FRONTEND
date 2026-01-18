@@ -221,19 +221,116 @@ function cerrarModal() {
 }
 
 function aceptarFecha() {
-  mostrarAlerta("✅ Fecha aceptada para: " + eventoActual.title, "success");
+  if (!eventoActual) {
+    mostrarAlerta("❌ No hay evento seleccionado", "error");
+    return;
+  }
+  
+  const props = eventoActual.extendedProps || {};
+  const fechaActual = props.fechaServicio || eventoActual.startStr;
+  const horaActual = props.hora || 'Sin hora';
+  
+  // Confirmar la fecha actual sin cambios
+  fetch('/api/confirmar-fecha-pedido', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ 
+      id: eventoActual.id, 
+      fecha: fechaActual, 
+      hora: horaActual,
+      confirmar: true 
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      mostrarAlerta(`✅ Fecha confirmada: ${fechaActual} a las ${horaActual}`, "success");
+      cargarEventosDesdeServidor();
+    } else {
+      mostrarAlerta(`❌ ${data.error || 'Error al confirmar fecha'}`, "error");
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    mostrarAlerta("❌ Error al conectar con el servidor", "error");
+  });
+  
   cerrarModal();
 }
 
-function proponerFecha() {
+async function proponerFecha() {
   const nueva = document.getElementById('nuevaFecha').value;
-  if (nueva) {
-    eventoActual.setStart(nueva);
-    mostrarAlerta("📆 Nueva fecha propuesta: " + nueva, "info");
-    cerrarModal();
-  } else {
+  
+  if (!nueva) {
     mostrarAlerta("⚠️ Por favor selecciona una nueva fecha", "warning");
+    return;
   }
+  
+  if (!eventoActual) {
+    mostrarAlerta("❌ No hay evento seleccionado", "error");
+    return;
+  }
+  
+  const props = eventoActual.extendedProps || {};
+  
+  // Validar que la fecha esté dentro de los 3 días desde la fecha propuesta por el cliente
+  // Si el cliente propuso fecha (Visita al taller), usar esa fecha como base
+  // Si no hay fecha propuesta (Contraentrega), usar la fecha de compra
+  const fechaBase = props.fechaServicio || props.fechaCompra;
+  
+  if (fechaBase) {
+    const fechaReferencia = new Date(fechaBase);
+    const fechaMaxima = new Date(fechaReferencia);
+    fechaMaxima.setDate(fechaMaxima.getDate() + 3);
+    
+    const fechaNueva = new Date(nueva);
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    
+    if (fechaNueva < hoy) {
+      mostrarAlerta("❌ La fecha no puede ser anterior a hoy", "error");
+      return;
+    }
+    
+    if (fechaNueva > fechaMaxima) {
+      const fechaMaximaStr = fechaMaxima.toISOString().split('T')[0];
+      const tipoFecha = props.fechaServicio ? 'fecha propuesta por el cliente' : 'fecha de compra';
+      mostrarAlerta(`❌ La fecha no puede ser mayor a 3 días desde la ${tipoFecha}.\nFecha máxima permitida: ${fechaMaximaStr}`, "error");
+      return;
+    }
+  }
+  
+  // Pedir la hora
+  const hora = prompt("Ingresa la hora de entrega (HH:MM):");
+  
+  if (!hora) {
+    mostrarAlerta("⚠️ Debes ingresar una hora", "warning");
+    return;
+  }
+  
+  try {
+    const res = await fetch('/api/actualizar-fecha-pedido', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ id: eventoActual.id, fecha: nueva, hora })
+    });
+    
+    const data = await res.json();
+    
+    if (res.ok && data.success) {
+      mostrarAlerta(`📆 Nueva fecha propuesta: ${nueva} a las ${hora}`, "success");
+      await cargarEventosDesdeServidor();
+    } else {
+      mostrarAlerta(`❌ ${data.error || 'Error al actualizar fecha'}`, "error");
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    mostrarAlerta("❌ Error al conectar con el servidor", "error");
+  }
+  
+  cerrarModal();
 }
 
 function mostrarAlerta(mensaje, tipo = "info") {
@@ -368,7 +465,29 @@ function seleccionarPedidoLista(eventoId) {
 async function mostrarModalSinFecha(eventoData) {
   const props = eventoData.extendedProps;
   
-  const mensaje = `
+  // Verificar si el usuario ya propuso una fecha
+  const tieneFechaPropuesta = props.fechaServicio && props.fechaServicio !== 'null' && props.fechaServicio !== '';
+  
+  let mensaje;
+  
+  if (tieneFechaPropuesta) {
+    mensaje = `
+📦 ${eventoData.title}
+━━━━━━━━━━━━━━━━━━━━━
+👤 Cliente: ${props.cliente || 'N/A'}
+📍 Modo: ${props.modoServicio}
+📦 Cantidad: ${props.cantidad}
+💰 Total: $${Number(props.total || 0).toLocaleString()}
+━━━━━━━━━━━━━━━━━━━━━
+
+📅 Fecha propuesta por el cliente: ${props.fechaServicio} a las ${props.hora}
+
+¿Qué deseas hacer?
+- ACEPTAR: Confirmar la fecha propuesta por el cliente
+- CANCELAR: Proponer una nueva fecha
+    `;
+  } else {
+    mensaje = `
 📦 ${eventoData.title}
 ━━━━━━━━━━━━━━━━━━━━━
 👤 Cliente: ${props.cliente || 'N/A'}
@@ -380,58 +499,107 @@ async function mostrarModalSinFecha(eventoData) {
 ⏳ Este pedido NO tiene fecha confirmada.
 
 ¿Deseas asignar una fecha y hora de entrega?
-  `;
+    `;
+  }
   
   if (confirm(mensaje)) {
-    // Calcular la fecha máxima (3 días desde la compra)
-    const fechaCompra = new Date(props.fechaCompra);
-    const fechaMaxima = new Date(fechaCompra);
-    fechaMaxima.setDate(fechaMaxima.getDate() + 3);
-    
-    const fechaMaximaStr = fechaMaxima.toISOString().split('T')[0];
-    const hoy = new Date().toISOString().split('T')[0];
-    
-    const fecha = prompt(`Ingresa la fecha de entrega (YYYY-MM-DD):\n\n⚠️ Máximo: ${fechaMaximaStr} (3 días desde la compra)`);
-    
-    if (!fecha) return;
-    
-    // Validar que la fecha no sea mayor a 3 días
-    const fechaIngresada = new Date(fecha);
-    if (fechaIngresada > fechaMaxima) {
-      mostrarAlerta(`❌ La fecha no puede ser mayor a 3 días desde la compra.\nFecha máxima permitida: ${fechaMaximaStr}`, "error");
-      return;
-    }
-    
-    if (fechaIngresada < new Date(hoy)) {
-      mostrarAlerta(`❌ La fecha no puede ser anterior a hoy.`, "error");
-      return;
-    }
-    
-    const hora = prompt("Ingresa la hora de entrega (HH:MM):");
-    
-    if (fecha && hora) {
-      // Enviar al backend para actualizar
+    // Si tiene fecha propuesta, aceptarla directamente
+    if (tieneFechaPropuesta) {
       try {
-        const res = await fetch('/api/actualizar-fecha-pedido', {
+        const res = await fetch('/api/confirmar-fecha-pedido', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ id: eventoData.id, fecha, hora })
+          body: JSON.stringify({ 
+            id: eventoData.id, 
+            fecha: props.fechaServicio, 
+            hora: props.hora,
+            confirmar: true 
+          })
         });
         
         const data = await res.json();
         
         if (res.ok && data.success) {
-          mostrarAlerta(`✅ Fecha programada: ${fecha} a las ${hora}`, "success");
-          // Recargar eventos para actualizar el calendario
+          mostrarAlerta(`✅ Fecha confirmada: ${props.fechaServicio} a las ${props.hora}`, "success");
           await cargarEventosDesdeServidor();
         } else {
-          mostrarAlerta(`❌ ${data.error || 'Error al actualizar fecha'}`, "error");
+          mostrarAlerta(`❌ ${data.error || 'Error al confirmar fecha'}`, "error");
         }
       } catch (error) {
-        console.error('Error al actualizar fecha:', error);
+        console.error('Error al confirmar fecha:', error);
         mostrarAlerta('❌ Error al conectar con el servidor', "error");
       }
+      return;
+    }
+    
+    // Si no tiene fecha, pedir una nueva
+    await proponerNuevaFechaSinCalendario(eventoData);
+  } else {
+    // Si tiene fecha propuesta y cancela, preguntar si quiere proponer otra
+    if (tieneFechaPropuesta) {
+      if (confirm('¿Deseas proponer una fecha diferente?')) {
+        await proponerNuevaFechaSinCalendario(eventoData);
+      }
+    }
+  }
+}
+
+// Función auxiliar para proponer nueva fecha desde el modal sin calendario
+async function proponerNuevaFechaSinCalendario(eventoData) {
+  const props = eventoData.extendedProps;
+  
+  // Calcular la fecha máxima (3 días desde la fecha propuesta por el cliente o fecha de compra)
+  // Si el cliente propuso fecha (Visita al taller), usar esa fecha como base
+  // Si no hay fecha propuesta (Contraentrega), usar la fecha de compra
+  const fechaBase = props.fechaServicio || props.fechaCompra;
+  const tipoFecha = props.fechaServicio ? 'fecha propuesta por el cliente' : 'fecha de compra';
+  
+  const fechaReferencia = new Date(fechaBase);
+  const fechaMaxima = new Date(fechaReferencia);
+  fechaMaxima.setDate(fechaMaxima.getDate() + 3);
+  
+  const fechaMaximaStr = fechaMaxima.toISOString().split('T')[0];
+  const hoy = new Date().toISOString().split('T')[0];
+  
+  const fecha = prompt(`Ingresa la fecha de entrega (YYYY-MM-DD):\n\n⚠️ Máximo: ${fechaMaximaStr} (3 días desde la ${tipoFecha})`);
+  
+  if (!fecha) return;
+  
+  // Validar que la fecha no sea mayor a 3 días
+  const fechaIngresada = new Date(fecha);
+  if (fechaIngresada > fechaMaxima) {
+    mostrarAlerta(`❌ La fecha no puede ser mayor a 3 días desde la ${tipoFecha}.\nFecha máxima permitida: ${fechaMaximaStr}`, "error");
+    return;
+  }
+  
+  if (fechaIngresada < new Date(hoy)) {
+    mostrarAlerta(`❌ La fecha no puede ser anterior a hoy.`, "error");
+    return;
+  }
+  
+  const hora = prompt("Ingresa la hora de entrega (HH:MM):");
+  
+  if (fecha && hora) {
+    try {
+      const res = await fetch('/api/actualizar-fecha-pedido', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: eventoData.id, fecha, hora })
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        mostrarAlerta(`✅ Fecha programada: ${fecha} a las ${hora}`, "success");
+        await cargarEventosDesdeServidor();
+      } else {
+        mostrarAlerta(`❌ ${data.error || 'Error al actualizar fecha'}`, "error");
+      }
+    } catch (error) {
+      console.error('Error al actualizar fecha:', error);
+      mostrarAlerta('❌ Error al conectar con el servidor', "error");
     }
   }
 }
