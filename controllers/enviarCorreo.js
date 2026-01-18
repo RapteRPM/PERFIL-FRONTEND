@@ -1,14 +1,16 @@
 // controllers/enviarCorreo.js
-require("dotenv").config();
-const nodemailer = require("nodemailer");
+import dotenv from 'dotenv';
+import nodemailer from 'nodemailer';
+
+dotenv.config();
 
 const enviarCorreo = async ({ to, subject, html }) => {
   const transporter = nodemailer.createTransport({
-    host: "smtp.office365.com", // Servidor SMTP de Outlook
+    host: "smtp.gmail.com", // Servidor SMTP de Gmail
     port: 587,
     secure: false, 
     auth: {
-      user: process.env.EMAIL_USER,
+      user: process.env.EMAIL_USER || "rpmservice2026@gmail.com",
       pass: process.env.EMAIL_PASS
     },
     tls: { rejectUnauthorized: false }
@@ -27,4 +29,4 @@ const enviarCorreo = async ({ to, subject, html }) => {
   }
 };
 
-module.exports = enviarCorreo;
+export default enviarCorreo;

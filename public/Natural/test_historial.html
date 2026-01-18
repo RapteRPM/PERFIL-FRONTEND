@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Test Historial</title>
+</head>
+<body>
+  <h1>Test de Historial de Compras</h1>
+  <button id="btnTest">Cargar Historial</button>
+  <div id="resultado"></div>
+  
+  <script>
+    // Simular usuario en localStorage
+    localStorage.setItem('usuarioActivo', JSON.stringify({
+      id: 52343847,
+      nombre: 'david',
+      tipo: 'Natural'
+    }));
+    
+    document.getElementById('btnTest').addEventListener('click', async () => {
+      const resultado = document.getElementById('resultado');
+      resultado.innerHTML = '<p>Cargando...</p>';
+      
+      try {
+        const usuarioId = 52343847;
+        const res = await fetch(`/api/historial?usuarioId=${usuarioId}`);
+        
+        console.log('Response status:', res.status);
+        console.log('Response ok:', res.ok);
+        
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        
+        const data = await res.json();
+        console.log('Datos recibidos:', data);
+        
+        resultado.innerHTML = `
+          <h2>Resultado: ${data.length} registros</h2>
+          <pre>${JSON.stringify(data, null, 2)}</pre>
+        `;
+      } catch (error) {
+        console.error('Error:', error);
+        resultado.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+      }
+    });
+    
+    // Auto-ejecutar al cargar
+    setTimeout(() => {
+      document.getElementById('btnTest').click();
+    }, 500);
+  </script>
+</body>
+</html>

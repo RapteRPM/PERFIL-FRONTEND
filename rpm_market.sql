@@ -1,12 +1,14 @@
 CREATE TABLE usuario (
   IdUsuario INT PRIMARY KEY,
-  TipoUsuario ENUM('Natural','Comerciante','PrestadorServicio','PrestadorServicio') NOT NULL,
+  TipoUsuario ENUM('Natural','Comerciante','PrestadorServicio','Administrador') NOT NULL,
   Nombre VARCHAR(50) NOT NULL,
   Apellido VARCHAR(50) NOT NULL,
   Documento VARCHAR(20) NOT NULL,
   Telefono VARCHAR(20) NOT NULL,
   Correo VARCHAR(100) NOT NULL UNIQUE,
-  FotoPerfil VARCHAR(255) NOT NULL
+  FotoPerfil VARCHAR(255) NOT NULL,
+  Estado ENUM('Activo','Inactivo') DEFAULT 'Activo',
+  ContrasenaCreada ENUM('Si','No') DEFAULT 'Si'
 );
 
   
@@ -15,6 +17,7 @@ CREATE TABLE credenciales (
   Usuario INT NOT NULL,
   NombreUsuario VARCHAR(50) NOT NULL,
   Contrasena VARCHAR(255) NOT NULL,
+  ContrasenaTemporal ENUM('Si','No') DEFAULT 'No',
   CONSTRAINT credenciales FOREIGN KEY (Usuario) REFERENCES usuario (IdUsuario)
 );
 
@@ -107,6 +110,8 @@ CREATE TABLE controlagendaservicios (
   Destino VARCHAR(200) DEFAULT NULL,
   ComentariosAdicionales TEXT,
   Estado ENUM('Pendiente','Finalizado','En revision','Cancelado') DEFAULT 'Pendiente',
+  FechaModificadaPor DATETIME DEFAULT NULL,
+  NotificacionVista BOOLEAN DEFAULT FALSE,
   CONSTRAINT controlagendaservicios FOREIGN KEY (PublicacionGrua) REFERENCES publicaciongrua (IdPublicacionGrua)
 );
 
@@ -187,6 +192,10 @@ CREATE TABLE centroayuda (
   Rol ENUM('Usuario Natural','Comerciante','PrestadorServicio') NOT NULL,
   Asunto VARCHAR(100) DEFAULT NULL,
   Descripcion TEXT,
+  Respuesta TEXT DEFAULT NULL,
+  FechaRespuesta DATETIME DEFAULT NULL,
+  Respondida ENUM('Si', 'No') DEFAULT 'No',
+  FechaCreacion DATETIME DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT centroayuda FOREIGN KEY (Perfil) REFERENCES usuario (IdUsuario)
 );
 
@@ -214,6 +223,53 @@ CREATE TABLE OpinionesGrua (
   Fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_usuario_grua FOREIGN KEY (UsuarioNatural) REFERENCES usuario (IdUsuario),
   CONSTRAINT fk_publicacion_grua FOREIGN KEY (PublicacionGrua) REFERENCES publicaciongrua (IdPublicacionGrua)
+);
+
+CREATE TABLE tokens_verificacion (
+  IdToken INT PRIMARY KEY AUTO_INCREMENT,
+  Usuario INT NOT NULL,
+  Token VARCHAR(100) NOT NULL UNIQUE,
+  TipoToken ENUM('CrearContrasena','RecuperarContrasena') NOT NULL,
+  CodigoVerificacion VARCHAR(4) DEFAULT NULL,
+  CodigoEnviado ENUM('Si','No') DEFAULT 'No',
+  CodigoVerificado ENUM('Si','No') DEFAULT 'No',
+  FechaCreacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FechaExpiracion DATETIME NOT NULL,
+  Usado ENUM('Si','No') DEFAULT 'No',
+  CONSTRAINT fk_token_usuario FOREIGN KEY (Usuario) REFERENCES usuario (IdUsuario) ON DELETE CASCADE
+);
+
+-- Tabla para registros pendientes de verificación
+-- Los usuarios se crean aquí primero y solo se mueven a las tablas reales
+-- cuando completan la verificación del código y crean su contraseña
+CREATE TABLE registros_pendientes (
+  IdRegistro INT PRIMARY KEY AUTO_INCREMENT,
+  Token VARCHAR(100) NOT NULL UNIQUE,
+  IdUsuario INT NOT NULL,
+  TipoUsuario VARCHAR(30) NOT NULL,
+  Nombre VARCHAR(50) NOT NULL,
+  Apellido VARCHAR(50) NOT NULL,
+  Documento VARCHAR(20) NOT NULL,
+  Telefono VARCHAR(20),
+  Correo VARCHAR(100) NOT NULL,
+  FotoPerfil VARCHAR(255) NOT NULL,
+  -- Campos específicos de perfil (JSON para flexibilidad)
+  DatosPerfil TEXT,
+  -- Verificación
+  CodigoVerificacion VARCHAR(4) DEFAULT NULL,
+  CodigoEnviado ENUM('Si','No') DEFAULT 'No',
+  CodigoVerificado ENUM('Si','No') DEFAULT 'No',
+  FechaCreacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FechaExpiracion DATETIME NOT NULL,
+  Estado ENUM('Pendiente','Completado','Expirado') DEFAULT 'Pendiente'
+);
+
+CREATE TABLE historial_contrasenas (
+  IdHistorial INT PRIMARY KEY AUTO_INCREMENT,
+  Usuario INT NOT NULL,
+  ContrasenaHash VARCHAR(255) NOT NULL,
+  FechaCambio DATETIME DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_historial_usuario FOREIGN KEY (Usuario) REFERENCES usuario (IdUsuario)
 );
 
 INSERT INTO categoria (IdCategoria, NombreCategoria) VALUES

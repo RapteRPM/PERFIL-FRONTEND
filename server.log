@@ -1,275 +1,86 @@
-
-> proytecto@1.0.1 start
-> node server.js
-
+[dotenv@17.2.3] injecting env (2) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
 ⚠️ MySQL no disponible, usando SQLite como fallback
 ✅ Base de datos SQLite creada en: /workspaces/PERFIL-FRONTEND/rpm_market.db
-⚠️ Error en statement SQL: UNIQUE constraint failed: categoria.NombreCategoria
 ✅ Esquema SQLite inicializado desde rpm_market.sql
 🚀 Servidor escuchando en: http://localhost:3000/General/index.html
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
+🔍 [verificar-sesion] Verificando sesión...
+🔍 [verificar-sesion] Session ID: zAZbWXK23g4IF5155inL3vQSis6EFLMP
+🔍 [verificar-sesion] Usuario en sesión: NO
+⚠️ [verificar-sesion] No hay sesión activa
 📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-🚀 === INICIO REGISTRO === 🚀
+✅ Encontradas 0 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 0 publicaciones
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
+✅ Encontradas 0 publicaciones
+🔍 [verificar-sesion] Verificando sesión...
+🔍 [verificar-sesion] Session ID: ZnThWG0-RT98yqoV8hDk2VWIcp5loSm3
+🔍 [verificar-sesion] Usuario en sesión: NO
+⚠️ [verificar-sesion] No hay sesión activa
+📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
+✅ Encontradas 0 publicaciones
+🚀 === INICIO REGISTRO (PENDIENTE) === 🚀
 📦 Datos recibidos: [Object: null prototype] {
-  TipoUsuario: 'Natural',
-  Usuario: '987654321',
-  Nombre: 'mauricio',
-  Apellido: 'sanchez',
-  Correo: 'mauriciosanchez@gmail.com',
-  Direccion: 'cra 123 # 125 - 52',
-  Telefono: '3134681250',
-  Barrio: 'Santa rita'
+  TipoUsuario: 'PrestadorServicio',
+  Usuario: '1019138679',
+  Nombre: 'karolay',
+  Apellido: 'lopez',
+  Correo: 'karolaynlopez15@gmail.com',
+  Telefono: '3208440365',
+  Direccion: '',
+  Barrio: 'britalia',
+  RedesSociales: '@karolpez',
+  DiasAtencion: 'Lunes - Viernes',
+  HoraInicio: '02:30',
+  HoraFin: '14:30'
 }
 📸 Archivos recibidos: [Object: null prototype] {
   FotoPerfil: [
     {
       fieldname: 'FotoPerfil',
-      originalname: 'base de datos.png',
+      originalname: 'pse-logo.png',
       encoding: '7bit',
       mimetype: 'image/png',
       destination: '/workspaces/PERFIL-FRONTEND/public/imagen/temp',
-      filename: '1765742595014-386856938.png',
-      path: '/workspaces/PERFIL-FRONTEND/public/imagen/temp/1765742595014-386856938.png',
-      size: 170745
+      filename: '1768764665939-781498439.png',
+      path: '/workspaces/PERFIL-FRONTEND/public/imagen/temp/1768764665939-781498439.png',
+      size: 63846
+    }
+  ],
+  Certificado: [
+    {
+      fieldname: 'Certificado',
+      originalname: 'medicamentos.pdf',
+      encoding: '7bit',
+      mimetype: 'application/pdf',
+      destination: '/workspaces/PERFIL-FRONTEND/public/imagen/temp',
+      filename: '1768764665944-649738068.pdf',
+      path: '/workspaces/PERFIL-FRONTEND/public/imagen/temp/1768764665944-649738068.pdf',
+      size: 191600
     }
   ]
 }
-✅ Credenciales creadas para: 987654321
-🔑 Token temporal generado: UPBMFsFe
-📝 Insertando perfil natural...
-✅ Perfil natural creado
-✅ Registro completo: 987654321
-🔐 Actualizando contraseña para usuario: 987654321
-✅ Contraseña actualizada para usuario: 987654321
+📝 Registro PENDIENTE creado: 1019138679 - Token: 833010fcfb...
+⏳ El usuario se creará cuando complete la verificación del código
+📨 Correo enviado correctamente a karolaynlopez15@gmail.com
+📧 Código de verificación enviado a karolaynlopez15@gmail.com (registro pendiente)
+✅ Código verificado correctamente para registro pendiente 1019138679
+🚀 Creando usuario REAL desde registro pendiente: 1019138679
+✅ Usuario insertado en tabla usuario
+✅ Credenciales creadas
+✅ Perfil prestador de servicio creado
+✅ Registro completado exitosamente para usuario: 1019138679
 🧠 Usuario encontrado: {
-  IdCredencial: 7,
-  Usuario: 987654321,
-  NombreUsuario: '987654321',
-  Contrasena: '$2b$10$kRVT4N3BLkCB2WMgmo3WoeSj0ki/Py9sh4wj2czDtvbrvTGgznGk2',
-  TipoUsuario: 'Natural'
+  IdCredencial: 5,
+  Usuario: 1019138679,
+  NombreUsuario: 'karolaynlopez15@gmail.com',
+  Contrasena: '$2b$10$XDKxsXssLPbg.bZgI4bQMeqU9rOwj/FNJuV3MmrlOP8O/dlth8/T2',
+  ContrasenaTemporal: 'No',
+  TipoUsuario: 'PrestadorServicio',
+  Nombre: 'karolay',
+  Apellido: 'lopez',
+  FotoPerfil: 'imagen/PrestadorServicios/1019138679/1768764665975_348438.png',
+  Estado: 'Inactivo',
+  NombreComercio: null
 }
-✅ Usuario autenticado: { id: 987654321, nombre: '987654321', tipo: 'Natural' }
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📖 Obteniendo perfil natural para usuario: 987654321
-✅ Perfil encontrado para: mauricio sanchez
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/marketplace-gruas
-✅ Encontradas 4 grúas
-📥 GET /api/marketplace-gruas
-✅ Encontradas 4 grúas
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/marketplace-gruas
-✅ Encontradas 4 grúas
-📥 GET /api/publicaciones_publicas - categoria: Accesorios limite: 6
-✅ Encontradas 2 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: Accesorios limite: 6
-✅ Encontradas 2 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: Repuestos limite: 6
-✅ Encontradas 0 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: Servicio mecanico limite: 6
-✅ Encontradas 2 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: Accesorios limite: 6
-✅ Encontradas 2 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📖 Obteniendo perfil natural para usuario: 987654321
-✅ Perfil encontrado para: mauricio sanchez
-📝 Actualizando perfil natural para usuario: 987654321
-✅ Datos de usuario actualizados
-✅ Perfil natural actualizado
-📖 Obteniendo perfil natural para usuario: 987654321
-✅ Perfil encontrado para: mauricio sanchez
-📊 Consultando historial para usuario: 987654321
-✅ 0 registros encontrados
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📩 Solicitud de centro de ayuda recibida: {
-  perfil: 987654321,
-  tipoSolicitud: 'Sugerencia',
-  rol: 'Usuario Natural',
-  asunto: 'MALA PLATAFORMA'
-}
-✅ Solicitud de ayuda registrada exitosamente
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📦 Finalizando compra...
-👤 Usuario: 987654321, 💳 Método: contraentrega
-🛍️ Compra directa: NO
-🛒 Procesando compra desde carrito...
-📋 1 productos en el carrito
-💰 Total de la compra: $156000
-✅ Factura creada con ID: 13
-🗑️ Carrito vaciado
-✅ Compra registrada con método: contraentrega
-📊 Consultando historial para usuario: 987654321
-✅ 1 registros encontrados
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/marketplace-gruas
-✅ Encontradas 4 grúas
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/marketplace-gruas
-✅ Encontradas 4 grúas
-📥 GET /api/marketplace-gruas
-✅ Encontradas 4 grúas
-📅 Agendando servicio de grúa: {
-  usuarioId: 987654321,
-  idPublicacionGrua: '4',
-  fecha: '2025-12-31',
-  hora: '15:24',
-  direccion: 'Cra 152 # 139-35',
-  destino: 'portal 80',
-  detalle: 'me bare '
-}
-✅ Servicio agendado correctamente
-📥 GET /api/marketplace-gruas
-✅ Encontradas 4 grúas
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📊 Consultando historial para usuario: 987654321
-✅ 2 registros encontrados
-📦 Excel generado con 2 registros (productos + grúas)
-📊 Consultando historial para usuario: 987654321
-✅ 1 registros encontrados
-📊 Consultando historial para usuario: 987654321
-✅ 1 registros encontrados
-📊 Consultando historial para usuario: 987654321
-✅ 0 registros encontrados
-📊 Consultando historial para usuario: 987654321
-✅ 0 registros encontrados
-📊 Consultando historial para usuario: 987654321
-✅ 2 registros encontrados
-📊 Consultando historial para usuario: 987654321
-✅ 2 registros encontrados
-📊 Consultando historial para usuario: 987654321
-✅ 2 registros encontrados
-📊 Consultando historial para usuario: 987654321
-✅ 1 registros encontrados
-📊 Consultando historial para usuario: 987654321
-✅ 1 registros encontrados
-📊 Consultando historial para usuario: 987654321
-✅ 2 registros encontrados
-📊 Consultando historial para usuario: 987654321
-✅ 1 registros encontrados
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/marketplace-gruas
-✅ Encontradas 4 grúas
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📊 Consultando historial para usuario: 987654321
-✅ 2 registros encontrados
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/marketplace-gruas
-✅ Encontradas 4 grúas
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📊 Consultando historial para usuario: 987654321
-✅ 2 registros encontrados
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📊 Consultando historial para usuario: 987654321
-✅ 2 registros encontrados
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📊 Consultando historial para usuario: 987654321
-✅ 2 registros encontrados
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 6
-✅ Encontradas 4 publicaciones
-📥 GET /api/publicaciones_publicas - categoria: undefined limite: 50
-✅ Encontradas 4 publicaciones
+⚠️ Usuario inactivo intentando iniciar sesión: karolaynlopez15@gmail.com

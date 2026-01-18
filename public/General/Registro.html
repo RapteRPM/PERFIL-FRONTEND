@@ -86,7 +86,108 @@
         </div>
         <div class="mb-3">
             <label class="form-label">Dirección</label>
-            <input type="text" class="form-control" id="Direccion" name="Direccion" placeholder="Ej: Cra 10 #20-30">
+            <div class="row g-2">
+                <!-- Tipo de vía -->
+                <div class="col-md-2">
+                    <select class="form-select" id="TipoViaNatural" name="TipoVia">
+                        <option value="">Tipo</option>
+                        <option value="Calle">Calle</option>
+                        <option value="Carrera">Carrera</option>
+                        <option value="Avenida">Avenida</option>
+                        <option value="Transversal">Transversal</option>
+                        <option value="Diagonal">Diagonal</option>
+                        <option value="Circular">Circular</option>
+                    </select>
+                </div>
+
+                <!-- Número principal -->
+                <div class="col-md-1">
+                    <input type="text" class="form-control" id="NumPrincipalNatural" name="NumPrincipal" placeholder="10">
+                </div>
+
+                <!-- Complemento (BIS o letra) -->
+                <div class="col-md-1">
+                    <select class="form-select" id="Letra1Natural" name="Letra1">
+                        <option value="">N/A</option>
+                        <option value="Bis">Bis</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="D">D</option>
+                        <option value="E">E</option>
+                        <option value="F">F</option>
+                        <option value="G">G</option>
+                    </select>
+                </div>
+
+                <!-- Orientación 1 -->
+                <div class="col-md-1">
+                    <select class="form-select" id="Orient1Natural" name="Orient1">
+                        <option value="">N/A</option>
+                        <option value="Sur">Sur</option>
+                        <option value="Norte">Norte</option>
+                        <option value="Este">Este</option>
+                        <option value="Oeste">Oeste</option>
+                    </select>
+                </div>
+
+                <!-- # -->
+                <div class="col-auto align-self-center"><span>#</span></div>
+
+                <!-- Segundo número -->
+                <div class="col-md-1">
+                    <input type="text" class="form-control" id="NumSecundarioNatural" name="NumSecundario" placeholder="20">
+                </div>
+
+                <!-- Complemento 2 -->
+                <div class="col-md-1">
+                    <select class="form-select" id="Letra2Natural" name="Letra2">
+                        <option value="">N/A</option>
+                        <option value="Bis">Bis</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="D">D</option>
+                        <option value="E">E</option>
+                        <option value="F">F</option>
+                        <option value="G">G</option>
+                    </select>
+                </div>
+
+                <!-- Orientación 2 -->
+                <div class="col-md-1">
+                    <select class="form-select" id="Orient2Natural" name="Orient2">
+                        <option value="">N/A</option>
+                        <option value="Sur">Sur</option>
+                        <option value="Norte">Norte</option>
+                        <option value="Este">Este</option>
+                        <option value="Oeste">Oeste</option>
+                    </select>
+                </div>
+
+                <!-- - -->
+                <div class="col-auto align-self-center"><span>-</span></div>
+
+                <!-- Último número -->
+                <div class="col-md-1">
+                    <input type="text" class="form-control" id="NumFinalNatural" name="NumFinal" placeholder="30">
+                </div>
+
+                <!-- Complemento 3 -->
+                <div class="col-md-1">
+                    <select class="form-select" id="Letra3Natural" name="Letra3">
+                        <option value="">N/A</option>
+                        <option value="Bis">Bis</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="D">D</option>
+                        <option value="E">E</option>
+                        <option value="F">F</option>
+                        <option value="G">G</option>
+                    </select>
+                </div>
+            </div>
         </div>
         <div class="mb-3">
             <label class="form-label">Barrio</label>
@@ -143,7 +244,7 @@
             </div>
 
             <!-- Complemento (BIS o letra) -->
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <select class="form-select" id="Letra1" name="Letra1">
                     <option value="">N/A</option>
                     <option value="Bis">Bis</option>
@@ -157,18 +258,29 @@
                 </select>
             </div>
 
+            <!-- Orientación 1 -->
+            <div class="col-md-1">
+                <select class="form-select" id="Orient1" name="Orient1">
+                    <option value="">N/A</option>
+                    <option value="Sur">Sur</option>
+                    <option value="Norte">Norte</option>
+                    <option value="Este">Este</option>
+                    <option value="Oeste">Oeste</option>
+                </select>
+            </div>
+
             <!-- # -->
             <div class="col-auto align-self-center">
                 <span>#</span>
             </div>
 
             <!-- Segundo número -->
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <input type="text" class="form-control" id="NumSecundario" name="NumSecundario" placeholder="Ej: 22">
             </div>
 
             <!-- Complemento 2 -->
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <select class="form-select" id="Letra2" name="Letra2">
                     <option value="">N/A</option>
                     <option value="Bis">Bis</option>
@@ -182,18 +294,29 @@
                 </select>
             </div>
 
+            <!-- Orientación 2 -->
+            <div class="col-md-1">
+                <select class="form-select" id="Orient2" name="Orient2">
+                    <option value="">N/A</option>
+                    <option value="Sur">Sur</option>
+                    <option value="Norte">Norte</option>
+                    <option value="Este">Este</option>
+                    <option value="Oeste">Oeste</option>
+                </select>
+            </div>
+
             <!-- - -->
             <div class="col-auto align-self-center">
                 <span>-</span>
             </div>
 
             <!-- Último número -->
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <input type="text" class="form-control" id="NumFinal" name="NumFinal" placeholder="Ej: 15">
             </div>
 
             <!-- Complemento 3 -->
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <select class="form-select" id="Letra3" name="Letra3">
                     <option value="">N/A</option>
                     <option value="Bis">Bis</option>
@@ -266,7 +389,108 @@
         </div>
         <div class="mb-3">
             <label class="form-label">Dirección</label>
-            <input type="text" class="form-control" id="DireccionServicio" name="Direccion" placeholder="Ej: Cra 10 #20-30">
+            <div class="row g-2">
+                <!-- Tipo de vía -->
+                <div class="col-md-2">
+                    <select class="form-select" id="TipoViaServicio" name="TipoVia">
+                        <option value="">Tipo</option>
+                        <option value="Calle">Calle</option>
+                        <option value="Carrera">Carrera</option>
+                        <option value="Avenida">Avenida</option>
+                        <option value="Transversal">Transversal</option>
+                        <option value="Diagonal">Diagonal</option>
+                        <option value="Circular">Circular</option>
+                    </select>
+                </div>
+
+                <!-- Número principal -->
+                <div class="col-md-1">
+                    <input type="text" class="form-control" id="NumPrincipalServicio" name="NumPrincipal" placeholder="10">
+                </div>
+
+                <!-- Complemento (BIS o letra) -->
+                <div class="col-md-1">
+                    <select class="form-select" id="Letra1Servicio" name="Letra1">
+                        <option value="">N/A</option>
+                        <option value="Bis">Bis</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="D">D</option>
+                        <option value="E">E</option>
+                        <option value="F">F</option>
+                        <option value="G">G</option>
+                    </select>
+                </div>
+
+                <!-- Orientación 1 -->
+                <div class="col-md-1">
+                    <select class="form-select" id="Orient1Servicio" name="Orient1">
+                        <option value="">N/A</option>
+                        <option value="Sur">Sur</option>
+                        <option value="Norte">Norte</option>
+                        <option value="Este">Este</option>
+                        <option value="Oeste">Oeste</option>
+                    </select>
+                </div>
+
+                <!-- # -->
+                <div class="col-auto align-self-center"><span>#</span></div>
+
+                <!-- Segundo número -->
+                <div class="col-md-1">
+                    <input type="text" class="form-control" id="NumSecundarioServicio" name="NumSecundario" placeholder="20">
+                </div>
+
+                <!-- Complemento 2 -->
+                <div class="col-md-1">
+                    <select class="form-select" id="Letra2Servicio" name="Letra2">
+                        <option value="">N/A</option>
+                        <option value="Bis">Bis</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="D">D</option>
+                        <option value="E">E</option>
+                        <option value="F">F</option>
+                        <option value="G">G</option>
+                    </select>
+                </div>
+
+                <!-- Orientación 2 -->
+                <div class="col-md-1">
+                    <select class="form-select" id="Orient2Servicio" name="Orient2">
+                        <option value="">N/A</option>
+                        <option value="Sur">Sur</option>
+                        <option value="Norte">Norte</option>
+                        <option value="Este">Este</option>
+                        <option value="Oeste">Oeste</option>
+                    </select>
+                </div>
+
+                <!-- - -->
+                <div class="col-auto align-self-center"><span>-</span></div>
+
+                <!-- Último número -->
+                <div class="col-md-1">
+                    <input type="text" class="form-control" id="NumFinalServicio" name="NumFinal" placeholder="30">
+                </div>
+
+                <!-- Complemento 3 -->
+                <div class="col-md-1">
+                    <select class="form-select" id="Letra3Servicio" name="Letra3">
+                        <option value="">N/A</option>
+                        <option value="Bis">Bis</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="D">D</option>
+                        <option value="E">E</option>
+                        <option value="F">F</option>
+                        <option value="G">G</option>
+                    </select>
+                </div>
+            </div>
         </div>
         <div class="mb-3">
             <label class="form-label">Barrio</label>
@@ -311,7 +535,7 @@
     </div>
     <div>
       <h4 class="text-lg font-bold mb-2">Atención al Cliente</h4>
-      <p>Email: infoRPM@gmail.com</p>
+      <p>Email: rpmservice2026@gmail.com</p>
       <p>Teléfono: 301 403 8181</p>
     </div>
     <div>

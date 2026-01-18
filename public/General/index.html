@@ -16,14 +16,18 @@
 </head>
 <body class="bg-gray-100 font-sans">
   <header class="header text-white py-4 px-6">
-    <div class="max-w-7xl mx-auto flex items-center justify-start space-x-4">
-      <div>
-        <img src="/General/IMAGENINGRESO/nuevo logo.jpeg" alt="RPM Logo" class="w-20 h-20 object-cover rounded-full shadow-lg"/>
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-4">
+        <div>
+          <img src="/General/IMAGENINGRESO/nuevo logo.jpeg" alt="RPM Logo" class="w-20 h-20 object-cover rounded-full shadow-lg"/>
+        </div>
+        <div class="flex flex-col">
+          <h1 class="text-4xl font-extrabold tracking-wide">RPM</h1>
+          <p class="text-lg text-gray-200 italic">Confianza que mueve tu camino</p>
+        </div>
       </div>
-      <div class="flex flex-col">
-        <h1 class="text-4xl font-extrabold tracking-wide">RPM</h1>
-        <p class="text-lg text-gray-200 italic">Confianza que mueve tu camino</p>
-      </div>
+      <!-- Aquí se insertará el perfil dinámicamente -->
+      <div id="header-perfil-container"></div>
     </div>
   <nav class="nav2 text-white py-4 px-6 shadow-lg mt-6 sticky top-0 z-50">
     <div class="max-w-7xl mx-auto flex items-center justify-between">
@@ -38,6 +42,7 @@
           <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
         </div>
         <a href="/General/Ingreso.html" id="link-ingresar" class="hover:text-gray-200 transition">Ingresar</a>
+        <div id="nav-perfil-button" style="display: none;"></div>
 <div class="relative">
   <button id="btnCategorias" class="hover:text-gray-200 flex items-center transition">
     Categorías <i class="fas fa-chevron-down ml-1 text-sm"></i>
@@ -102,7 +107,7 @@
     </div>
     <div>
       <h4 class="text-lg font-bold mb-2">Atención al Cliente</h4>
-      <p>Email: infoRPM@gmail.com</p>
+      <p>Email: rpmservice2026@gmail.com</p>
       <p>Teléfono: 301 403 8181</p>
     </div>
     <div>

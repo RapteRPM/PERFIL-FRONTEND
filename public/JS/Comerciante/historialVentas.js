@@ -20,7 +20,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
 
       const response = await fetch(`/api/historial-ventas?${params.toString()}`, {
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
       const data = await response.json();
 
@@ -38,6 +43,19 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
 
       data.forEach((venta, index) => {
+        // Formatear fecha de entrega
+        let fechaEntregaDisplay = '-';
+        if (venta.fechaEntrega) {
+          fechaEntregaDisplay = `
+            <span class="text-primary fw-bold">
+              <i class="fas fa-calendar-check"></i> ${venta.fechaEntrega}
+              ${venta.horaEntrega ? `<br><small class="text-muted"><i class="fas fa-clock"></i> ${venta.horaEntrega}</small>` : ''}
+            </span>
+          `;
+        } else if (venta.modoEntrega === 'Domicilio' && !venta.fechaEntrega) {
+          fechaEntregaDisplay = '<small class="text-warning"><i class="fas fa-clock"></i> Pendiente</small>';
+        }
+        
         const fila = document.createElement("tr");
         fila.innerHTML = `
           <td>${index + 1}</td>
@@ -46,6 +64,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           <td>${venta.categoria || "-"}</td>
           <td>${venta.comprador || "-"}</td>
           <td>${venta.fecha || "-"}</td>
+          <td>${fechaEntregaDisplay}</td>
           <td>${venta.cantidad || 0}</td>
           <td>$${Number(venta.total || 0).toLocaleString()}</td>
           <td>${venta.metodoPago || "-"}</td>
@@ -53,18 +72,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             <span class="badge ${getEstadoColor(venta.estado)}">
               ${venta.estado || "Pendiente"}
             </span>
-          </td>
-          <td>
-            <div class="dropdown">
-              <button class="btn btn-sm btn-outline-light dropdown-toggle" data-bs-toggle="dropdown">
-                Acciones
-              </button>
-              <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="#">Agendado</a></li>
-                <li><a class="dropdown-item" href="#">Entregado</a></li>
-                <li><a class="dropdown-item" href="#">Cancelado</a></li>
-              </ul>
-            </div>
           </td>
         `;
         tablaBody.appendChild(fila);
@@ -111,19 +118,25 @@ btnExcel.addEventListener("click", async () => {
 
   try {
     const response = await fetch(`/api/historial-ventas/excel?${params.toString()}`);
-    const data = await response.json();
-
-    if (!data.success) {
-      alertaDiv.textContent = data.mensaje;
-      alertaDiv.className = 'alert alert-warning';
-      alertaDiv.classList.remove('d-none');
-      return;
+    
+    // Verificar si es un error (JSON)
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const data = await response.json();
+      if (!data.success) {
+        alertaDiv.textContent = data.mensaje;
+        alertaDiv.className = 'alert alert-warning';
+        alertaDiv.classList.remove('d-none');
+        return;
+      }
     }
-
-    // Si hay Excel, crear link de descarga
-    const blob = new Blob([Uint8Array.from(atob(data.excelData), c => c.charCodeAt(0))], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    });
+    
+    // Si no es JSON, es el archivo Excel
+    if (!response.ok) {
+      throw new Error('Error en la respuesta del servidor');
+    }
+    
+    const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -132,8 +145,17 @@ btnExcel.addEventListener("click", async () => {
     a.click();
     a.remove();
     window.URL.revokeObjectURL(url);
+    
+    // Mostrar mensaje de éxito
+    alertaDiv.textContent = '✓ Excel descargado exitosamente';
+    alertaDiv.className = 'alert alert-success';
+    alertaDiv.classList.remove('d-none');
+    setTimeout(() => {
+      alertaDiv.classList.add('d-none');
+    }, 3000);
 
   } catch (err) {
+    console.error('Error al descargar Excel:', err);
     alertaDiv.textContent = 'Error al generar el Excel. Intenta nuevamente.';
     alertaDiv.className = 'alert alert-danger';
     alertaDiv.classList.remove('d-none');

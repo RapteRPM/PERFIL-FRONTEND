@@ -25,16 +25,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const data = await res.json();
 
-    // Extraer solo el primer nombre
-    let nombreMostrar = data.nombre || 'Prestador';
-    if (nombreMostrar.includes(' ')) {
-      nombreMostrar = nombreMostrar.split(' ')[0];
-    }
+    // Mostrar nombre completo
+    const nombreCompleto = `${data.nombre || ''} ${data.apellido || ''}`.trim() || 'Prestador';
 
     // 👤 Perfil
     perfilEl.innerHTML = `
       <img src="${data.foto}" alt="Prestador" class="rounded-full border-4 border-white shadow-lg w-32 h-32 mx-auto mb-4">
-      <h2 class="text-3xl font-bold mb-1">Hola, ${nombreMostrar}</h2>
+      <h2 class="text-3xl font-bold mb-1">Hola, ${nombreCompleto}</h2>
       <p class="text-gray-300">${data.descripcion}</p>
     `;
 
@@ -83,7 +80,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 function estadoColor(estado) {
   switch (estado) {
     case "Pendiente": return "bg-warning text-dark";
-    case "Terminado": return "bg-success";
+    case "Terminado": 
+    case "Completado": return "bg-success";
     case "Aceptado": return "bg-info text-dark";
     case "Rechazado": return "bg-danger";
     case "Cancelado": return "bg-secondary";

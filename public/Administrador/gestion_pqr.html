@@ -30,7 +30,9 @@
           <span class="font-semibold text-lg" id="nombre-usuario">Administrador</span>
         </button>
         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="perfilDropdown">
-          <li><a class="dropdown-item text-danger" href="/logout">Cerrar sesión</a></li>
+          <li><a class="dropdown-item" href="../General/CambiarContraseña.html"><i class="fas fa-lock mr-2"></i>Cambiar contraseña</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item text-danger" href="/logout"><i class="fas fa-sign-out-alt mr-2"></i>Cerrar sesión</a></li>
         </ul>
       </div>
     </div>
@@ -47,7 +49,6 @@
         <a href="gestion_usuarios.html" class="hover:text-gray-200 transition">Usuarios</a>
         <a href="gestion_publicaciones.html" class="hover:text-gray-200 transition">Publicaciones</a>
         <a href="gestion_pqr.html" class="hover:text-gray-200 transition">PQR</a>
-        <a href="../General/CentroAyuda.html" class="hover:text-gray-200 transition">Centro de ayuda</a>
       </div>
       <button class="md:hidden text-white"><i class="fas fa-bars text-xl"></i></button>
     </div>
@@ -177,6 +178,49 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-success" id="btn-responder-pqr" onclick="mostrarFormularioRespuesta()">
+          <i class="fas fa-reply mr-2"></i>Responder
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Responder PQR -->
+<div class="modal fade" id="modalResponderPQR" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="fas fa-reply mr-2"></i>Responder PQR</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="info-pqr-respuesta" class="mb-3 p-3 bg-light rounded">
+          <!-- Información de la PQR a responder -->
+        </div>
+        
+        <form id="form-responder-pqr">
+          <input type="hidden" id="id-pqr-respuesta">
+          <div class="mb-3">
+            <label for="respuesta-texto" class="form-label"><strong>Tu Respuesta:</strong></label>
+            <textarea 
+              id="respuesta-texto" 
+              class="form-control" 
+              rows="6" 
+              placeholder="Escribe aquí tu respuesta al usuario..."
+              required
+            ></textarea>
+            <div class="form-text">
+              <i class="fas fa-info-circle"></i> Esta respuesta se enviará por correo electrónico al usuario.
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success" onclick="enviarRespuesta()">
+          <i class="fas fa-paper-plane mr-2"></i>Enviar Respuesta
+        </button>
       </div>
     </div>
   </div>
@@ -191,7 +235,7 @@
     </div>
     <div>
       <h4 class="text-lg font-bold mb-2">Atención al Cliente</h4>
-      <p>Email: infoRPM@gmail.com</p>
+      <p>Email: rpmservice2026@gmail.com</p>
       <p>Teléfono: 301 403 8181</p>
     </div>
     <div>

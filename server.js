@@ -14,6 +14,9 @@ import axios from 'axios';
 import multer from 'multer';
 import pool from './config/db.js'; // ✅ usamos pool, import moderno
 import { crearCredenciales } from './controllers/credenciales.js';
+import crypto from 'crypto'; // Para generar tokens seguros
+import enviarCorreo from './controllers/enviarCorreo.js';
+import bcrypt from 'bcrypt'; // Para hashear contraseñas
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -78,8 +81,11 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      maxAge: 60 * 60 * 1000, // 1 hora
+      // Sin maxAge - la sesión termina al cerrar el navegador
       httpOnly: true,
+      secure: false, // Cambiar a true en producción con HTTPS
+      sameSite: 'lax',
+      path: '/' // Asegurar que la cookie esté disponible en todas las rutas
     },
   })
 );
@@ -141,7 +147,6 @@ app.post('/api/login/demo', (req, res) => {
 // ===============================
 // 🔑 Login
 // ===============================
-import bcrypt from 'bcrypt';
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -151,13 +156,14 @@ app.post('/api/login', async (req, res) => {
     }
 
     const query = `
-      SELECT c.*, u.TipoUsuario
+      SELECT c.*, u.TipoUsuario, u.Nombre, u.Apellido, u.FotoPerfil, u.Estado, com.NombreComercio
       FROM credenciales c
       JOIN usuario u ON u.IdUsuario = c.Usuario
+      LEFT JOIN comerciante com ON com.Comercio = c.Usuario
       WHERE TRIM(c.NombreUsuario) = TRIM(?)
     `;
 
-    const [results] = await pool.query(query, [username]);
+    const results = await queryPromise(query, [username]);
 
     if (results.length === 0) {
       console.warn("⚠️ Usuario no encontrado:", username);
@@ -167,33 +173,70 @@ app.post('/api/login', async (req, res) => {
     const usuario = results[0];
     console.log("🧠 Usuario encontrado:", usuario);
 
+    // Verificar si el usuario tiene contraseña temporal (no ha completado el registro)
+    if (usuario.ContrasenaTemporal === 'Si') {
+      console.warn("⚠️ Usuario con contraseña temporal intentando iniciar sesión:", username);
+      return res.status(403).json({ 
+        error: "Debes completar tu registro creando tu contraseña. Revisa tu correo electrónico para obtener el enlace de activación.",
+        requiereContrasena: true
+      });
+    }
+
+    // Verificar si el usuario está activo (validar solo si el campo existe)
+    if (usuario.Estado !== undefined && usuario.Estado === 'Inactivo') {
+      console.warn("⚠️ Usuario inactivo intentando iniciar sesión:", username);
+      return res.status(403).json({ 
+        error: "Su cuenta está en revisión por un administrador. Por favor, vuelva a intentar en un lapso de 24 horas.",
+        estado: 'Inactivo',
+        requiereAprobacion: true
+      });
+    }
+
     const esValida = await bcrypt.compare(password, usuario.Contrasena);
     if (!esValida) {
       console.warn("⚠️ Contraseña incorrecta para:", username);
       return res.status(401).json({ error: "Contraseña incorrecta" });
     }
 
+    // Obtener solo el primer nombre
+    const primerNombre = usuario.Nombre ? usuario.Nombre.split(' ')[0] : usuario.NombreUsuario;
+
     req.session.usuario = {
       id: usuario.Usuario,
-      nombre: usuario.NombreUsuario,
-      tipo: usuario.TipoUsuario || "Natural"
+      nombre: primerNombre,
+      nombreCompleto: usuario.Nombre || usuario.NombreUsuario,
+      apellido: usuario.Apellido || '',
+      tipo: usuario.TipoUsuario || "Natural",
+      foto: usuario.FotoPerfil || '/imagen/imagen_perfil.png',
+      nombreComercio: usuario.NombreComercio || null
     };
 
     console.log("✅ Usuario autenticado:", req.session.usuario);
+    console.log("🔍 Session ID creado:", req.sessionID);
     
-    // Redirección automática para administradores
-    let redirect = null;
-    if (req.session.usuario.tipo === "Administrador") {
-      redirect = "/Administrador/panel_admin.html";
-    }
-    
-    res.json({
-      success: true,
-      message: "Inicio de sesión exitoso",
-      tipo: req.session.usuario.tipo,
-      usuario: req.session.usuario.nombre,
-      idUsuario: req.session.usuario.id,
-      redirect: redirect
+    // Forzar el guardado de la sesión antes de responder
+    req.session.save((err) => {
+      if (err) {
+        console.error("❌ Error al guardar sesión:", err);
+        return res.status(500).json({ error: "Error al crear sesión" });
+      }
+      
+      console.log("✅ Sesión guardada correctamente");
+      
+      // Redirección automática para administradores
+      let redirect = null;
+      if (req.session.usuario.tipo === "Administrador") {
+        redirect = "/Administrador/panel_admin.html";
+      }
+      
+      res.json({
+        success: true,
+        message: "Inicio de sesión exitoso",
+        tipo: req.session.usuario.tipo,
+        usuario: req.session.usuario.nombre,
+        idUsuario: req.session.usuario.id,
+        redirect: redirect
+      });
     });
 
   } catch (err) {
@@ -214,7 +257,7 @@ app.get('/api/usuario-actual', verificarSesion, async (req, res) => {
 
   try {
     // 🔍 Obtenemos los datos del usuario
-    const [userRows] = await pool.query(
+    const userRows = await queryPromise(
       `SELECT u.IdUsuario, u.TipoUsuario, u.Nombre, u.Apellido, u.Documento, u.FotoPerfil
        FROM usuario u
        INNER JOIN credenciales c ON c.Usuario = u.IdUsuario
@@ -231,7 +274,7 @@ app.get('/api/usuario-actual', verificarSesion, async (req, res) => {
 
     // 🏪 Si es comerciante, obtener nombre del comercio
     if (user.TipoUsuario === "Comerciante") {
-      const [comercioRows] = await pool.query(
+      const comercioRows = await queryPromise(
         `SELECT NombreComercio FROM comerciante WHERE Comercio = ?`,
         [usuarioSesion.id]
       );
@@ -296,26 +339,98 @@ app.put('/api/usuarios/:id/contrasena', async (req, res) => {
   const { id } = req.params;
   const { nuevaContrasena } = req.body;
 
+  // Validación estricta de contraseña
   if (!nuevaContrasena || nuevaContrasena.length < 6) {
     return res.status(400).json({ msg: 'La contraseña debe tener al menos 6 caracteres.' });
   }
 
+  // Validar que tenga al menos una mayúscula
+  if (!/[A-Z]/.test(nuevaContrasena)) {
+    return res.status(400).json({ msg: 'La contraseña debe contener al menos una letra mayúscula.' });
+  }
+
+  // Validar que tenga al menos un número
+  if (!/[0-9]/.test(nuevaContrasena)) {
+    return res.status(400).json({ msg: 'La contraseña debe contener al menos un número.' });
+  }
+
+  // Validar que tenga al menos un carácter especial
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(nuevaContrasena)) {
+    return res.status(400).json({ msg: 'La contraseña debe contener al menos un carácter especial (!@#$%^&*()_+-=[]{};\':"|,.<>?/).' });
+  }
+
   try {
     console.log(`🔐 Actualizando contraseña para usuario: ${id}`);
-    const hash = await bcrypt.hash(nuevaContrasena, 10);
-
-    const result = await queryPromise(
-      'UPDATE credenciales SET Contrasena = ? WHERE Usuario = ?',
-      [hash, id]
+    
+    // Verificar si el usuario existe
+    const [credencial] = await pool.query(
+      'SELECT Usuario, Contrasena FROM credenciales WHERE Usuario = ?',
+      [id]
     );
 
-    if (result.changes === 0) {
+    if (!credencial || credencial.length === 0) {
       console.log(`⚠️ No se encontró el usuario ${id} en credenciales`);
       return res.status(404).json({ msg: 'Usuario no encontrado.' });
     }
 
+    // Obtener el historial de contraseñas (últimas 5 contraseñas)
+    const [historialContrasenas] = await pool.query(
+      'SELECT ContrasenaHash FROM historial_contrasenas WHERE Usuario = ? ORDER BY FechaCambio DESC LIMIT 5',
+      [id]
+    );
+
+    // Verificar si la nueva contraseña ya fue usada anteriormente
+    for (const row of historialContrasenas) {
+      const esIgual = await bcrypt.compare(nuevaContrasena, row.ContrasenaHash);
+      if (esIgual) {
+        console.log(`⚠️ La contraseña ya fue utilizada anteriormente por el usuario: ${id}`);
+        return res.status(400).json({ 
+          msg: 'Esta contraseña ya fue utilizada anteriormente. Por favor, elige una contraseña diferente.' 
+        });
+      }
+    }
+
+    // Hashear la nueva contraseña
+    const hash = await bcrypt.hash(nuevaContrasena, 10);
+
+    // Actualizar la contraseña en credenciales
+    const [result] = await pool.query(
+      "UPDATE credenciales SET Contrasena = ?, ContrasenaTemporal = 'No' WHERE Usuario = ?",
+      [hash, id]
+    );
+
+    if (result.affectedRows === 0) {
+      console.log(`⚠️ No se pudo actualizar la contraseña del usuario ${id}`);
+      return res.status(500).json({ msg: 'No se pudo actualizar la contraseña.' });
+    }
+
+    // Guardar en el historial de contraseñas
+    await pool.query(
+      'INSERT INTO historial_contrasenas (Usuario, ContrasenaHash) VALUES (?, ?)',
+      [id, hash]
+    );
+
+    // Destruir la sesión del usuario para forzar nuevo login
+    if (req.session) {
+      req.session.destroy((err) => {
+        if (err) {
+          console.error('Error al destruir sesión:', err);
+        } else {
+          console.log(`🚪 Sesión cerrada para usuario: ${id}`);
+        }
+      });
+    }
+
+    // Limpiar la cookie de sesión
+    res.clearCookie('connect.sid', {
+      path: '/',
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax'
+    });
+
     console.log(`✅ Contraseña actualizada para usuario: ${id}`);
-    res.json({ msg: 'Contraseña actualizada correctamente.' });
+    res.json({ msg: 'Contraseña actualizada correctamente.', cerrarSesion: true });
   } catch (error) {
     console.error('❌ Error actualizando contraseña:', error);
     res.status(500).json({ msg: 'Error del servidor.' });
@@ -371,15 +486,25 @@ app.get('/logout', (req, res) => {
 // 🧠 Verificar sesión activa
 // ===============================
 app.get('/api/verificar-sesion', (req, res) => {
+  console.log("🔍 [verificar-sesion] Verificando sesión...");
+  console.log("🔍 [verificar-sesion] Session ID:", req.sessionID);
+  console.log("🔍 [verificar-sesion] Usuario en sesión:", req.session?.usuario ? 'SÍ' : 'NO');
+  
   if (req.session?.usuario) {
     // Devolver los datos del usuario si hay sesión activa
+    console.log("✅ [verificar-sesion] Sesión activa para:", req.session.usuario.nombre);
     res.json({
       activa: true,
       id: req.session.usuario.id,
       nombre: req.session.usuario.nombre,
-      tipo: req.session.usuario.tipo
+      nombreCompleto: req.session.usuario.nombreCompleto || req.session.usuario.nombre,
+      apellido: req.session.usuario.apellido || '',
+      tipo: req.session.usuario.tipo,
+      foto: req.session.usuario.foto || '/imagen/imagen_perfil.png',
+      nombreComercio: req.session.usuario.nombreComercio || null
     });
   } else {
+    console.log("⚠️ [verificar-sesion] No hay sesión activa");
     res.json({ activa: false });
   }
 });
@@ -435,13 +560,20 @@ app.get('/api/historial', async (req, res) => {
         'producto' AS tipo,
         ca.FechaServicio AS fechaEntrega,
         ca.HoraServicio AS horaEntrega,
-        ca.ModoServicio AS modoEntrega
+        ca.ModoServicio AS modoEntrega,
+        ca.FechaModificadaPor AS fechaModificada,
+        ca.NotificacionVista AS notificacionVista,
+        ca.IdSolicitud AS idSolicitudComercio,
+        uc.Telefono AS telefonoComercio,
+        com.NombreComercio AS nombreComercio
       FROM detallefactura df
       LEFT JOIN factura f ON df.Factura = f.IdFactura
       INNER JOIN publicacion pub ON df.Publicacion = pub.IdPublicacion
       INNER JOIN categoria c ON pub.Categoria = c.IdCategoria
       LEFT JOIN detallefacturacomercio dfc ON df.IdDetalleFactura = dfc.IdDetalleFacturaComercio
       LEFT JOIN controlagendacomercio ca ON dfc.IdDetalleFacturaComercio = ca.DetFacturacomercio
+      LEFT JOIN comerciante com ON ca.Comercio = com.NitComercio
+      LEFT JOIN usuario uc ON com.Comercio = uc.IdUsuario
       WHERE df.VisibleUsuario = 1
     `;
 
@@ -456,7 +588,11 @@ app.get('/api/historial', async (req, res) => {
         'Servicio' AS metodoPago,
         cas.Estado AS estado,
         NULL AS idFactura,
-        'grua' AS tipo
+        'grua' AS tipo,
+        cas.FechaServicio AS fechaEntrega,
+        cas.HoraServicio AS horaEntrega,
+        cas.FechaModificadaPor AS fechaModificada,
+        cas.NotificacionVista AS notificacionVista
       FROM controlagendaservicios cas
       INNER JOIN publicaciongrua pg ON cas.PublicacionGrua = pg.IdPublicacionGrua
       WHERE 1 = 1
@@ -595,44 +731,99 @@ app.put('/api/historial/estado/:id', async (req, res) => {
 //  ACTUALIZAR ESTADO DE SOLICITUD DE GRÚA
 // ===============================
 app.put('/api/historial/grua/estado/:id', async (req, res) => {
+    const { id } = req.params;
+      const { estado } = req.body;
+
+        try {
+            // Verificar que la solicitud existe y obtener su estado actual
+                const solicitud = await queryPromise(
+                      'SELECT IdSolicitudServicio, Estado FROM controlagendaservicios WHERE IdSolicitudServicio = ?',
+                            [id]
+                                );
+
+                                    if (!solicitud || solicitud.length === 0) {
+                                          return res.status(404).json({ success: false, message: 'Solicitud de grúa no encontrada.' });
+                                              }
+
+                                                  const estadoActual = solicitud[0].Estado;
+
+                                                      // Validar que no se puede modificar un servicio ya finalizado o cancelado
+                                                          if (['Completado', 'Terminado', 'Cancelado', 'Rechazado'].includes(estadoActual)) {
+                                                                return res.status(400).json({ 
+                                                                        success: false, 
+                                                                                message: `No se puede modificar un servicio que ya está ${estadoActual.toLowerCase()}.` 
+                                                                                      });
+                                                                                          }
+
+                                                                                              // Validar que solo se pueda marcar como "Terminado"/"Completado" si está "Aceptado"
+                                                                                                  if ((estado === 'Terminado' || estado === 'Completado') && estadoActual !== 'Aceptado') {
+                                                                                                        return res.status(400).json({ 
+                                                                                                                success: false, 
+                                                                                                                        message: 'Solo puedes marcar como completado un servicio que ha sido aceptado por el prestador.' 
+                                                                                                                              });
+                                                                                                                                  }
+
+                                                                                                                                      // Normalizar Terminado a Completado
+                                                                                                                                          const estadoFinal = estado === 'Terminado' ? 'Completado' : estado;
+
+                                                                                                                                              // Actualizar estado de la solicitud de grúa
+                                                                                                                                                  await queryPromise(
+                                                                                                                                                        'UPDATE controlagendaservicios SET Estado = ? WHERE IdSolicitudServicio = ?',
+                                                                                                                                                              [estadoFinal, id]
+                                                                                                                                                                  );
+
+                                                                                                                                                                      res.status(200).json({
+                                                                                                                                                                            success: true,
+                                                                                                                                                                                  message: `Estado de la solicitud de grúa #${id} actualizado a '${estadoFinal}'.`
+                                                                                                                                                                                      });
+
+                                                                                                                                                                                        } catch (error) {
+                                                                                                                                                                                            console.error('❌ Error al actualizar estado de grúa:', error);
+                                                                                                                                                                                                res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+                                                                                                                                                                                                  }
+                                                                                                                                                                                                  });
+
+// ===============================
+//  ELIMINAR SOLICITUD DE GRÚA
+// ===============================
+app.delete('/api/historial/grua/eliminar/:id', async (req, res) => {
   const { id } = req.params;
-  const { estado } = req.body;
 
   try {
-    // Verificar que la solicitud existe y obtener su estado actual
+    // Verificar que la solicitud existe y está en un estado final
     const solicitud = await queryPromise(
       'SELECT IdSolicitudServicio, Estado FROM controlagendaservicios WHERE IdSolicitudServicio = ?',
       [id]
     );
 
     if (!solicitud || solicitud.length === 0) {
-      return res.status(404).json({ success: false, message: 'Solicitud de grúa no encontrada.' });
+      return res.status(404).json({ success: false, message: 'Solicitud no encontrada.' });
     }
 
-    const estadoActual = solicitud[0].Estado;
+    const estado = solicitud[0].Estado;
 
-    // Validar que solo se pueda marcar como "Terminado" si está "Aceptado"
-    if (estado === 'Terminado' && estadoActual !== 'Aceptado') {
+    // Validar que solo se pueden eliminar servicios finalizados
+    if (!['Completado', 'Terminado', 'Cancelado', 'Rechazado'].includes(estado)) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Solo puedes marcar como terminado un servicio que ha sido aceptado por el prestador.' 
+        message: 'Solo puedes eliminar servicios completados, cancelados o rechazados.' 
       });
     }
 
-    // Actualizar estado de la solicitud de grúa
+    // Eliminar físicamente el registro
     await queryPromise(
-      'UPDATE controlagendaservicios SET Estado = ? WHERE IdSolicitudServicio = ?',
-      [estado, id]
+      'DELETE FROM controlagendaservicios WHERE IdSolicitudServicio = ?',
+      [id]
     );
 
-    res.status(200).json({
-      success: true,
-      message: `Estado de la solicitud de grúa #${id} actualizado a '${estado}'.`
+    res.json({ 
+      success: true, 
+      message: "Registro de servicio eliminado correctamente." 
     });
 
   } catch (error) {
-    console.error('❌ Error al actualizar estado de grúa:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+    console.error('❌ Error al eliminar solicitud de grúa:', error);
+    res.status(500).json({ success: false, message: 'Error al eliminar el registro.' });
   }
 });
 
@@ -845,12 +1036,17 @@ app.get('/api/historial-ventas', async (req, res) => {
         df.Total AS total,
         df.Cantidad AS cantidad,
         f.MetodoPago AS metodoPago,
-        df.Estado AS estado
+        df.Estado AS estado,
+        ca.FechaServicio AS fechaEntrega,
+        ca.HoraServicio AS horaEntrega,
+        ca.ModoServicio AS modoEntrega
       FROM detallefactura df
       JOIN factura f ON df.Factura = f.IdFactura
       JOIN publicacion pub ON df.Publicacion = pub.IdPublicacion
       JOIN categoria c ON pub.Categoria = c.IdCategoria
       LEFT JOIN usuario u ON f.Usuario = u.IdUsuario
+      LEFT JOIN detallefacturacomercio dfc ON df.IdDetalleFactura = dfc.IdDetalleFacturaComercio
+      LEFT JOIN controlagendacomercio ca ON dfc.IdDetalleFacturaComercio = ca.DetFacturacomercio
       WHERE pub.Comerciante = ?
     `;
 
@@ -1092,6 +1288,8 @@ const queryPromise = async (sql, params = []) => {
 };
 
 // Ruta unificada de registro
+// NOTA: Este endpoint ahora guarda los datos en registros_pendientes
+// El usuario REAL solo se crea cuando completa la verificación del código
 app.post(
   '/api/registro',
   upload.fields([
@@ -1099,7 +1297,7 @@ app.post(
     { name: 'Certificado', maxCount: 1 },
   ]),
   async (req, res) => {
-    console.log('🚀 === INICIO REGISTRO === 🚀');
+    console.log('🚀 === INICIO REGISTRO (PENDIENTE) === 🚀');
     try {
       const data = req.body || {};
       const files = req.files || {};
@@ -1131,7 +1329,7 @@ app.post(
       if (!fotoPerfilFile)
         return res.status(400).json({ error: 'Debe subir una foto de perfil' });
 
-      // Verificar si ya existe el usuario por ID
+      // Verificar si ya existe el usuario por ID (en usuarios reales)
       const usuarioExistente = await queryPromise(
         'SELECT IdUsuario FROM usuario WHERE IdUsuario = ?',
         [idUsuarioValue]
@@ -1141,7 +1339,7 @@ app.post(
         return res.status(409).json({ error: 'El número de documento ya está registrado. Por favor, utilice otro número de documento.' });
       }
 
-      // Verificar si ya existe el correo
+      // Verificar si ya existe el correo (en usuarios reales)
       const correoExistente = await queryPromise(
         'SELECT IdUsuario FROM usuario WHERE Correo = ?',
         [data.Correo]
@@ -1151,161 +1349,116 @@ app.post(
         return res.status(409).json({ error: 'El correo electrónico ya está registrado. Por favor, utilice otro correo.' });
       }
 
-      // Insertar en usuario (tabla en minúsculas para MySQL case-sensitive)
-      const insertUsuarioSQL = `
-        INSERT INTO usuario
-          (IdUsuario, TipoUsuario, Nombre, Apellido, Documento, Telefono, Correo, FotoPerfil)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `;
-      const usuarioValues = [
-        idUsuarioValue,
-        tipoUsuarioSQL,
-        nombre,
-        apellido,
-        idUsuarioValue,
-        data.Telefono || null,
-        data.Correo || null,
-        fotoPerfilFile.filename,
-      ];
+      // Verificar si hay un registro pendiente con el mismo documento o correo
+      const pendienteExistente = await queryPromise(
+        `SELECT IdRegistro FROM registros_pendientes 
+         WHERE (IdUsuario = ? OR Correo = ?) AND Estado = 'Pendiente'`,
+        [idUsuarioValue, data.Correo]
+      );
+      
+      // Si existe un registro pendiente, lo eliminamos para permitir re-registro
+      if (pendienteExistente.length > 0) {
+        console.log(`🗑️ Eliminando registro pendiente anterior para ${idUsuarioValue}`);
+        await queryPromise(
+          `DELETE FROM registros_pendientes WHERE IdUsuario = ? OR Correo = ?`,
+          [idUsuarioValue, data.Correo]
+        );
+      }
 
-      await queryPromise(insertUsuarioSQL, usuarioValues);
-
-      // Mover la foto a su carpeta final
-      const finalUserDir = path.join(
+      // Mover la foto a carpeta temporal del usuario pendiente
+      const pendingDir = path.join(
         process.cwd(),
         'public',
         'imagen',
-        tipoFolder,
-        idUsuarioValue
+        'pendientes',
+        idUsuarioValue.toString()
       );
-      fs.mkdirSync(finalUserDir, { recursive: true });
+      fs.mkdirSync(pendingDir, { recursive: true });
 
-      const finalFotoName = `${Date.now()}_${Math.round(
-        Math.random() * 1e6
-      )}${path.extname(fotoPerfilFile.originalname)}`;
-      const finalFotoPath = path.join(finalUserDir, finalFotoName);
-      fs.renameSync(fotoPerfilFile.path, finalFotoPath);
-      const fotoRuta = path
-        .join('imagen', tipoFolder, idUsuarioValue, finalFotoName)
-        .replace(/\\/g, '/');
+      const fotoName = `${Date.now()}_${Math.round(Math.random() * 1e6)}${path.extname(fotoPerfilFile.originalname)}`;
+      const fotoPath = path.join(pendingDir, fotoName);
+      fs.renameSync(fotoPerfilFile.path, fotoPath);
+      const fotoRuta = path.join('imagen', 'pendientes', idUsuarioValue.toString(), fotoName).replace(/\\/g, '/');
 
-      await queryPromise(
-        'UPDATE usuario SET FotoPerfil = ? WHERE IdUsuario = ?',
-        [fotoRuta, idUsuarioValue]
-      );
+      // Preparar datos del perfil específico según tipo de usuario
+      let datosPerfil = {};
+      let certificadoRuta = null;
 
-      // Crear credenciales
-      await crearCredenciales(idUsuarioValue, idUsuarioValue, data.Correo, fotoRuta);
-
-      // Insertar perfil correspondiente
       if (tipoKey === 'natural') {
-        console.log('📝 Insertando perfil natural...');
-        await queryPromise(
-          `INSERT INTO perfilnatural (UsuarioNatural, Direccion, Barrio)
-           VALUES (?, ?, ?)`,
-          [idUsuarioValue, data.Direccion || null, data.Barrio || null]
-        );
-        console.log('✅ Perfil natural creado');
-
+        datosPerfil = {
+          Direccion: data.Direccion || null,
+          Barrio: data.Barrio || null
+        };
       } else if (tipoKey === 'comerciante') {
-        // 🗺️ 1. Armar dirección completa para geocodificar
-        const direccionCompleta = `${data.Direccion || ''}, ${data.Barrio || ''}, Bogotá, Colombia`;
-
-        let latitud = 4.710989;
-        let longitud = -74.072092;
-
-        try {
-          console.log(`📍 Buscando coordenadas para: ${direccionCompleta}`);
-          const geoResponse = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(direccionCompleta)}`,
-            {
-              headers: {
-                'User-Agent': 'RPM-Market/1.0 (contacto@rpm-market.com)',
-              },
-            }
-          );
-          const geoData = await geoResponse.json();
-
-          if (geoData && geoData.length > 0) {
-            latitud = parseFloat(geoData[0].lat);
-            longitud = parseFloat(geoData[0].lon);
-            console.log(`✅ Coordenadas obtenidas: ${latitud}, ${longitud}`);
-          } else {
-            console.warn('⚠️ No se encontraron coordenadas exactas, se usarán valores por defecto.');
-          }
-        } catch (geoError) {
-          console.error('❌ Error obteniendo coordenadas:', geoError);
-        }
-
-        // 🏪 2. Insertar registro del comerciante
-        console.log('📝 Insertando comerciante en la base de datos...');
-        try {
-          await queryPromise(
-            `INSERT INTO comerciante
-              (NitComercio, Comercio, NombreComercio, Direccion, Barrio, RedesSociales, DiasAtencion, HoraInicio, HoraFin, Latitud, Longitud)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `,
-            [
-              data.NitComercio || null,
-              idUsuarioValue,
-              data.NombreComercio || null,
-              data.Direccion || null,
-              data.Barrio || null,
-              data.RedesSociales || null,
-              data.DiasAtencion || null,
-              data.HoraInicio || null,
-              data.HoraFin || null,
-              latitud,
-              longitud,
-            ]
-          );
-          console.log('✅ Comerciante creado exitosamente');
-        } catch (insertError) {
-          console.error('❌ Error al insertar comerciante:', insertError);
-          throw insertError;
-        }
-
-        console.log(`✅ Comerciante registrado con coordenadas: ${latitud}, ${longitud}`);
-
-      } else if (
-        tipoKey === 'servicio' ||
-        tipoKey === 'prestadorservicio' ||
-        tipoKey === 'prestadorservicios'
-      ) {
+        datosPerfil = {
+          NitComercio: data.NitComercio || null,
+          NombreComercio: data.NombreComercio || null,
+          Direccion: data.Direccion || null,
+          Barrio: data.Barrio || null,
+          RedesSociales: data.RedesSociales || null,
+          DiasAtencion: data.DiasAtencion || null,
+          HoraInicio: data.HoraInicio || null,
+          HoraFin: data.HoraFin || null
+        };
+      } else if (tipoKey === 'servicio' || tipoKey === 'prestadorservicio' || tipoKey === 'prestadorservicios') {
         const certificadoFile = files.Certificado ? files.Certificado[0] : null;
         if (!certificadoFile)
           return res.status(400).json({ error: 'Debe subir un certificado válido' });
 
-        const finalCertName = `${Date.now()}_${Math.round(
-          Math.random() * 1e6
-        )}${path.extname(certificadoFile.originalname)}`;
-        const finalCertPath = path.join(finalUserDir, finalCertName);
-        fs.renameSync(certificadoFile.path, finalCertPath);
-        const certRuta = path
-          .join('imagen', tipoFolder, idUsuarioValue, finalCertName)
-          .replace(/\\/g, '/');
+        const certName = `${Date.now()}_${Math.round(Math.random() * 1e6)}${path.extname(certificadoFile.originalname)}`;
+        const certPath = path.join(pendingDir, certName);
+        fs.renameSync(certificadoFile.path, certPath);
+        certificadoRuta = path.join('imagen', 'pendientes', idUsuarioValue.toString(), certName).replace(/\\/g, '/');
 
-        await queryPromise(
-          `INSERT INTO prestadorservicio
-            (Usuario, Direccion, Barrio, RedesSociales, Certificado, DiasAtencion, HoraInicio, HoraFin)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            idUsuarioValue,
-            data.Direccion || null,
-            data.Barrio || null,
-            data.RedesSociales || null,
-            certRuta,
-            data.DiasAtencion || null,
-            data.HoraInicio || null,
-            data.HoraFin || null,
-          ]
-        );
+        datosPerfil = {
+          Direccion: data.Direccion || null,
+          Barrio: data.Barrio || null,
+          RedesSociales: data.RedesSociales || null,
+          Certificado: certificadoRuta,
+          DiasAtencion: data.DiasAtencion || null,
+          HoraInicio: data.HoraInicio || null,
+          HoraFin: data.HoraFin || null
+        };
       }
 
-      console.log(`✅ Registro completo: ${idUsuarioValue}`);
+      // Generar token único
+      const token = generarToken();
+      const fechaExpiracion = new Date();
+      fechaExpiracion.setHours(fechaExpiracion.getHours() + 24); // 24 horas para completar
+
+      // Guardar en registros_pendientes (NO en usuario)
+      await queryPromise(
+        `INSERT INTO registros_pendientes 
+          (Token, IdUsuario, TipoUsuario, Nombre, Apellido, Documento, Telefono, Correo, FotoPerfil, DatosPerfil, FechaExpiracion)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          token,
+          idUsuarioValue,
+          tipoUsuarioSQL,
+          nombre,
+          apellido,
+          idUsuarioValue,
+          data.Telefono || null,
+          data.Correo,
+          fotoRuta,
+          JSON.stringify(datosPerfil),
+          fechaExpiracion.toISOString()
+        ]
+      );
+
+      console.log(`📝 Registro PENDIENTE creado: ${idUsuarioValue} - Token: ${token.substring(0, 10)}...`);
+      console.log(`⏳ El usuario se creará cuando complete la verificación del código`);
+
+      // Determinar si requiere aprobación (para mostrar mensaje al usuario)
+      const requiereAprobacion = (tipoUsuarioSQL === 'Comerciante' || tipoUsuarioSQL === 'PrestadorServicio');
+
       res.status(200).json({
-        mensaje: 'Registro exitoso',
+        mensaje: `Registro iniciado. Ahora verifica tu correo y crea tu contraseña.`,
         usuario: idUsuarioValue,
+        requiereAprobacion: requiereAprobacion,
+        requiereContrasena: true,
+        correo: data.Correo,
+        token: token
       });
 
     } catch (error) {
@@ -1316,7 +1469,6 @@ app.post(
       console.error(error);
       console.error('='.repeat(60));
       console.error('');
-      // Devolver detalles del error en la respuesta para debugging
       return res.status(500).json({ 
         error: 'Error al procesar registro',
         details: process.env.NODE_ENV === 'production' ? error.message : error.stack,
@@ -1325,6 +1477,741 @@ app.post(
     }
   }
 );
+
+// ===============================
+// 🔐 SISTEMA DE VERIFICACIÓN Y CREACIÓN DE CONTRASEÑA POR CORREO
+// ===============================
+
+/**
+ * Genera un token único y seguro
+ */
+function generarToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+// ===============================
+// 🔐 SISTEMA DE VERIFICACIÓN POR CÓDIGO DE 4 DÍGITOS
+// ===============================
+
+/**
+ * Genera un código de 4 dígitos aleatorio
+ */
+function generarCodigo4Digitos() {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+/**
+ * POST /api/enviar-codigo-verificacion
+ * Genera y envía un código de 4 dígitos al correo del usuario
+ * Ahora busca primero en registros_pendientes
+ */
+app.post('/api/enviar-codigo-verificacion', async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Token requerido' });
+    }
+
+    // Primero buscar en registros_pendientes (nuevo flujo)
+    let [registroPendiente] = await queryPromise(
+      `SELECT * FROM registros_pendientes WHERE Token = ? AND Estado = 'Pendiente'`,
+      [token]
+    );
+
+    if (registroPendiente) {
+      // Verificar expiración
+      const ahora = new Date();
+      const fechaExpiracion = new Date(registroPendiente.FechaExpiracion);
+
+      if (ahora > fechaExpiracion) {
+        return res.status(400).json({ error: 'El enlace ha expirado. Por favor, regístrate nuevamente.' });
+      }
+
+      // Generar código de 4 dígitos
+      const codigo = generarCodigo4Digitos();
+
+      // Guardar código en la BD
+      await queryPromise(
+        `UPDATE registros_pendientes SET CodigoVerificacion = ?, CodigoEnviado = 'Si', CodigoVerificado = 'No' WHERE IdRegistro = ?`,
+        [codigo, registroPendiente.IdRegistro]
+      );
+
+      // Enviar correo con el código
+      const correoDestino = registroPendiente.Correo;
+      const nombreUsuario = `${registroPendiente.Nombre} ${registroPendiente.Apellido}`;
+
+      await enviarCorreo({
+        to: correoDestino,
+        subject: '🔐 Código de Verificación - RPM Market',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="text-align: center; background: linear-gradient(135deg, #d10000 0%, #a30000 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0;">🔐 Código de Verificación</h1>
+            </div>
+            <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+              <p style="font-size: 16px;">Hola <strong>${nombreUsuario}</strong>,</p>
+              <p style="font-size: 16px;">Tu código de verificación para completar el registro en RPM Market es:</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <span style="background: linear-gradient(135deg, #d10000 0%, #a30000 100%); color: white; font-size: 36px; font-weight: bold; padding: 15px 40px; border-radius: 10px; letter-spacing: 10px;">${codigo}</span>
+              </div>
+              <p style="font-size: 14px; color: #666;">Este código es válido por <strong>10 minutos</strong>.</p>
+              <p style="font-size: 14px; color: #666;">Si no solicitaste este código, puedes ignorar este correo.</p>
+              <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+              <p style="font-size: 12px; color: #999; text-align: center;">RPM Market - Tu mercado de repuestos y servicios</p>
+            </div>
+          </div>
+        `
+      });
+
+      const correoOculto = correoDestino.replace(/(.{2})(.*)(@.*)/, '$1***$3');
+      console.log(`📧 Código de verificación enviado a ${correoDestino} (registro pendiente)`);
+
+      return res.json({
+        success: true,
+        mensaje: 'Código de verificación enviado',
+        correo: correoOculto
+      });
+    }
+
+    // Si no está en pendientes, buscar en tokens_verificacion (flujo antiguo para compatibilidad)
+    const [tokenData] = await queryPromise(
+      `SELECT t.*, u.Nombre, u.Apellido, u.Correo, u.TipoUsuario 
+       FROM tokens_verificacion t
+       JOIN usuario u ON t.Usuario = u.IdUsuario
+       WHERE t.Token = ? AND t.TipoToken = 'CrearContrasena' AND t.Usado = 'No'`,
+      [token]
+    );
+
+    if (!tokenData) {
+      return res.status(404).json({ error: 'Token inválido o ya utilizado' });
+    }
+
+    // Verificar expiración del token
+    const ahora = new Date();
+    const fechaExpiracion = new Date(tokenData.FechaExpiracion);
+
+    if (ahora > fechaExpiracion) {
+      return res.status(400).json({ error: 'El token ha expirado. Solicita un nuevo enlace.' });
+    }
+
+    // Generar código de 4 dígitos
+    const codigo = generarCodigo4Digitos();
+
+    // Guardar código en la BD
+    await queryPromise(
+      `UPDATE tokens_verificacion SET CodigoVerificacion = ?, CodigoEnviado = 'Si', CodigoVerificado = 'No' WHERE IdToken = ?`,
+      [codigo, tokenData.IdToken]
+    );
+
+    // Enviar correo con el código
+    const correoDestino = tokenData.Correo;
+    const nombreUsuario = `${tokenData.Nombre} ${tokenData.Apellido}`;
+
+    await enviarCorreo({
+      to: correoDestino,
+      subject: '🔐 Código de Verificación - RPM Market',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; background: linear-gradient(135deg, #d10000 0%, #a30000 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0;">🔐 Código de Verificación</h1>
+          </div>
+          <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+            <p style="font-size: 16px;">Hola <strong>${nombreUsuario}</strong>,</p>
+            <p style="font-size: 16px;">Tu código de verificación para completar el registro en RPM Market es:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <span style="background: linear-gradient(135deg, #d10000 0%, #a30000 100%); color: white; font-size: 36px; font-weight: bold; padding: 15px 40px; border-radius: 10px; letter-spacing: 10px;">${codigo}</span>
+            </div>
+            <p style="font-size: 14px; color: #666;">Este código es válido por <strong>10 minutos</strong>.</p>
+            <p style="font-size: 14px; color: #666;">Si no solicitaste este código, puedes ignorar este correo.</p>
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+            <p style="font-size: 12px; color: #999; text-align: center;">RPM Market - Tu mercado de repuestos y servicios</p>
+          </div>
+        </div>
+      `
+    });
+
+    // Ocultar parte del correo para la respuesta
+    const correoOculto = correoDestino.replace(/(.{2})(.*)(@.*)/, '$1***$3');
+
+    console.log(`📧 Código de verificación enviado a ${correoDestino} para usuario ${tokenData.Usuario}`);
+
+    res.json({
+      success: true,
+      mensaje: 'Código de verificación enviado',
+      correo: correoOculto
+    });
+
+  } catch (error) {
+    console.error('❌ Error al enviar código de verificación:', error);
+    res.status(500).json({ error: 'Error al enviar el código de verificación' });
+  }
+});
+
+/**
+ * POST /api/verificar-codigo
+ * Verifica si el código de 4 dígitos es correcto
+ * Ahora busca primero en registros_pendientes
+ */
+app.post('/api/verificar-codigo', async (req, res) => {
+  try {
+    const { token, codigo } = req.body;
+
+    if (!token || !codigo) {
+      return res.status(400).json({ error: 'Token y código son requeridos' });
+    }
+
+    // Primero buscar en registros_pendientes
+    let [registroPendiente] = await queryPromise(
+      `SELECT * FROM registros_pendientes WHERE Token = ? AND Estado = 'Pendiente'`,
+      [token]
+    );
+
+    if (registroPendiente) {
+      // Verificar que se haya enviado un código
+      if (registroPendiente.CodigoEnviado !== 'Si') {
+        return res.status(400).json({ error: 'No se ha enviado un código de verificación' });
+      }
+
+      // Verificar código
+      if (registroPendiente.CodigoVerificacion !== codigo) {
+        return res.status(400).json({ error: 'Código incorrecto. Verifica e intenta nuevamente.' });
+      }
+
+      // Marcar código como verificado
+      await queryPromise(
+        `UPDATE registros_pendientes SET CodigoVerificado = 'Si' WHERE IdRegistro = ?`,
+        [registroPendiente.IdRegistro]
+      );
+
+      console.log(`✅ Código verificado correctamente para registro pendiente ${registroPendiente.IdUsuario}`);
+
+      return res.json({
+        success: true,
+        verificado: true,
+        mensaje: 'Código verificado correctamente'
+      });
+    }
+
+    // Si no está en pendientes, buscar en tokens_verificacion (flujo antiguo)
+    const [tokenData] = await queryPromise(
+      `SELECT * FROM tokens_verificacion 
+       WHERE Token = ? AND TipoToken = 'CrearContrasena' AND Usado = 'No'`,
+      [token]
+    );
+
+    if (!tokenData) {
+      return res.status(404).json({ error: 'Token inválido o ya utilizado' });
+    }
+
+    // Verificar que se haya enviado un código
+    if (tokenData.CodigoEnviado !== 'Si') {
+      return res.status(400).json({ error: 'No se ha enviado un código de verificación' });
+    }
+
+    // Verificar código
+    if (tokenData.CodigoVerificacion !== codigo) {
+      return res.status(400).json({ error: 'Código incorrecto. Verifica e intenta nuevamente.' });
+    }
+
+    // Marcar código como verificado
+    await queryPromise(
+      `UPDATE tokens_verificacion SET CodigoVerificado = 'Si' WHERE IdToken = ?`,
+      [tokenData.IdToken]
+    );
+
+    console.log(`✅ Código verificado correctamente para token ${token}`);
+
+    res.json({
+      success: true,
+      verificado: true,
+      mensaje: 'Código verificado correctamente'
+    });
+
+  } catch (error) {
+    console.error('❌ Error al verificar código:', error);
+    res.status(500).json({ error: 'Error al verificar el código' });
+  }
+});
+
+/**
+ * POST /api/reenviar-codigo
+ * Genera y reenvía un nuevo código de 4 dígitos
+ * Ahora busca primero en registros_pendientes
+ */
+app.post('/api/reenviar-codigo', async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Token requerido' });
+    }
+
+    // Primero buscar en registros_pendientes
+    let [registroPendiente] = await queryPromise(
+      `SELECT * FROM registros_pendientes WHERE Token = ? AND Estado = 'Pendiente'`,
+      [token]
+    );
+
+    if (registroPendiente) {
+      // Generar nuevo código
+      const nuevoCodigo = generarCodigo4Digitos();
+
+      // Actualizar en BD
+      await queryPromise(
+        `UPDATE registros_pendientes SET CodigoVerificacion = ?, CodigoVerificado = 'No' WHERE IdRegistro = ?`,
+        [nuevoCodigo, registroPendiente.IdRegistro]
+      );
+
+      // Enviar correo
+      await enviarCorreo({
+        to: registroPendiente.Correo,
+        subject: '🔐 Nuevo Código de Verificación - RPM Market',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="text-align: center; background: linear-gradient(135deg, #d10000 0%, #a30000 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0;">🔐 Nuevo Código</h1>
+            </div>
+            <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+              <p style="font-size: 16px;">Hola <strong>${registroPendiente.Nombre}</strong>,</p>
+              <p style="font-size: 16px;">Tu nuevo código de verificación es:</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <span style="background: linear-gradient(135deg, #d10000 0%, #a30000 100%); color: white; font-size: 36px; font-weight: bold; padding: 15px 40px; border-radius: 10px; letter-spacing: 10px;">${nuevoCodigo}</span>
+              </div>
+              <p style="font-size: 14px; color: #666;">Este código es válido por <strong>10 minutos</strong>.</p>
+            </div>
+          </div>
+        `
+      });
+
+      const correoOculto = registroPendiente.Correo.replace(/(.{2})(.*)(@.*)/, '$1***$3');
+      console.log(`📧 Nuevo código enviado a ${registroPendiente.Correo} (registro pendiente)`);
+
+      return res.json({
+        success: true,
+        mensaje: 'Nuevo código enviado',
+        correo: correoOculto
+      });
+    }
+
+    // Si no está en pendientes, buscar en tokens_verificacion (flujo antiguo)
+    const [tokenData] = await queryPromise(
+      `SELECT t.*, u.Nombre, u.Apellido, u.Correo 
+       FROM tokens_verificacion t
+       JOIN usuario u ON t.Usuario = u.IdUsuario
+       WHERE t.Token = ? AND t.TipoToken = 'CrearContrasena' AND t.Usado = 'No'`,
+      [token]
+    );
+
+    if (!tokenData) {
+      return res.status(404).json({ error: 'Token inválido o ya utilizado' });
+    }
+
+    // Generar nuevo código
+    const nuevoCodigo = generarCodigo4Digitos();
+
+    // Actualizar en BD
+    await queryPromise(
+      `UPDATE tokens_verificacion SET CodigoVerificacion = ?, CodigoVerificado = 'No' WHERE IdToken = ?`,
+      [nuevoCodigo, tokenData.IdToken]
+    );
+
+    // Enviar correo
+    await enviarCorreo({
+      to: tokenData.Correo,
+      subject: '🔐 Nuevo Código de Verificación - RPM Market',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="text-align: center; background: linear-gradient(135deg, #d10000 0%, #a30000 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0;">🔐 Nuevo Código</h1>
+          </div>
+          <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
+            <p style="font-size: 16px;">Hola <strong>${tokenData.Nombre}</strong>,</p>
+            <p style="font-size: 16px;">Tu nuevo código de verificación es:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <span style="background: linear-gradient(135deg, #d10000 0%, #a30000 100%); color: white; font-size: 36px; font-weight: bold; padding: 15px 40px; border-radius: 10px; letter-spacing: 10px;">${nuevoCodigo}</span>
+            </div>
+            <p style="font-size: 14px; color: #666;">Este código es válido por <strong>10 minutos</strong>.</p>
+          </div>
+        </div>
+      `
+    });
+
+    const correoOculto = tokenData.Correo.replace(/(.{2})(.*)(@.*)/, '$1***$3');
+
+    console.log(`📧 Nuevo código enviado a ${tokenData.Correo}`);
+
+    res.json({
+      success: true,
+      mensaje: 'Nuevo código enviado',
+      correo: correoOculto
+    });
+
+  } catch (error) {
+    console.error('❌ Error al reenviar código:', error);
+    res.status(500).json({ error: 'Error al reenviar el código' });
+  }
+});
+
+/**
+ * POST /api/verificar-token-contrasena
+ * Verifica si un token es válido (ahora busca en registros_pendientes)
+ */
+app.post('/api/verificar-token-contrasena', async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Token requerido' });
+    }
+
+    // Buscar en registros_pendientes
+    const [registroPendiente] = await queryPromise(
+      `SELECT * FROM registros_pendientes 
+       WHERE Token = ? AND Estado = 'Pendiente'`,
+      [token]
+    );
+
+    if (registroPendiente) {
+      // Verificar expiración
+      const ahora = new Date();
+      const fechaExpiracion = new Date(registroPendiente.FechaExpiracion);
+
+      if (ahora > fechaExpiracion) {
+        return res.status(400).json({ 
+          valido: false, 
+          error: 'El enlace ha expirado. Por favor, regístrate nuevamente.' 
+        });
+      }
+
+      return res.json({
+        valido: true,
+        usuario: {
+          id: registroPendiente.IdUsuario,
+          nombre: registroPendiente.Nombre,
+          apellido: registroPendiente.Apellido,
+          tipoUsuario: registroPendiente.TipoUsuario,
+          correo: registroPendiente.Correo
+        }
+      });
+    }
+
+    // Si no está en pendientes, buscar en tokens_verificacion (para recuperación de contraseña)
+    const [tokenData] = await queryPromise(
+      `SELECT t.*, u.Nombre, u.Apellido, u.TipoUsuario, u.Correo
+       FROM tokens_verificacion t
+       JOIN usuario u ON t.Usuario = u.IdUsuario
+       WHERE t.Token = ? AND t.TipoToken = 'CrearContrasena' AND t.Usado = 'No'`,
+      [token]
+    );
+
+    if (!tokenData) {
+      return res.status(404).json({ 
+        valido: false, 
+        error: 'Token inválido o ya utilizado' 
+      });
+    }
+
+    // Verificar expiración
+    const ahora = new Date();
+    const fechaExpiracion = new Date(tokenData.FechaExpiracion);
+
+    if (ahora > fechaExpiracion) {
+      return res.status(400).json({ 
+        valido: false, 
+        error: 'El token ha expirado. Solicita un nuevo enlace.' 
+      });
+    }
+
+    res.json({
+      valido: true,
+      usuario: {
+        id: tokenData.Usuario,
+        nombre: tokenData.Nombre,
+        apellido: tokenData.Apellido,
+        tipoUsuario: tokenData.TipoUsuario,
+        correo: tokenData.Correo
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error al verificar token:', error);
+    res.status(500).json({ error: 'Error al verificar el token' });
+  }
+});
+
+/**
+ * POST /api/crear-contrasena-con-token
+ * CREA el usuario REAL desde registros_pendientes cuando se completa la verificación
+ * Este es el paso final del registro - solo aquí se inserta en las tablas reales
+ * REQUIERE: Código de verificación previamente validado
+ */
+app.post('/api/crear-contrasena-con-token', async (req, res) => {
+  try {
+    const { token, contrasena } = req.body;
+
+    if (!token || !contrasena) {
+      return res.status(400).json({ error: 'Token y contraseña son requeridos' });
+    }
+
+    // Primero buscar en registros_pendientes (nuevo flujo)
+    let [registroPendiente] = await queryPromise(
+      `SELECT * FROM registros_pendientes WHERE Token = ? AND Estado = 'Pendiente'`,
+      [token]
+    );
+
+    if (registroPendiente) {
+      // Verificar que el código haya sido verificado
+      if (registroPendiente.CodigoVerificado !== 'Si') {
+        return res.status(400).json({ error: 'Debes verificar tu código de correo electrónico primero' });
+      }
+
+      // Verificar expiración
+      const ahora = new Date();
+      const fechaExpiracion = new Date(registroPendiente.FechaExpiracion);
+
+      if (ahora > fechaExpiracion) {
+        return res.status(400).json({ error: 'El enlace ha expirado. Por favor, regístrate nuevamente.' });
+      }
+
+      console.log(`🚀 Creando usuario REAL desde registro pendiente: ${registroPendiente.IdUsuario}`);
+
+      // Parsear datos del perfil
+      const datosPerfil = JSON.parse(registroPendiente.DatosPerfil || '{}');
+
+      // Determinar el estado inicial
+      const estadoInicial = (registroPendiente.TipoUsuario === 'Comerciante' || registroPendiente.TipoUsuario === 'PrestadorServicio') 
+        ? 'Inactivo' 
+        : 'Activo';
+
+      // Determinar carpeta según tipo de usuario
+      const tipoFolderMap = {
+        'Natural': 'Natural',
+        'Comerciante': 'Comerciante',
+        'PrestadorServicio': 'PrestadorServicios'
+      };
+      const tipoFolder = tipoFolderMap[registroPendiente.TipoUsuario] || 'Otros';
+
+      // Mover archivos de pendientes a carpeta final
+      const pendingDir = path.join(process.cwd(), 'public', 'imagen', 'pendientes', registroPendiente.IdUsuario.toString());
+      const finalUserDir = path.join(process.cwd(), 'public', 'imagen', tipoFolder, registroPendiente.IdUsuario.toString());
+      
+      let fotoRutaFinal = registroPendiente.FotoPerfil;
+      let certRutaFinal = datosPerfil.Certificado || null;
+
+      try {
+        // Crear carpeta final si no existe
+        fs.mkdirSync(finalUserDir, { recursive: true });
+
+        // Mover foto de perfil
+        if (registroPendiente.FotoPerfil && registroPendiente.FotoPerfil.includes('pendientes')) {
+          const fotoOriginal = path.join(process.cwd(), 'public', registroPendiente.FotoPerfil);
+          if (fs.existsSync(fotoOriginal)) {
+            const fotoNombre = path.basename(fotoOriginal);
+            const fotoDestino = path.join(finalUserDir, fotoNombre);
+            fs.renameSync(fotoOriginal, fotoDestino);
+            fotoRutaFinal = path.join('imagen', tipoFolder, registroPendiente.IdUsuario.toString(), fotoNombre).replace(/\\/g, '/');
+          }
+        }
+
+        // Mover certificado si existe (para prestadores)
+        if (datosPerfil.Certificado && datosPerfil.Certificado.includes('pendientes')) {
+          const certOriginal = path.join(process.cwd(), 'public', datosPerfil.Certificado);
+          if (fs.existsSync(certOriginal)) {
+            const certNombre = path.basename(certOriginal);
+            const certDestino = path.join(finalUserDir, certNombre);
+            fs.renameSync(certOriginal, certDestino);
+            certRutaFinal = path.join('imagen', tipoFolder, registroPendiente.IdUsuario.toString(), certNombre).replace(/\\/g, '/');
+          }
+        }
+
+        // Eliminar carpeta de pendientes si está vacía
+        if (fs.existsSync(pendingDir)) {
+          const archivos = fs.readdirSync(pendingDir);
+          if (archivos.length === 0) {
+            fs.rmdirSync(pendingDir);
+          }
+        }
+      } catch (fileError) {
+        console.warn('⚠️ Error moviendo archivos:', fileError.message);
+        // Continuar con las rutas originales si hay error
+      }
+
+      // CREAR USUARIO REAL
+      await queryPromise(
+        `INSERT INTO usuario (IdUsuario, TipoUsuario, Nombre, Apellido, Documento, Telefono, Correo, FotoPerfil, Estado)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          registroPendiente.IdUsuario,
+          registroPendiente.TipoUsuario,
+          registroPendiente.Nombre,
+          registroPendiente.Apellido,
+          registroPendiente.Documento,
+          registroPendiente.Telefono,
+          registroPendiente.Correo,
+          fotoRutaFinal,
+          estadoInicial
+        ]
+      );
+      console.log('✅ Usuario insertado en tabla usuario');
+
+      // Hashear contraseña
+      const hashContrasena = await bcrypt.hash(contrasena, 10);
+
+      // CREAR CREDENCIALES
+      await queryPromise(
+        `INSERT INTO credenciales (Usuario, NombreUsuario, Contrasena, ContrasenaTemporal)
+         VALUES (?, ?, ?, 'No')`,
+        [registroPendiente.IdUsuario, registroPendiente.Correo, hashContrasena]
+      );
+      console.log('✅ Credenciales creadas');
+
+      // CREAR PERFIL ESPECÍFICO según tipo de usuario
+      if (registroPendiente.TipoUsuario === 'Natural') {
+        await queryPromise(
+          `INSERT INTO perfilnatural (UsuarioNatural, Direccion, Barrio)
+           VALUES (?, ?, ?)`,
+          [registroPendiente.IdUsuario, datosPerfil.Direccion || null, datosPerfil.Barrio || null]
+        );
+        console.log('✅ Perfil natural creado');
+
+      } else if (registroPendiente.TipoUsuario === 'Comerciante') {
+        // Geocodificar dirección
+        const direccionCompleta = `${datosPerfil.Direccion || ''}, ${datosPerfil.Barrio || ''}, Bogotá, Colombia`;
+        let latitud = 4.710989;
+        let longitud = -74.072092;
+
+        try {
+          const geoResponse = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(direccionCompleta)}`,
+            { headers: { 'User-Agent': 'RPM-Market/1.0 (contacto@rpm-market.com)' } }
+          );
+          const geoData = await geoResponse.json();
+          if (geoData && geoData.length > 0) {
+            latitud = parseFloat(geoData[0].lat);
+            longitud = parseFloat(geoData[0].lon);
+          }
+        } catch (geoError) {
+          console.warn('⚠️ Error geocodificando:', geoError.message);
+        }
+
+        await queryPromise(
+          `INSERT INTO comerciante (NitComercio, Comercio, NombreComercio, Direccion, Barrio, RedesSociales, DiasAtencion, HoraInicio, HoraFin, Latitud, Longitud)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            datosPerfil.NitComercio || null,
+            registroPendiente.IdUsuario,
+            datosPerfil.NombreComercio || null,
+            datosPerfil.Direccion || null,
+            datosPerfil.Barrio || null,
+            datosPerfil.RedesSociales || null,
+            datosPerfil.DiasAtencion || null,
+            datosPerfil.HoraInicio || null,
+            datosPerfil.HoraFin || null,
+            latitud,
+            longitud
+          ]
+        );
+        console.log('✅ Perfil comerciante creado');
+
+      } else if (registroPendiente.TipoUsuario === 'PrestadorServicio') {
+        await queryPromise(
+          `INSERT INTO prestadorservicio (Usuario, Direccion, Barrio, RedesSociales, Certificado, DiasAtencion, HoraInicio, HoraFin)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            registroPendiente.IdUsuario,
+            datosPerfil.Direccion || null,
+            datosPerfil.Barrio || null,
+            datosPerfil.RedesSociales || null,
+            certRutaFinal || datosPerfil.Certificado,
+            datosPerfil.DiasAtencion || null,
+            datosPerfil.HoraInicio || null,
+            datosPerfil.HoraFin || null
+          ]
+        );
+        console.log('✅ Perfil prestador de servicio creado');
+      }
+
+      // Marcar registro pendiente como completado
+      await queryPromise(
+        `UPDATE registros_pendientes SET Estado = 'Completado' WHERE IdRegistro = ?`,
+        [registroPendiente.IdRegistro]
+      );
+
+      console.log(`✅ Registro completado exitosamente para usuario: ${registroPendiente.IdUsuario}`);
+      
+      return res.json({ 
+        success: true, 
+        mensaje: 'Registro completado exitosamente. Ya puedes iniciar sesión.' 
+      });
+    }
+
+    // FLUJO ANTIGUO: Si no está en pendientes, buscar en tokens_verificacion
+    const [tokenData] = await queryPromise(
+      `SELECT * FROM tokens_verificacion 
+       WHERE Token = ? AND TipoToken = 'CrearContrasena' AND Usado = 'No'`,
+      [token]
+    );
+
+    if (!tokenData) {
+      return res.status(404).json({ error: 'Token inválido o ya utilizado' });
+    }
+
+    // Verificar que el código haya sido verificado
+    if (tokenData.CodigoVerificado !== 'Si') {
+      return res.status(400).json({ error: 'Debes verificar tu código de correo electrónico primero' });
+    }
+
+    // Verificar expiración
+    const ahora = new Date();
+    const fechaExpiracion = new Date(tokenData.FechaExpiracion);
+
+    if (ahora > fechaExpiracion) {
+      return res.status(400).json({ error: 'El token ha expirado' });
+    }
+
+    const idUsuario = tokenData.Usuario;
+
+    // Verificar que el usuario tenga contraseña temporal
+    const [credenciales] = await queryPromise(
+      'SELECT * FROM credenciales WHERE Usuario = ?',
+      [idUsuario]
+    );
+
+    if (!credenciales) {
+      return res.status(404).json({ error: 'No se encontraron credenciales para este usuario' });
+    }
+
+    if (credenciales.ContrasenaTemporal === 'No') {
+      return res.status(400).json({ error: 'Este usuario ya configuró su contraseña' });
+    }
+
+    // Hashear la nueva contraseña
+    const hashNuevaContrasena = await bcrypt.hash(contrasena, 10);
+
+    // ACTUALIZAR la contraseña (no crear nueva)
+    await queryPromise(
+      "UPDATE credenciales SET Contrasena = ?, ContrasenaTemporal = 'No' WHERE Usuario = ?",
+      [hashNuevaContrasena, idUsuario]
+    );
+
+    // Marcar el token como usado
+    await queryPromise(
+      "UPDATE tokens_verificacion SET Usado = 'Si' WHERE IdToken = ?",
+      [tokenData.IdToken]
+    );
+
+    console.log(`✅ Contraseña actualizada exitosamente para usuario: ${idUsuario}`);
+    res.json({ 
+      success: true, 
+      mensaje: 'Contraseña configurada exitosamente. Ya puedes iniciar sesión.' 
+    });
+
+  } catch (error) {
+    console.error('❌ Error al crear contraseña:', error);
+    res.status(500).json({ error: 'Error al crear la contraseña', detalles: error.message });
+  }
+});
 
 
 // ----------------------
@@ -1812,7 +2699,9 @@ app.get('/api/dashboard/comerciante', async (req, res) => {
     }
 
     const idUsuario = req.session.usuario.id;
-    console.log('📊 Cargando dashboard del comerciante:', idUsuario);
+    const { dia, categoria, anio } = req.query;
+    
+    console.log('📊 Cargando dashboard del comerciante:', idUsuario, 'Filtros:', { dia, categoria, anio });
 
     // 🔍 Obtener el NIT del comerciante logueado
     const comercianteRows = await queryPromise(
@@ -1827,7 +2716,7 @@ app.get('/api/dashboard/comerciante', async (req, res) => {
     const nitComercio = comercianteRows[0].NitComercio;
 
     // 🧾 Consultar las ventas del comerciante usando detallefactura
-    const result = await queryPromise(`
+    let query = `
       SELECT 
         c.NombreComercio,
         cat.NombreCategoria,
@@ -1841,9 +2730,32 @@ app.get('/api/dashboard/comerciante', async (req, res) => {
       INNER JOIN categoria cat ON p.Categoria = cat.IdCategoria
       INNER JOIN comerciante c ON p.Comerciante = c.NitComercio
       WHERE c.NitComercio = ?
+    `;
+    
+    const params = [nitComercio];
+    
+    // Agregar filtros dinámicos
+    if (dia) {
+      query += ' AND DATE(f.FechaCompra) = ?';
+      params.push(dia);
+    }
+    
+    if (categoria) {
+      query += ' AND cat.NombreCategoria = ?';
+      params.push(categoria);
+    }
+    
+    if (anio) {
+      query += ' AND YEAR(f.FechaCompra) = ?';
+      params.push(anio);
+    }
+    
+    query += `
       GROUP BY cat.NombreCategoria, p.NombreProducto, fechaCompra
       ORDER BY fechaCompra DESC
-    `, [nitComercio]);
+    `;
+
+    const result = await queryPromise(query, params);
 
     // 💰 Calcular totales
     let totalVentas = 0;
@@ -2163,9 +3075,11 @@ app.put('/api/actualizar-fecha-pedido', async (req, res) => {
 
   try {
     // Actualizar fecha y hora en controlagendacomercio
+    // Marcar FechaModificadaPor y NotificacionVista = 0 para que el usuario vea la notificación
+    const ahora = new Date().toISOString();
     await queryPromise(
-      'UPDATE controlagendacomercio SET FechaServicio = ?, HoraServicio = ? WHERE IdSolicitud = ?',
-      [fecha, hora, id]
+      'UPDATE controlagendacomercio SET FechaServicio = ?, HoraServicio = ?, FechaModificadaPor = ?, NotificacionVista = 0 WHERE IdSolicitud = ?',
+      [fecha, hora, ahora, id]
     );
 
     res.json({ 
@@ -2175,6 +3089,61 @@ app.put('/api/actualizar-fecha-pedido', async (req, res) => {
   } catch (error) {
     console.error('Error al actualizar fecha:', error);
     res.status(500).json({ error: 'Error al actualizar fecha' });
+  }
+});
+
+// Endpoint para confirmar fecha de entrega (aceptar fecha propuesta por el cliente)
+app.put('/api/confirmar-fecha-pedido', async (req, res) => {
+  const usuario = req.session?.usuario;
+  const { id, fecha, hora, confirmar } = req.body;
+
+  if (!usuario) {
+    return res.status(401).json({ error: 'No autenticado' });
+  }
+
+  if (!id || !fecha || !hora) {
+    return res.status(400).json({ error: 'Faltan datos requeridos' });
+  }
+
+  try {
+    // Confirmar/actualizar fecha y hora en controlagendacomercio
+    // También marcamos el estado como "confirmado" si existe ese campo
+    await queryPromise(
+      'UPDATE controlagendacomercio SET FechaServicio = ?, HoraServicio = ?, Estado = COALESCE(NULLIF(Estado, "pendiente"), "confirmado") WHERE IdSolicitud = ?',
+      [fecha, hora, id]
+    );
+
+    res.json({ 
+      success: true,
+      message: '✅ Fecha de entrega confirmada correctamente' 
+    });
+  } catch (error) {
+    console.error('Error al confirmar fecha:', error);
+    res.status(500).json({ error: 'Error al confirmar fecha' });
+  }
+});
+
+// Endpoint para marcar notificación de cambio de fecha de comercio como vista
+app.put('/api/comercio/notificacion-vista/:id', async (req, res) => {
+  const { id } = req.params;
+
+  if (!id) {
+    return res.status(400).json({ error: 'ID de solicitud requerido' });
+  }
+
+  try {
+    await queryPromise(
+      'UPDATE controlagendacomercio SET NotificacionVista = 1 WHERE IdSolicitud = ?',
+      [id]
+    );
+
+    res.json({ 
+      success: true,
+      message: 'Notificación marcada como vista' 
+    });
+  } catch (error) {
+    console.error('Error al marcar notificación:', error);
+    res.status(500).json({ error: 'Error al marcar notificación' });
   }
 });
 
@@ -2409,6 +3378,14 @@ app.get('/api/detallePublicacion/:id', async (req, res) => {
                 p.ImagenProducto,
                 p.FechaPublicacion,
                 c.NombreComercio,
+                c.Comercio AS IdComerciante,
+                c.Latitud,
+                c.Longitud,
+                c.Barrio,
+                c.Direccion,
+                c.DiasAtencion,
+                c.HoraInicio,
+                c.HoraFin,
                 u.Nombre AS NombreUsuario,
                 u.Apellido AS ApellidoUsuario,
                 IFNULL(AVG(o.Calificacion), 0) AS CalificacionPromedio
@@ -2417,7 +3394,7 @@ app.get('/api/detallePublicacion/:id', async (req, res) => {
             JOIN usuario u ON c.Comercio = u.IdUsuario
             LEFT JOIN opiniones o ON o.Publicacion = p.IdPublicacion
             WHERE p.IdPublicacion = ?
-            GROUP BY p.IdPublicacion, c.NombreComercio, u.Nombre, u.Apellido`,
+            GROUP BY p.IdPublicacion, c.NombreComercio, c.Latitud, c.Longitud, c.Barrio, c.Direccion, c.DiasAtencion, c.HoraInicio, c.HoraFin, u.Nombre, u.Apellido`,
             [idPublicacion]
         );
 
@@ -2425,7 +3402,7 @@ app.get('/api/detallePublicacion/:id', async (req, res) => {
             return res.status(404).json({ msg: 'Publicación no encontrada' });
         }
 
-        // Consulta de opiniones
+        // Consulta de opiniones (sin respuestas - feature no implementada)
         const [opiniones] = await pool.query(
             `SELECT 
                 o.IdOpinion, 
@@ -2547,6 +3524,56 @@ app.post('/api/opiniones', async (req, res) => {
   } catch (error) {
     console.error('❌ Error al insertar opinión:', error);
     res.status(500).json({ error: 'Error en el servidor al guardar la opinión.' });
+  }
+});
+
+// RESPONDER OPINIONES - COMERCIANTES
+app.post('/api/opiniones/responder', async (req, res) => {
+  try {
+    const { idOpinion, idComerciante, respuesta } = req.body;
+
+    if (!idOpinion || !idComerciante || !respuesta) {
+      return res.status(400).json({ error: 'Faltan datos obligatorios' });
+    }
+
+    // Verificar que la opinión existe y pertenece a una publicación del comerciante
+    const [opinion] = await pool.query(
+      `SELECT o.IdOpinion, p.Comerciante 
+       FROM opiniones o
+       JOIN publicacion p ON o.Publicacion = p.IdPublicacion
+       WHERE o.IdOpinion = ?`,
+      [idOpinion]
+    );
+
+    if (opinion.length === 0) {
+      return res.status(404).json({ error: 'Opinión no encontrada' });
+    }
+
+    // Verificar que el comerciante es el dueño de la publicación
+    const [comerciante] = await pool.query(
+      `SELECT NitComercio FROM comerciante WHERE Comercio = ?`,
+      [idComerciante]
+    );
+
+    if (comerciante.length === 0 || comerciante[0].NitComercio !== opinion[0].Comerciante) {
+      return res.status(403).json({ error: 'No tienes permiso para responder esta opinión' });
+    }
+
+    // Insertar la respuesta
+    const [resultado] = await pool.query(
+      `INSERT INTO respuestas_opiniones (IdOpinion, IdComerciante, Respuesta)
+       VALUES (?, ?, ?)`,
+      [idOpinion, idComerciante, respuesta]
+    );
+
+    res.json({
+      mensaje: '✅ Respuesta guardada correctamente',
+      idRespuesta: resultado.insertId
+    });
+
+  } catch (error) {
+    console.error('❌ Error al insertar respuesta:', error);
+    res.status(500).json({ error: 'Error en el servidor al guardar la respuesta.' });
   }
 });
 
@@ -2859,15 +3886,18 @@ app.get('/api/factura/:id', async (req, res) => {
 
     const factura = facturaRows[0];
 
-    // 2️⃣ Obtener los productos asociados a la factura
+    // 2️⃣ Obtener los productos asociados a la factura con datos del comercio
     const [detalleRows] = await pool.query(`
       SELECT 
-      p.NombreProducto,
-      df.Cantidad,
-      df.PrecioUnitario,
-      df.Total
+        p.NombreProducto,
+        df.Cantidad,
+        df.PrecioUnitario,
+        df.Total,
+        com.NombreComercio,
+        com.Direccion AS DireccionComercio
       FROM detallefactura df
       JOIN publicacion p ON df.Publicacion = p.IdPublicacion
+      LEFT JOIN comerciante com ON p.Comerciante = com.NitComercio
       WHERE df.Factura = ?
     `, [id]);
 
@@ -3013,7 +4043,7 @@ app.get('/api/perfil-prestador', async (req, res) => {
         `SELECT 
            SUM(CASE WHEN cas.Estado = 'Pendiente' THEN 1 ELSE 0 END) AS pendientes,
            SUM(CASE WHEN cas.Estado = 'Aceptado' THEN 1 ELSE 0 END) AS aceptados,
-           SUM(CASE WHEN cas.Estado = 'Terminado' THEN 1 ELSE 0 END) AS completados
+           SUM(CASE WHEN cas.Estado IN ('Terminado', 'Completado') THEN 1 ELSE 0 END) AS completados
          FROM controlagendaservicios cas
          JOIN publicaciongrua pg ON cas.PublicacionGrua = pg.IdPublicacionGrua
          WHERE pg.Servicio = ?`,
@@ -3374,7 +4404,7 @@ app.put('/api/publicaciones-grua/:id', uploadPublicacionPrestador.array('imagene
     return res.status(403).json({ error: 'Acceso no autorizado.' });
   }
 
-  const { titulo, descripcion, tarifa, zona } = req.body;
+  const { titulo, descripcion, tarifa, zona, imagenesActuales } = req.body;
 
   if (!titulo || !descripcion || !tarifa || !zona) {
     cleanupTempFiles(req.files, tempDirGrua);
@@ -3417,14 +4447,17 @@ app.put('/api/publicaciones-grua/:id', uploadPublicacionPrestador.array('imagene
     );
     fs.mkdirSync(carpetaPublicacion, { recursive: true });
 
-    const nuevasImagenes = [];
+    // Parsear las imágenes actuales que NO se eliminaron
+    let imagenesMantenidas = [];
+    try {
+      imagenesMantenidas = imagenesActuales ? JSON.parse(imagenesActuales) : [];
+    } catch (e) {
+      imagenesMantenidas = [];
+    }
+
+    const nuevasImagenes = [...imagenesMantenidas];
 
     if (Array.isArray(req.files) && req.files.length > 0) {
-      // Eliminar imágenes anteriores
-      fs.readdirSync(carpetaPublicacion).forEach(file => {
-        fs.unlinkSync(path.join(carpetaPublicacion, file));
-      });
-
       req.files.forEach(file => {
         const destino = path.join(carpetaPublicacion, file.filename);
         fs.renameSync(file.path, destino);
@@ -3440,12 +4473,13 @@ app.put('/api/publicaciones-grua/:id', uploadPublicacionPrestador.array('imagene
 
         nuevasImagenes.push(rutaRelativa);
       });
-
-      await pool.query(
-        'UPDATE publicaciongrua SET FotoPublicacion = ? WHERE IdPublicacionGrua = ?',
-        [JSON.stringify(nuevasImagenes), idPublicacion]
-      );
     }
+
+    // Actualizar con todas las imágenes (mantenidas + nuevas)
+    await pool.query(
+      'UPDATE publicaciongrua SET FotoPublicacion = ? WHERE IdPublicacionGrua = ?',
+      [JSON.stringify(nuevasImagenes), idPublicacion]
+    );
 
     res.json({ mensaje: '✅ Publicación actualizada correctamente' });
 
@@ -3492,7 +4526,7 @@ app.put("/api/actualizarPerfilPrestador/:idUsuario", uploadPublicacionPrestador.
 
   try {
     const [usuarioRows] = await pool.query(
-      "SELECT FotoPerfil FROM Usuario WHERE IdUsuario = ?",
+      "SELECT Nombre, Apellido, Correo, Telefono, FotoPerfil FROM Usuario WHERE IdUsuario = ?",
       [idUsuario]
     );
 
@@ -3500,7 +4534,8 @@ app.put("/api/actualizarPerfilPrestador/:idUsuario", uploadPublicacionPrestador.
       return res.status(404).json({ error: "Usuario no encontrado" });
     }
 
-    let rutaFotoFinal = usuarioRows[0].FotoPerfil;
+    const datosActuales = usuarioRows[0];
+    let rutaFotoFinal = datosActuales.FotoPerfil;
 
     // ✅ Procesar imagen de perfil
     if (foto) {
@@ -3525,6 +4560,7 @@ app.put("/api/actualizarPerfilPrestador/:idUsuario", uploadPublicacionPrestador.
     }
     
     // ✅ Procesar certificado
+    let rutaCertificadoFinal = null;
     if (certificado) {
       const folder = path.join(__dirname, "public", "Imagen", "PrestadorServicios", idUsuario, "documentos");
       fs.mkdirSync(folder, { recursive: true });
@@ -3555,7 +4591,7 @@ app.put("/api/actualizarPerfilPrestador/:idUsuario", uploadPublicacionPrestador.
       const destino = path.join(folder, nombreCertificado);
       fs.renameSync(certificado.path, destino);
 
-      const rutaCertificadoFinal = path.join("Imagen", "PrestadorServicios", idUsuario, "documentos", nombreCertificado).replace(/\\/g, "/");
+      rutaCertificadoFinal = path.join("Imagen", "PrestadorServicios", idUsuario, "documentos", nombreCertificado).replace(/\\/g, "/");
 
       await pool.query(
         "UPDATE prestadorservicio SET Certificado = ? WHERE IdServicio = ?",
@@ -3569,16 +4605,16 @@ app.put("/api/actualizarPerfilPrestador/:idUsuario", uploadPublicacionPrestador.
       SET Nombre = ?, Apellido = ?, Correo = ?, Telefono = ?, FotoPerfil = ?
       WHERE IdUsuario = ?`,
       [
-        data.Nombre || null,
-        data.Apellido || null,
-        data.Correo || null,
-        data.Telefono || null,
+        data.Nombre || datosActuales.Nombre,
+        data.Apellido || datosActuales.Apellido,
+        data.Correo || datosActuales.Correo,
+        data.Telefono || datosActuales.Telefono,
         rutaFotoFinal,
         idUsuario
       ]
     );
 
-
+    console.log(`✅ Perfil prestador actualizado para usuario: ${idUsuario}`);
 
     res.json({ mensaje: "✅ Perfil actualizado correctamente", fotoPerfil: rutaFotoFinal, certificado: rutaCertificadoFinal });
 
@@ -3678,17 +4714,17 @@ app.put('/api/solicitudes-grua/estado/:id', async (req, res) => {
   const { estado } = req.body;
 
   // Validar que el estado sea válido
-  const estadosValidos = ['Aceptado', 'Rechazado', 'Cancelado'];
+  const estadosValidos = ['Aceptado', 'Rechazado', 'Cancelado', 'Terminado', 'Finalizado', 'Completado'];
   
   if (!estadosValidos.includes(estado)) {
     return res.status(400).json({ 
       success: false, 
-      message: 'Estado no válido. Debe ser: Aceptado, Rechazado o Cancelado' 
+      message: 'Estado no válido. Debe ser: Aceptado, Rechazado, Cancelado, Terminado, Finalizado o Completado' 
     });
   }
 
   try {
-    // Verificar que la solicitud existe
+    // Verificar que la solicitud existe y obtener su estado actual
     const solicitud = await queryPromise(
       'SELECT IdSolicitudServicio, Estado FROM controlagendaservicios WHERE IdSolicitudServicio = ?',
       [id]
@@ -3698,19 +4734,118 @@ app.put('/api/solicitudes-grua/estado/:id', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Solicitud no encontrada.' });
     }
 
+    const estadoActual = solicitud[0].Estado;
+
+    // Validar que no se puede modificar un servicio ya finalizado o cancelado
+    if (['Completado', 'Terminado', 'Cancelado', 'Rechazado'].includes(estadoActual)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `No se puede modificar un servicio que ya está ${estadoActual.toLowerCase()}.` 
+      });
+    }
+
+    // Validar transiciones de estado
+    if ((estado === 'Terminado' || estado === 'Finalizado' || estado === 'Completado') && estadoActual !== 'Aceptado') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Solo puedes marcar como completado un servicio que ha sido aceptado.' 
+      });
+    }
+
+    // Normalizar estados: Terminado/Finalizado -> Completado
+    let estadoFinal = estado;
+    if (estado === 'Terminado' || estado === 'Finalizado') {
+      estadoFinal = 'Completado';
+    }
+
     // Actualizar el estado
     await queryPromise(
       'UPDATE controlagendaservicios SET Estado = ? WHERE IdSolicitudServicio = ?',
-      [estado, id]
+      [estadoFinal, id]
     );
 
     res.status(200).json({
       success: true,
-      message: `Solicitud #${id} ${estado.toLowerCase()} correctamente.`
+      message: `Solicitud #${id} ${estadoFinal.toLowerCase()} correctamente.`
     });
 
   } catch (error) {
     console.error('❌ Error al actualizar estado de solicitud:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+  }
+});
+
+// ===============================
+//  ACTUALIZAR FECHA/HORA DE SOLICITUD DE GRÚA - PRESTADOR
+// ===============================
+app.put('/api/solicitudes-grua/fecha/:id', async (req, res) => {
+  const { id } = req.params;
+  const { fecha, hora } = req.body;
+
+  if (!fecha || !hora) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Fecha y hora son obligatorias.' 
+    });
+  }
+
+  try {
+    // Verificar que la solicitud existe y obtener su estado
+    const solicitud = await queryPromise(
+      'SELECT IdSolicitudServicio, Estado FROM controlagendaservicios WHERE IdSolicitudServicio = ?',
+      [id]
+    );
+
+    if (!solicitud || solicitud.length === 0) {
+      return res.status(404).json({ success: false, message: 'Solicitud no encontrada.' });
+    }
+
+    const estadoActual = solicitud[0].Estado;
+
+    // Validar que solo se puede modificar si está Pendiente o Aceptado
+    if (!['Pendiente', 'Aceptado'].includes(estadoActual)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Solo puedes modificar la fecha de servicios pendientes o aceptados.' 
+      });
+    }
+
+    // Actualizar fecha y hora, registrar modificación y resetear notificación
+    // Usar datetime('now') para SQLite o NOW() para MySQL
+    const fechaActual = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    await queryPromise(
+      'UPDATE controlagendaservicios SET FechaServicio = ?, HoraServicio = ?, FechaModificadaPor = ?, NotificacionVista = 0 WHERE IdSolicitudServicio = ?',
+      [fecha, hora, fechaActual, id]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Fecha y hora actualizadas correctamente para la solicitud #${id}. El usuario será notificado del cambio.`
+    });
+
+  } catch (error) {
+    console.error('❌ Error al actualizar fecha/hora de solicitud:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+  }
+});
+
+// 🔹 Marcar notificación de cambio de fecha como vista
+app.put('/api/solicitudes-grua/notificacion-vista/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Usar 1 para SQLite en lugar de TRUE
+    await queryPromise(
+      'UPDATE controlagendaservicios SET NotificacionVista = 1 WHERE IdSolicitudServicio = ?',
+      [id]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Notificación marcada como vista.'
+    });
+  } catch (error) {
+    console.error('❌ Error al marcar notificación como vista:', error);
     res.status(500).json({ success: false, message: 'Error interno del servidor.' });
   }
 });
@@ -3887,7 +5022,9 @@ app.get('/api/historial-servicios-prestador/:usuarioId', async (req, res) => {
          cas.Destino,
          cas.FechaServicio AS Fecha,
          cas.HoraServicio AS Hora,
-         cas.Estado
+         cas.Estado,
+         cas.FechaModificadaPor,
+         cas.NotificacionVista
        FROM controlagendaservicios cas
        JOIN publicaciongrua pg ON cas.PublicacionGrua = pg.IdPublicacionGrua
        JOIN usuario u ON cas.UsuarioNatural = u.IdUsuario
@@ -4032,11 +5169,254 @@ app.delete('/api/admin/usuario/:id', verificarAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    // Eliminar usuario (considerar eliminar en cascada o manejar referencias)
-    await queryPromise(
-      'DELETE FROM usuario WHERE IdUsuario = ?',
-      [id]
-    );
+    // Eliminar registros relacionados en cascada
+    console.log('🗑️ Eliminando registros relacionados...');
+    
+    // Función auxiliar para eliminar de forma segura con mejor manejo de errores
+    const eliminarSeguro = async (query, params, descripcion) => {
+      try {
+        const result = await queryPromise(query, params);
+        console.log(`✅ ${descripcion}`);
+        return true;
+      } catch (error) {
+        console.log(`⚠️ ${descripcion} - ${error.message}`);
+        return false;
+      }
+    };
+    
+    // 1. Eliminar tokens de verificación
+    await eliminarSeguro('DELETE FROM tokens_verificacion WHERE Usuario = ?', [id], 'Tokens eliminados');
+    
+    // 2. Eliminar historial de contraseñas
+    await eliminarSeguro('DELETE FROM historial_contrasenas WHERE Usuario = ?', [id], 'Historial contraseñas eliminado');
+    
+    // 3. Eliminar opiniones sobre publicaciones del usuario
+    await eliminarSeguro('DELETE FROM opiniones WHERE UsuarioNatural = ?', [id], 'Opiniones eliminadas');
+    
+    // 4. Eliminar opiniones sobre grúas del usuario
+    await eliminarSeguro('DELETE FROM OpinionesGrua WHERE UsuarioNatural = ?', [id], 'Opiniones grúas eliminadas');
+    
+    // 5. Eliminar PQRs
+    await eliminarSeguro('DELETE FROM centroayuda WHERE Perfil = ?', [id], 'PQRs eliminadas');
+    
+    // 6. Obtener el NitComercio si es comerciante para eliminar sus publicaciones
+    let nitComercio = null;
+    try {
+      const comerciante = await queryPromise('SELECT NitComercio FROM comerciante WHERE Comercio = ?', [id]);
+      if (comerciante.length > 0) {
+        nitComercio = comerciante[0].NitComercio;
+        console.log(`📋 NitComercio encontrado: ${nitComercio}`);
+      }
+    } catch (error) {
+      console.log(`⚠️ No se pudo obtener NitComercio - ${error.message}`);
+    }
+    
+    // 7. Obtener IdServicio si es prestador de servicio
+    let idServicio = null;
+    try {
+      const prestador = await queryPromise('SELECT IdServicio FROM prestadorservicio WHERE Usuario = ?', [id]);
+      if (prestador.length > 0) {
+        idServicio = prestador[0].IdServicio;
+        console.log(`📋 IdServicio encontrado: ${idServicio}`);
+      }
+    } catch (error) {
+      console.log(`⚠️ No se pudo obtener IdServicio - ${error.message}`);
+    }
+    
+    // 8. Si es comerciante, eliminar sus publicaciones y dependencias
+    if (nitComercio) {
+      try {
+        // Obtener IDs de publicaciones del comerciante
+        const publicaciones = await queryPromise('SELECT IdPublicacion FROM publicacion WHERE Comerciante = ?', [nitComercio]);
+        if (publicaciones.length > 0) {
+          const pubIds = publicaciones.map(p => p.IdPublicacion);
+          const placeholders = pubIds.map(() => '?').join(',');
+          
+          // Eliminar opiniones sobre estas publicaciones
+          await eliminarSeguro(
+            `DELETE FROM opiniones WHERE Publicacion IN (${placeholders})`,
+            pubIds,
+            'Opiniones de publicaciones eliminadas'
+          );
+          
+          // Eliminar items del carrito con estas publicaciones
+          await eliminarSeguro(
+            `DELETE FROM carrito WHERE Publicacion IN (${placeholders})`,
+            pubIds,
+            'Items carrito de publicaciones eliminados'
+          );
+          
+          // Eliminar detalles de factura con estas publicaciones
+          await eliminarSeguro(
+            `DELETE FROM detallefactura WHERE Publicacion IN (${placeholders})`,
+            pubIds,
+            'Detalles factura eliminados'
+          );
+          
+          // Obtener detalles de factura comercio para eliminar agenda comercio
+          const detallesComercio = await queryPromise(
+            `SELECT IdDetalleFacturaComercio FROM detallefacturacomercio WHERE Publicacion IN (${placeholders})`,
+            pubIds
+          );
+          if (detallesComercio.length > 0) {
+            const detalleIds = detallesComercio.map(d => d.IdDetalleFacturaComercio);
+            const placeholdersDetalle = detalleIds.map(() => '?').join(',');
+            await eliminarSeguro(
+              `DELETE FROM controlagendacomercio WHERE DetFacturacomercio IN (${placeholdersDetalle})`,
+              detalleIds,
+              'Agenda comercio por detalles eliminada'
+            );
+          }
+          
+          // Eliminar detalles de factura comercio
+          await eliminarSeguro(
+            `DELETE FROM detallefacturacomercio WHERE Publicacion IN (${placeholders})`,
+            pubIds,
+            'Detalles factura comercio eliminados'
+          );
+          
+          // Eliminar productos asociados a estas publicaciones
+          await eliminarSeguro(
+            `DELETE FROM producto WHERE PublicacionComercio IN (${placeholders})`,
+            pubIds,
+            'Productos eliminados'
+          );
+        }
+        
+        // Finalmente eliminar las publicaciones
+        await eliminarSeguro('DELETE FROM publicacion WHERE Comerciante = ?', [nitComercio], 'Publicaciones comerciante eliminadas');
+      } catch (error) {
+        console.log(`⚠️ Error en cascada de publicaciones comerciante - ${error.message}`);
+      }
+    }
+    
+    // 9. Si es prestador, eliminar sus publicaciones de grúa y dependencias
+    if (idServicio) {
+      try {
+        // Obtener IDs de publicaciones de grúa
+        const pubGruas = await queryPromise('SELECT IdPublicacionGrua FROM publicaciongrua WHERE Servicio = ?', [idServicio]);
+        if (pubGruas.length > 0) {
+          const gruaIds = pubGruas.map(g => g.IdPublicacionGrua);
+          const placeholders = gruaIds.map(() => '?').join(',');
+          
+          // Eliminar opiniones sobre estas publicaciones de grúa
+          await eliminarSeguro(
+            `DELETE FROM OpinionesGrua WHERE PublicacionGrua IN (${placeholders})`,
+            gruaIds,
+            'Opiniones de grúas eliminadas'
+          );
+          
+          // Obtener solicitudes de servicio para eliminar historial
+          const solicitudes = await queryPromise(
+            `SELECT IdSolicitudServicio FROM controlagendaservicios WHERE PublicacionGrua IN (${placeholders})`,
+            gruaIds
+          );
+          if (solicitudes.length > 0) {
+            const solIds = solicitudes.map(s => s.IdSolicitudServicio);
+            const placeholdersSol = solIds.map(() => '?').join(',');
+            await eliminarSeguro(
+              `DELETE FROM historialservicios WHERE SolicitudServicio IN (${placeholdersSol})`,
+              solIds,
+              'Historial de servicios eliminado'
+            );
+          }
+          
+          // Eliminar solicitudes de servicio
+          await eliminarSeguro(
+            `DELETE FROM controlagendaservicios WHERE PublicacionGrua IN (${placeholders})`,
+            gruaIds,
+            'Solicitudes de servicio eliminadas'
+          );
+        }
+        
+        // Eliminar publicaciones de grúa
+        await eliminarSeguro('DELETE FROM publicaciongrua WHERE Servicio = ?', [idServicio], 'Publicaciones grúa eliminadas');
+      } catch (error) {
+        console.log(`⚠️ Error en cascada de publicaciones grúa - ${error.message}`);
+      }
+    }
+    
+    // 10. Eliminar solicitudes de servicio del usuario natural (como cliente)
+    try {
+      const solicitudesUsuario = await queryPromise('SELECT IdSolicitudServicio FROM controlagendaservicios WHERE UsuarioNatural = ?', [id]);
+      if (solicitudesUsuario.length > 0) {
+        const solIds = solicitudesUsuario.map(s => s.IdSolicitudServicio);
+        const placeholders = solIds.map(() => '?').join(',');
+        await eliminarSeguro(
+          `DELETE FROM historialservicios WHERE SolicitudServicio IN (${placeholders})`,
+          solIds,
+          'Historial de servicios usuario eliminado'
+        );
+      }
+    } catch (error) {
+      console.log(`⚠️ Error en historial servicios usuario - ${error.message}`);
+    }
+    await eliminarSeguro('DELETE FROM controlagendaservicios WHERE UsuarioNatural = ?', [id], 'Agenda servicios usuario eliminada');
+    
+    // 11. Eliminar carrito del usuario
+    await eliminarSeguro('DELETE FROM carrito WHERE UsuarioNat = ?', [id], 'Carrito eliminado');
+    
+    // 12. Eliminar agenda comercio del usuario (si es comerciante por Comercio field)
+    await eliminarSeguro('DELETE FROM controlagendacomercio WHERE Comercio = ?', [id], 'Agenda comercio eliminada');
+    
+    // 13. Obtener facturas del usuario y eliminar en cascada
+    try {
+      const facturas = await queryPromise('SELECT IdFactura FROM factura WHERE Usuario = ?', [id]);
+      if (facturas.length > 0) {
+        const facturaIds = facturas.map(f => f.IdFactura);
+        const placeholders = facturaIds.map(() => '?').join(',');
+        
+        // Obtener detalles de factura comercio para eliminar agenda comercio
+        const detallesComercio = await queryPromise(
+          `SELECT IdDetalleFacturaComercio FROM detallefacturacomercio WHERE Factura IN (${placeholders})`,
+          facturaIds
+        );
+        if (detallesComercio.length > 0) {
+          const detalleIds = detallesComercio.map(d => d.IdDetalleFacturaComercio);
+          const placeholdersDetalle = detalleIds.map(() => '?').join(',');
+          await eliminarSeguro(
+            `DELETE FROM controlagendacomercio WHERE DetFacturacomercio IN (${placeholdersDetalle})`,
+            detalleIds,
+            'Agenda comercio por facturas eliminada'
+          );
+        }
+        
+        await eliminarSeguro(
+          `DELETE FROM detallefacturacomercio WHERE Factura IN (${placeholders})`,
+          facturaIds,
+          'Detalles factura comercio eliminados'
+        );
+        
+        await eliminarSeguro(
+          `DELETE FROM detallefactura WHERE Factura IN (${placeholders})`,
+          facturaIds,
+          'Detalles factura eliminados'
+        );
+      }
+    } catch (error) {
+      console.log(`⚠️ Error en cascada de facturas - ${error.message}`);
+    }
+    
+    // 14. Eliminar facturas
+    await eliminarSeguro('DELETE FROM factura WHERE Usuario = ?', [id], 'Facturas eliminadas');
+    
+    // 15. Eliminar perfil de prestador de servicio si existe
+    await eliminarSeguro('DELETE FROM prestadorservicio WHERE Usuario = ?', [id], 'Perfil prestador eliminado');
+    
+    // 16. Eliminar perfil de comerciante si existe
+    await eliminarSeguro('DELETE FROM comerciante WHERE Comercio = ?', [id], 'Perfil comerciante eliminado');
+    
+    // 17. Eliminar perfil natural si existe
+    await eliminarSeguro('DELETE FROM perfilnatural WHERE UsuarioNatural = ?', [id], 'Perfil natural eliminado');
+    
+    // 18. Eliminar credenciales
+    await eliminarSeguro('DELETE FROM credenciales WHERE Usuario = ?', [id], 'Credenciales eliminadas');
+    
+    // 19. Finalmente, eliminar el usuario
+    await queryPromise('DELETE FROM usuario WHERE IdUsuario = ?', [id]);
+    console.log('✅ Usuario eliminado de la tabla usuario');
+
+    console.log('✅ Usuario y registros relacionados eliminados correctamente');
 
     res.json({ 
       success: true, 
@@ -4054,23 +5434,232 @@ app.delete('/api/admin/usuario/:id', verificarAdmin, async (req, res) => {
 // ===============================
 app.get('/api/admin/publicaciones', verificarAdmin, async (req, res) => {
   try {
-    console.log("📦 Cargando todas las publicaciones");
+    console.log("📦 Cargando todas las publicaciones (comercios y grúas)");
 
-    const publicaciones = await queryPromise(
-      `SELECT p.IdPublicacion, p.NombreProducto, p.Precio, p.ImagenProducto as ImagenPrincipal, 
+    // Consultar publicaciones de comercios
+    const publicacionesComercios = await queryPromise(
+      `SELECT p.IdPublicacion, 
+              p.NombreProducto, 
+              p.Precio, 
+              p.ImagenProducto as ImagenPrincipal, 
               p.Stock as Estado, 
               COALESCE(u.Nombre || ' ' || u.Apellido, 'Doc: ' || p.Comerciante) as NombreComercio,
-              p.Comerciante
+              p.Comerciante,
+              u.TipoUsuario,
+              0 as EsGrua
        FROM publicacion p
        LEFT JOIN usuario u ON p.Comerciante = u.Documento
        ORDER BY p.IdPublicacion DESC`
     );
+
+    // Consultar publicaciones de grúas
+    const publicacionesGruas = await queryPromise(
+      `SELECT pg.IdPublicacionGrua as IdPublicacion,
+              pg.TituloPublicacion as NombreProducto,
+              pg.TarifaBase as Precio,
+              pg.FotoPublicacion as ImagenPrincipal,
+              1 as Estado,
+              COALESCE(u.Nombre || ' ' || u.Apellido, 'Usuario: ' || ps.usuario) as NombreComercio,
+              ps.usuario as Comerciante,
+              u.TipoUsuario,
+              1 as EsGrua
+       FROM publicaciongrua pg
+       JOIN prestadorservicio ps ON pg.Servicio = ps.IdServicio
+       LEFT JOIN usuario u ON ps.usuario = u.IdUsuario
+       ORDER BY pg.IdPublicacionGrua DESC`
+    );
+
+    // Combinar ambos arrays
+    const publicaciones = [...publicacionesComercios, ...publicacionesGruas];
+    
+    console.log(`✅ Total publicaciones: ${publicaciones.length} (Comercios: ${publicacionesComercios.length}, Grúas: ${publicacionesGruas.length})`);
 
     res.json({ publicaciones });
 
   } catch (error) {
     console.error('❌ Error al obtener publicaciones:', error);
     res.status(500).json({ error: 'Error en el servidor al consultar publicaciones.' });
+  }
+});
+
+// ===============================
+// Eliminar publicación desde admin con observación
+// ===============================
+app.delete('/api/admin/publicacion/:id', verificarAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { observacion, esGrua } = req.body;
+
+  try {
+    console.log(`🗑️ Admin eliminando publicación ${id} (Grúa: ${esGrua})`);
+
+    if (!observacion || observacion.trim().length === 0) {
+      return res.status(400).json({ error: 'La observación es requerida' });
+    }
+
+    let pub, correoUsuario, nombreUsuario, apellidoUsuario;
+
+    // Determinar si es una publicación de grúa o comercio
+    if (esGrua) {
+      // Es una publicación de grúa
+      const publicacionGrua = await queryPromise(
+        `SELECT pg.*, u.Correo, u.Nombre, u.Apellido
+         FROM publicaciongrua pg
+         JOIN prestadorservicio ps ON pg.Servicio = ps.IdServicio
+         JOIN usuario u ON ps.usuario = u.IdUsuario
+         WHERE pg.IdPublicacionGrua = ?`,
+        [id]
+      );
+
+      if (publicacionGrua.length === 0) {
+        return res.status(404).json({ error: 'Publicación de grúa no encontrada' });
+      }
+
+      pub = publicacionGrua[0];
+      correoUsuario = pub.Correo;
+      nombreUsuario = pub.Nombre;
+      apellidoUsuario = pub.Apellido;
+
+      // Eliminar solicitudes relacionadas
+      await queryPromise('DELETE FROM controlagendaservicios WHERE PublicacionGrua = ?', [id]);
+      
+      // Eliminar opiniones de grúa si existen (tabla OpinionesGrua)
+      await queryPromise('DELETE FROM OpinionesGrua WHERE PublicacionGrua = ?', [id]);
+      
+      // Eliminar la publicación de grúa
+      await queryPromise('DELETE FROM publicaciongrua WHERE IdPublicacionGrua = ?', [id]);
+
+    } else {
+      // Es una publicación de comercio
+      const publicacion = await queryPromise(
+        `SELECT p.*, u.Correo, u.Nombre, u.Apellido, com.NombreComercio
+         FROM publicacion p
+         JOIN comerciante com ON p.Comerciante = com.NitComercio
+         JOIN usuario u ON com.Comercio = u.IdUsuario
+         WHERE p.IdPublicacion = ?`,
+        [id]
+      );
+
+      if (publicacion.length === 0) {
+        return res.status(404).json({ error: 'Publicación no encontrada' });
+      }
+
+      pub = publicacion[0];
+      correoUsuario = pub.Correo;
+      nombreUsuario = pub.Nombre;
+      apellidoUsuario = pub.Apellido;
+      
+      // Eliminar en orden correcto para evitar errores de FK
+      // 1. Eliminar del carrito
+      await queryPromise('DELETE FROM carrito WHERE Publicacion = ?', [id]);
+      
+      // 2. Obtener IDs de detallefacturacomercio para eliminar controlagendacomercio
+      const detallesComercio = await queryPromise(
+        'SELECT IdDetalleFacturaComercio FROM detallefacturacomercio WHERE Publicacion = ?', 
+        [id]
+      );
+      
+      // 3. Eliminar controlagendacomercio que referencian a detallefacturacomercio
+      for (const detalle of detallesComercio) {
+        await queryPromise('DELETE FROM controlagendacomercio WHERE DetFacturacomercio = ?', [detalle.IdDetalleFacturaComercio]);
+      }
+      
+      // 4. Eliminar detalles de factura
+      await queryPromise('DELETE FROM detallefactura WHERE Publicacion = ?', [id]);
+      await queryPromise('DELETE FROM detallefacturacomercio WHERE Publicacion = ?', [id]);
+      
+      // 5. Eliminar opiniones relacionadas
+      await queryPromise('DELETE FROM opiniones WHERE Publicacion = ?', [id]);
+      
+      // 6. Eliminar productos relacionados
+      await queryPromise('DELETE FROM producto WHERE PublicacionComercio = ?', [id]);
+      
+      // 7. Finalmente eliminar la publicación
+      await queryPromise('DELETE FROM publicacion WHERE IdPublicacion = ?', [id]);
+    }
+
+    // Enviar correo al usuario
+    const nombreProducto = pub.TituloPublicacion || pub.NombreProducto;
+    const precioProducto = pub.TarifaBase || pub.Precio;
+    const tipoPublicacion = esGrua ? 'servicio de grúa' : 'producto';
+
+    try {
+      await enviarCorreo({
+        to: correoUsuario,
+        subject: '⚠️ Tu publicación ha sido eliminada - RPM Market',
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+              .header { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+              .content { background: white; padding: 30px; }
+              .footer { background: #333; color: white; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; font-size: 12px; }
+              .alert-box { background: #ffe6e6; border-left: 4px solid #e74c3c; padding: 15px; margin: 20px 0; border-radius: 5px; }
+              .product-info { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; }
+              .observation-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 5px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>⚠️ Publicación Eliminada</h1>
+              </div>
+              <div class="content">
+                <p>Hola <strong>${nombreUsuario} ${apellidoUsuario}</strong>,</p>
+                
+                <div class="alert-box">
+                  <strong>⚠️ Notificación Importante:</strong>
+                  <p>Te informamos que el equipo de administración de RPM Market ha eliminado una de tus publicaciones.</p>
+                </div>
+                
+                <div class="product-info">
+                  <h3>${esGrua ? '🚛' : '📦'} Detalles de la publicación eliminada:</h3>
+                  <p><strong>Tipo:</strong> ${tipoPublicacion}</p>
+                  <p><strong>${esGrua ? 'Servicio' : 'Producto'}:</strong> ${nombreProducto}</p>
+                  <p><strong>${esGrua ? 'Tarifa' : 'Precio'}:</strong> $${Number(precioProducto).toLocaleString('es-CO')}</p>
+                  <p><strong>ID Publicación:</strong> ${id}</p>
+                </div>
+                
+                <div class="observation-box">
+                  <h4>📝 Motivo de la eliminación:</h4>
+                  <p>${observacion}</p>
+                </div>
+                
+                <p>Si tienes alguna duda o deseas más información sobre esta decisión, por favor contáctanos respondiendo a este correo o a través de nuestros canales de atención.</p>
+                
+                <p>Si consideras que fue un error, puedes crear una nueva publicación siguiendo nuestras políticas y términos de uso.</p>
+                
+                <p style="margin-top: 20px;">
+                  <strong>Gracias por tu comprensión.</strong><br>
+                  <em>Equipo de RPM Market</em>
+                </p>
+              </div>
+              <div class="footer">
+                <p><strong>RPM Market</strong></p>
+                <p>📧 rpmservice2026@gmail.com | 📞 301 403 8181</p>
+                <p>© 2026 RPM Market - Todos los derechos reservados</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `
+      });
+      console.log(`✅ Correo de notificación enviado a: ${correoUsuario}`);
+    } catch (emailError) {
+      console.warn('⚠️ Error al enviar correo de notificación:', emailError.message);
+    }
+
+    console.log('✅ Publicación eliminada correctamente');
+    res.json({ 
+      success: true, 
+      message: 'Publicación eliminada y notificación enviada' 
+    });
+
+  } catch (error) {
+    console.error('❌ Error al eliminar publicación:', error);
+    res.status(500).json({ error: 'Error en el servidor al eliminar publicación.' });
   }
 });
 
@@ -4088,17 +5677,142 @@ app.get('/api/admin/pqr', verificarAdmin, async (req, res) => {
               ca.Rol, 
               ca.Asunto, 
               ca.Descripcion,
-              u.Nombre || ' ' || u.Apellido as NombreUsuario,
-              ca.FechaCreacion
+              ca.Respuesta,
+              ca.FechaRespuesta,
+              ca.Respondida,
+              (u.Nombre || ' ' || u.Apellido) as NombreUsuario,
+              datetime('now') as FechaCreacion
        FROM centroayuda ca
        LEFT JOIN usuario u ON ca.Perfil = u.IdUsuario
        ORDER BY ca.IdAyuda DESC`
     );
 
+    console.log("✅ PQR cargadas:", pqrs.length, "registros");
     res.json({ pqrs });
 
   } catch (error) {
     console.error('❌ Error al obtener PQR:', error);
+    console.error('❌ Stack:', error.stack);
     res.status(500).json({ error: 'Error en el servidor al consultar PQR.' });
+  }
+});
+
+// ===============================
+// Responder una PQR y enviar notificación por correo
+// ===============================
+app.post('/api/admin/pqr/responder', verificarAdmin, async (req, res) => {
+  try {
+    const { idPQR, respuesta } = req.body;
+
+    if (!idPQR || !respuesta) {
+      return res.status(400).json({ error: 'ID de PQR y respuesta son requeridos' });
+    }
+
+    console.log(`📝 Respondiendo PQR ${idPQR}`);
+
+    // Obtener información de la PQR y el usuario
+    const pqrInfo = await queryPromise(
+      `SELECT ca.*, u.Correo, u.Nombre, u.Apellido 
+       FROM centroayuda ca
+       LEFT JOIN usuario u ON ca.Perfil = u.IdUsuario
+       WHERE ca.IdAyuda = ?`,
+      [idPQR]
+    );
+
+    if (!pqrInfo || pqrInfo.length === 0) {
+      return res.status(404).json({ error: 'PQR no encontrada' });
+    }
+
+    const pqr = pqrInfo[0];
+
+    // Actualizar la PQR con la respuesta
+    await queryPromise(
+      `UPDATE centroayuda 
+       SET Respuesta = ?, 
+           FechaRespuesta = datetime('now'),
+           Respondida = 1
+       WHERE IdAyuda = ?`,
+      [respuesta, idPQR]
+    );
+
+    console.log(`✅ PQR ${idPQR} respondida correctamente`);
+
+    // Enviar correo de notificación si existe el correo del usuario
+    if (pqr.Correo) {
+      try {
+        const nombreUsuario = `${pqr.Nombre || ''} ${pqr.Apellido || ''}`.trim() || 'Usuario';
+        
+        await enviarCorreo({
+          to: pqr.Correo,
+          subject: `Respuesta a tu ${pqr.TipoSolicitud}: ${pqr.Asunto}`,
+          html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                .content { background: #f9f9f9; padding: 30px; border-left: 4px solid #667eea; }
+                .footer { background: #333; color: white; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; }
+                .badge { display: inline-block; padding: 5px 10px; border-radius: 5px; font-size: 12px; font-weight: bold; }
+                .badge-queja { background: #dc3545; color: white; }
+                .badge-reclamo { background: #ffc107; color: #333; }
+                .badge-sugerencia { background: #17a2b8; color: white; }
+                .respuesta-box { background: white; border-left: 4px solid #28a745; padding: 15px; margin: 15px 0; border-radius: 5px; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1>✅ Hemos Respondido tu Solicitud</h1>
+                </div>
+                <div class="content">
+                  <p>Hola <strong>${nombreUsuario}</strong>,</p>
+                  <p>Hemos revisado y respondido tu solicitud en el Centro de Ayuda de <strong>RPM Market</strong>.</p>
+                  
+                  <h3>📋 Detalles de tu solicitud:</h3>
+                  <p><strong>Tipo:</strong> <span class="badge badge-${pqr.TipoSolicitud.toLowerCase()}">${pqr.TipoSolicitud}</span></p>
+                  <p><strong>Asunto:</strong> ${pqr.Asunto}</p>
+                  <p><strong>Tu mensaje:</strong></p>
+                  <div style="background: #fff; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    ${pqr.Descripcion}
+                  </div>
+                  
+                  <h3>💬 Nuestra respuesta:</h3>
+                  <div class="respuesta-box">
+                    ${respuesta.replace(/\n/g, '<br>')}
+                  </div>
+                  
+                  <p>Si tienes más preguntas o inquietudes, no dudes en contactarnos nuevamente.</p>
+                  
+                  <p>Gracias por confiar en <strong>RPM Market</strong>.</p>
+                </div>
+                <div class="footer">
+                  <p><strong>RPM Market</strong></p>
+                  <p>📧 Email: rpmservice2026@gmail.com | 📞 Teléfono: 301 403 8181</p>
+                  <p style="font-size: 12px; margin-top: 10px;">Este es un correo automático, por favor no responder.</p>
+                </div>
+              </div>
+            </body>
+            </html>
+          `
+        });
+        console.log(`📧 Notificación enviada a ${pqr.Correo}`);
+      } catch (emailError) {
+        console.warn('⚠️ No se pudo enviar el correo de notificación:', emailError.message);
+        // Continuar aunque falle el envío del correo
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'PQR respondida correctamente',
+      emailSent: !!pqr.Correo 
+    });
+
+  } catch (error) {
+    console.error('❌ Error al responder PQR:', error);
+    res.status(500).json({ error: 'Error en el servidor al responder PQR.' });
   }
 });

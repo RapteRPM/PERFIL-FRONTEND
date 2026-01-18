@@ -70,10 +70,10 @@
       </div>
       <!-- Links -->
       <div class="hidden md:flex items-center space-x-6">
-        <a href="../General/index.html" class="hover:text-gray-200 transition">RPM market</a>
-        <a href="perfil_usuario.html" class="hover:text-gray-200 transition"> Inicio</a>
-        <a href="carrito_compras.html" class="hover:text-gray-200 transition"> Carrito</a>
-        <a href="../General/CentroAyuda.html" class="hover:text-gray-200 transition"> Centro de ayuda</a>
+        <a id="link-rpm-market" href="../General/index.html" class="hover:text-gray-200 transition">RPM market</a>
+        <a id="link-inicio-detalle" href="perfil_usuario.html" class="hover:text-gray-200 transition">Inicio</a>
+        <a id="link-carrito-detalle" href="carrito_compras.html" class="hover:text-gray-200 transition">Carrito</a>
+        <a id="link-centro-ayuda" href="../General/CentroAyuda.html" class="hover:text-gray-200 transition">Centro de ayuda</a>
       </div>
       <!-- Mobile -->
       <button class="md:hidden text-white"><i class="fas fa-bars text-xl"></i></button>
@@ -101,7 +101,7 @@
 
       <!-- Botones -->
       <div class="botones-accion mb-4">
-        <button class="btn btn-primary btn-lg px-4 me-2">Añadir al carrito</button>
+        <button id="btn-agregar-carrito" class="btn btn-primary btn-lg px-4 me-2">Añadir al carrito</button>
         <button id="btn-comprar-ahora" class="btn btn-outline-success btn-lg px-4">Comprar ahora</button>
       </div>
 
@@ -153,7 +153,7 @@
     </div>
     <div>
       <h4 class="text-lg font-bold mb-2">Atención al Cliente</h4>
-      <p>Email: infoRPM@gmail.com</p>
+      <p>Email: rpmservice2026@gmail.com</p>
       <p>Teléfono: 301 403 8181</p>
     </div>
     <div>
@@ -183,6 +183,38 @@
         // Hay sesión: mostrar perfil, ocultar botón ingresar
         perfilContainer.style.display = 'block';
         linkIngresar.style.display = 'none';
+        
+        // Verificar si es administrador
+        try {
+          const usuario = JSON.parse(usuarioActivo);
+          if (usuario.tipo === 'Administrador') {
+            // Ocultar opciones que no aplican al admin
+            const linkRPMMarket = document.getElementById('link-rpm-market');
+            const linkCarrito = document.getElementById('link-carrito-detalle');
+            const linkCentroAyuda = document.getElementById('link-centro-ayuda');
+            const linkInicio = document.getElementById('link-inicio-detalle');
+            const botonesCompra = document.querySelector('.botones-accion');
+            const formComentario = document.getElementById('form-comentario');
+            
+            if (linkRPMMarket) linkRPMMarket.style.display = 'none';
+            if (linkCarrito) linkCarrito.style.display = 'none';
+            if (linkCentroAyuda) linkCentroAyuda.style.display = 'none';
+            
+            // Cambiar el link de inicio al panel admin
+            if (linkInicio) {
+              linkInicio.href = '../Administrador/panel_admin.html';
+              linkInicio.textContent = 'Panel Admin';
+            }
+            
+            // Ocultar botones de compra para admin
+            if (botonesCompra) botonesCompra.style.display = 'none';
+            
+            // Ocultar formulario de comentarios para admin
+            if (formComentario) formComentario.parentElement.style.display = 'none';
+          }
+        } catch (e) {
+          console.log('Error al parsear usuario:', e);
+        }
       } else {
         // No hay sesión: ocultar perfil, mostrar botón ingresar
         perfilContainer.style.display = 'none';
@@ -193,6 +225,6 @@
   <script src="../JS/perfil_usuario.js"></script>
   <script src="../JS/UsuarioSesion.js"></script>
   <script src="../JS/Natural/detallePublicacion.js"></script>
-  <script src="../JS/mapa.js"></script>
+  <script src="../JS/Natural/mapaDetalleProducto.js"></script>
 </body>
 </html>

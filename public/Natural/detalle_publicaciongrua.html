@@ -18,25 +18,33 @@
 <header class="header text-white py-4 px-6 shadow-lg">
   <div class="max-w-7xl mx-auto flex items-center justify-between">
     <!-- Logo -->
-    <div class="flex items-center space-x-4">
+    <a href="../General/index.html" class="flex items-center space-x-4 no-underline text-white hover:opacity-80 transition-opacity">
       <img src="../General/IMAGENINGRESO/nuevo logo.jpeg" alt="Logo RPM" class="w-20 h-20 object-cover rounded-full shadow-lg" />
       <div>
         <h1 class="text-4xl font-extrabold tracking-wide">RPM</h1>
         <p class="text-gray-200 italic">Confianza que mueve tu camino</p>
       </div>
-    </div>
+    </a>
 
-    <!-- Perfil -->
-    <div class="dropdown">
-      <button class="flex items-center bg-transparent border-0 text-white" id="perfilDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-          <img id="foto-usuario" src="../image/imagen_perfil.png" alt="Usuario" class="w-16 h-16 object-cover rounded-full border-2 border-white mr-2"/>
-          <span id="nombre-usuario" class="font-semibold text-lg">Cargando...</span>
-      </button>
-      <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="perfilDropdown">
-        <li><a class="dropdown-item" href="Editar_perfil.html">Editar perfil</a></li>
-        <li><hr class="dropdown-divider"></li>
-        <li><a class="dropdown-item text-danger" href="/logout">Cerrar sesión</a></li>
-      </ul>
+    <!-- Perfil y botón de ingreso -->
+    <div class="flex items-center space-x-4">
+      <!-- Botón Ingresar (solo visible sin sesión) -->
+      <a id="link-ingresar-grua" href="../General/Ingreso.html" class="btn btn-light px-4 py-2" style="display: none;">
+        <i class="fas fa-sign-in-alt me-2"></i>Ingresar
+      </a>
+      
+      <!-- Perfil (solo visible con sesión) -->
+      <div id="perfil-container-grua" class="dropdown" style="display: none;">
+        <button class="flex items-center bg-transparent border-0 text-white" id="perfilDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            <img id="foto-usuario" src="../image/imagen_perfil.png" alt="Usuario" class="w-16 h-16 object-cover rounded-full border-2 border-white mr-2"/>
+            <span id="nombre-usuario" class="font-semibold text-lg">Cargando...</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="perfilDropdown">
+          <li><a class="dropdown-item" href="Editar_perfil.html">Editar perfil</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item text-danger" href="/logout">Cerrar sesión</a></li>
+        </ul>
+      </div>
     </div>
   </div>
 
@@ -50,9 +58,10 @@
 
       <!-- Menú para Usuario Natural -->
       <div class="hidden md:flex items-center space-x-6" id="menuNatural">
-        <a href="perfil_usuario.html" class="hover:text-gray-200 transition">RPM Market</a>
-        <a href="../General/marketplace_gruas.html" class="hover:text-gray-200 transition">Market Grua</a>
-        <a href="../General/CentroAyuda.html" class="hover:text-gray-200 transition">Centro de ayuda</a>
+        <a id="link-rpm-market-grua" href="../General/index.html" class="hover:text-gray-200 transition">RPM Market</a>
+        <a id="link-perfil-grua" href="perfil_usuario.html" class="hover:text-gray-200 transition" style="display: none;">Inicio</a>
+        <a id="link-market-grua" href="../General/marketplace_gruas.html" class="hover:text-gray-200 transition">Market Grua</a>
+        <a id="link-centro-ayuda-grua" href="../General/CentroAyuda.html" class="hover:text-gray-200 transition">Centro de ayuda</a>
       </div>
 
       <!-- Menú para Prestador -->
@@ -69,13 +78,31 @@
 <!-- CONTENIDO PRINCIPAL -->
 <main class="container mt-5 mb-5">
   <div class="row g-4">
-    <!-- Imagen -->
-    <div class="col-md-6 text-center">
-      <img id="imagen-grua" src="../General/IMAGENINGRESO/Grua.png" alt="Grúa de servicio" class="img-fluid rounded shadow-lg border" onerror="this.src='../General/IMAGENINGRESO/Grua.png'" />
+    <!-- Carrusel de Imágenes -->
+    <div class="col-md-5">
+      <div id="carouselGrua" class="carousel slide shadow-lg rounded" data-bs-ride="carousel" style="max-height: 400px;">
+        <div class="carousel-indicators" id="carousel-indicators"></div>
+        <div class="carousel-inner rounded" id="carousel-images" style="height: 400px; background: #f8f9fa;">
+          <!-- Spinner mientras carga -->
+          <div class="d-flex justify-content-center align-items-center h-100">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Cargando imágenes...</span>
+            </div>
+          </div>
+        </div>
+        <button class="carousel-control-prev" type="button" data-bs-target="#carouselGrua" data-bs-slide="prev" style="display: none;" id="carousel-prev">
+          <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+          <span class="visually-hidden">Anterior</span>
+        </button>
+        <button class="carousel-control-next" type="button" data-bs-target="#carouselGrua" data-bs-slide="next" style="display: none;" id="carousel-next">
+          <span class="carousel-control-next-icon" aria-hidden="true"></span>
+          <span class="visually-hidden">Siguiente</span>
+        </button>
+      </div>
     </div>
 
     <!-- Información del servicio -->
-    <div class="col-md-6">
+    <div class="col-md-7">
       <div class="card p-4 shadow-sm border-0">
         <h3 class="fw-bold text-primary mb-3">
           <i class="fas fa-truck-pickup me-2 text-danger"></i><span id="tituloPublicacion">Servicio de Grúa</span>
@@ -103,7 +130,7 @@
         </div>
 
         <!-- Botones -->
-        <div class="d-flex gap-3">
+        <div class="d-flex gap-3" id="botones-agendar">
           <button class="btn btn-primary w-50" data-bs-toggle="modal" data-bs-target="#modalAgendar">
             <i class="fas fa-calendar-plus"></i> Agendar
         </div>
@@ -190,7 +217,7 @@
     </div>
     <div>
       <h4 class="text-lg font-bold mb-2">Atención al cliente</h4>
-      <p>Email: asistencia@rpm.com</p>
+      <p>Email: rpmservice2026@gmail.com</p>
       <p>Teléfono: 301 403 8181</p>
     </div>
     <div>
@@ -213,7 +240,63 @@
 <!-- Scripts -->
 
 
-<script src="../JS/protegerPagina.js"></script>
+<script>
+  // Verificar sesión y mostrar/ocultar perfil o botón ingresar
+  document.addEventListener('DOMContentLoaded', () => {
+    const usuarioActivo = localStorage.getItem('usuarioActivo');
+    const perfilContainer = document.getElementById('perfil-container-grua');
+    const linkIngresar = document.getElementById('link-ingresar-grua');
+    const linkPerfilGrua = document.getElementById('link-perfil-grua');
+    
+    if (usuarioActivo) {
+      // Hay sesión: mostrar perfil, ocultar botón ingresar
+      if (perfilContainer) perfilContainer.style.display = 'block';
+      if (linkIngresar) linkIngresar.style.display = 'none';
+      if (linkPerfilGrua) linkPerfilGrua.style.display = 'block';
+      
+      // Verificar si es administrador
+      try {
+        const usuario = JSON.parse(usuarioActivo);
+        if (usuario.tipo === 'Administrador') {
+          // Ocultar opciones que no aplican al admin
+          const linkRPMMarket = document.getElementById('link-rpm-market-grua');
+          const linkMarketGrua = document.getElementById('link-market-grua');
+          const linkCentroAyuda = document.getElementById('link-centro-ayuda-grua');
+          const menuPrestador = document.getElementById('menuPrestador');
+          const botonesAgendar = document.getElementById('botones-agendar');
+          const modalAgendar = document.getElementById('modalAgendar');
+          const formComentario = document.getElementById('form-comentario');
+          
+          if (linkRPMMarket) linkRPMMarket.style.display = 'none';
+          if (linkMarketGrua) linkMarketGrua.style.display = 'none';
+          if (linkCentroAyuda) linkCentroAyuda.style.display = 'none';
+          if (menuPrestador) menuPrestador.style.display = 'none';
+          
+          // Ocultar botón de agendar y modal para admin
+          if (botonesAgendar) botonesAgendar.style.display = 'none';
+          if (modalAgendar) modalAgendar.remove();
+          
+          // Ocultar solo el formulario de comentarios (no los comentarios existentes)
+          if (formComentario) formComentario.closest('.card').style.display = 'none';
+          
+          // Cambiar el link de inicio al panel admin
+          if (linkPerfilGrua) {
+            linkPerfilGrua.href = '../Administrador/panel_admin.html';
+            linkPerfilGrua.textContent = 'Panel Admin';
+            linkPerfilGrua.style.display = 'block';
+          }
+        }
+      } catch (e) {
+        console.log('Error al parsear usuario:', e);
+      }
+    } else {
+      // No hay sesión: ocultar perfil, mostrar botón ingresar
+      if (perfilContainer) perfilContainer.style.display = 'none';
+      if (linkIngresar) linkIngresar.style.display = 'block';
+      if (linkPerfilGrua) linkPerfilGrua.style.display = 'none';
+    }
+  });
+</script>
 <script src="../JS/perfil_usuario.js"></script>
 <script src="../JS/UsuarioSesion.js"></script>
 <script src="../JS/Natural/DetallePublicacionGrua.js"></script>

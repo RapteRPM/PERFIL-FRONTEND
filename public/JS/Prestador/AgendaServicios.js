@@ -44,6 +44,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           Pendiente: "bg-warning text-dark",
           Cancelado: "bg-danger text-light",
           Rechazado: "bg-danger text-light",
+          Completado: "bg-success text-light",
           Terminado: "bg-success text-light",
           Aceptado: "bg-info text-dark"
         };
@@ -62,11 +63,14 @@ document.addEventListener("DOMContentLoaded", async () => {
           `;
         } else if (item.Estado === 'Aceptado') {
           botones = `
-            <span class="text-muted">
-              <i class="fas fa-info-circle"></i> Esperando que el cliente marque como terminado
-            </span>
+            <button class="btn btn-primary btn-sm btn-completar" data-id="${item.IdSolicitudServicio}">
+              <i class="fas fa-flag-checkered"></i> Marcar como Completado
+            </button>
+            <button class="btn btn-warning btn-sm btn-cancelar-prestador" data-id="${item.IdSolicitudServicio}">
+              <i class="fas fa-ban"></i> Cancelar Servicio
+            </button>
           `;
-        } else if (item.Estado === 'Terminado') {
+        } else if (item.Estado === 'Completado' || item.Estado === 'Terminado') {
           botones = `
             <span class="text-success">
               <i class="fas fa-check-circle"></i> Servicio completado
@@ -81,7 +85,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else if (item.Estado === 'Cancelado') {
           botones = `
             <span class="text-danger">
-              <i class="fas fa-ban"></i> Cancelado por el cliente
+              <i class="fas fa-ban"></i> Servicio cancelado
             </span>
           `;
         }
@@ -115,6 +119,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         btn.addEventListener('click', () => actualizarEstado(btn.dataset.id, 'Rechazado'));
       });
 
+      document.querySelectorAll('.btn-completar').forEach(btn => {
+        btn.addEventListener('click', () => actualizarEstado(btn.dataset.id, 'Completado'));
+      });
+
+      document.querySelectorAll('.btn-cancelar-prestador').forEach(btn => {
+        btn.addEventListener('click', () => actualizarEstado(btn.dataset.id, 'Cancelado'));
+      });
+
     } catch (err) {
       console.error("❌ Error al cargar solicitudes:", err);
       const contenedor = document.getElementById("contenedorSolicitudes");
@@ -129,9 +141,24 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Función para actualizar el estado de una solicitud
   async function actualizarEstado(id, nuevoEstado) {
-    const accion = nuevoEstado === 'Aceptado' ? 'aceptar' : 'rechazar';
+    let accion = '';
+    let mensaje = '';
     
-    if (!confirm(`¿Estás seguro de ${accion} esta solicitud?`)) {
+    if (nuevoEstado === 'Aceptado') {
+      accion = 'aceptar';
+      mensaje = '¿Estás seguro de aceptar esta solicitud?';
+    } else if (nuevoEstado === 'Rechazado') {
+      accion = 'rechazar';
+      mensaje = '¿Estás seguro de rechazar esta solicitud?';
+    } else if (nuevoEstado === 'Completado') {
+      accion = 'completar';
+      mensaje = '¿Confirmas que el servicio ha sido completado?';
+    } else if (nuevoEstado === 'Cancelado') {
+      accion = 'cancelar';
+      mensaje = '¿Estás seguro de cancelar este servicio? Esta acción no se puede deshacer.';
+    }
+    
+    if (!confirm(mensaje)) {
       return;
     }
 

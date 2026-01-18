@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Completa tu Registro - RPM Market</title>
+  <link rel="icon" type="image/jpg" href="image/nuevo logo.jpeg" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      width: 100%;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: url('IMAGENINGRESO/IMAGEN5.jpeg') no-repeat center center fixed;
+      background-size: cover;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    /* Contenedor principal */
+    .contenedor-crear {
+      width: 100%;
+      max-width: 450px;
+      background-color: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.4);
+      padding: 35px 40px;
+      text-align: center;
+      animation: slideIn 0.6s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .contenedor-crear h2 {
+      font-weight: 700;
+      color: #d10000;
+      margin-bottom: 10px;
+      font-size: 1.6rem;
+    }
+
+    .contenedor-crear p.subtitulo {
+      color: #666;
+      font-size: 0.95rem;
+      margin-bottom: 25px;
+    }
+
+    .info-usuario {
+      background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+      border-left: 4px solid #4caf50;
+      border-radius: 8px;
+      padding: 12px 15px;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .info-usuario i {
+      color: #4caf50;
+      margin-right: 8px;
+    }
+
+    .info-usuario strong {
+      color: #2e7d32;
+    }
+
+    /* Secciones */
+    .seccion {
+      margin-bottom: 25px;
+      text-align: left;
+    }
+
+    .seccion-titulo {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 15px;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .seccion-titulo i {
+      color: #d10000;
+    }
+
+    /* Campos de formulario */
+    .form-group {
+      margin-bottom: 15px;
+      text-align: left;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+      color: #444;
+      font-size: 0.9rem;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+
+    .form-group input:focus {
+      border-color: #d10000;
+    }
+
+    .password-field {
+      position: relative;
+    }
+
+    .toggle-password {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      color: #888;
+      transition: color 0.3s;
+    }
+
+    .toggle-password:hover {
+      color: #d10000;
+    }
+
+    /* Barra de fuerza de contraseña */
+    .password-strength {
+      height: 5px;
+      margin-top: 8px;
+      border-radius: 5px;
+      background: #e0e0e0;
+      overflow: hidden;
+    }
+
+    .password-strength-bar {
+      height: 100%;
+      transition: all 0.3s;
+      border-radius: 5px;
+    }
+
+    .password-match {
+      font-size: 0.85rem;
+      margin-top: 5px;
+    }
+
+    /* Código de verificación */
+    .verificacion-box {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 20px;
+      border: 2px dashed #ddd;
+    }
+
+    .verification-status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .verification-status.pending {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .verification-status.verified {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .correo-info {
+      color: #666;
+      font-size: 0.85rem;
+      margin-bottom: 15px;
+    }
+
+    .correo-info strong {
+      color: #333;
+    }
+
+    .code-inputs {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin: 15px 0;
+    }
+
+    .code-input {
+      width: 55px;
+      height: 55px;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: bold;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      outline: none;
+      transition: all 0.3s;
+    }
+
+    .code-input:focus {
+      border-color: #d10000;
+      box-shadow: 0 0 10px rgba(209, 0, 0, 0.2);
+    }
+
+    .code-input.valid {
+      border-color: #4caf50;
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .code-input.invalid {
+      border-color: #f44336;
+      background: #ffebee;
+    }
+
+    .resend-link {
+      color: #d10000;
+      cursor: pointer;
+      text-decoration: underline;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .resend-link:hover {
+      color: #a30000;
+    }
+
+    .resend-link.disabled {
+      color: #999;
+      cursor: not-allowed;
+      text-decoration: none;
+    }
+
+    /* Alerta de aprobación */
+    .alerta-aprobacion {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      border-radius: 8px;
+      padding: 12px 15px;
+      margin-bottom: 20px;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    .alerta-aprobacion i {
+      color: #ffc107;
+      margin-right: 8px;
+    }
+
+    /* Botón principal */
+    .btn-crear {
+      background: linear-gradient(135deg, #d10000 0%, #a30000 100%);
+      color: white;
+      border: none;
+      width: 100%;
+      padding: 14px;
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-crear:hover:not(:disabled) {
+      background: linear-gradient(135deg, #a30000 0%, #d10000 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(209, 0, 0, 0.3);
+    }
+
+    .btn-crear:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Mensajes de error */
+    .error-msg {
+      background: #ffebee;
+      border-left: 4px solid #f44336;
+      border-radius: 8px;
+      padding: 12px 15px;
+      margin-bottom: 15px;
+      text-align: left;
+      color: #c62828;
+      font-size: 0.9rem;
+      display: none;
+    }
+
+    .error-msg i {
+      margin-right: 8px;
+    }
+
+    /* Loading */
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #d10000;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Mensaje de éxito */
+    .exito-container {
+      display: none;
+      text-align: center;
+    }
+
+    .exito-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 20px;
+      background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .exito-icon i {
+      font-size: 40px;
+      color: white;
+    }
+
+    .exito-titulo {
+      color: #2e7d32;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .exito-mensaje {
+      color: #666;
+      margin-bottom: 25px;
+      font-size: 0.95rem;
+    }
+
+    .btn-login {
+      background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+      color: white;
+      border: none;
+      width: 100%;
+      padding: 14px;
+      border-radius: 10px;
+      font-weight: bold;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-login:hover {
+      background: linear-gradient(135deg, #1565c0 0%, #1976d2 100%);
+      color: white;
+      transform: translateY(-2px);
+    }
+
+    /* Error general */
+    .error-container {
+      display: none;
+      text-align: center;
+    }
+
+    .error-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 20px;
+      background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .error-icon i {
+      font-size: 40px;
+      color: white;
+    }
+
+    .error-titulo {
+      color: #c62828;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    /* Responsivo */
+    @media (max-width: 500px) {
+      .contenedor-crear {
+        padding: 25px 20px;
+      }
+
+      .code-input {
+        width: 48px;
+        height: 48px;
+        font-size: 1.3rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="contenedor-crear">
+    <!-- Loading inicial -->
+    <div id="loading-inicial" class="loading" style="display: block;">
+      <div class="spinner"></div>
+      <p>Preparando tu registro...</p>
+    </div>
+
+    <!-- Formulario principal -->
+    <div id="formulario-principal" style="display: none;">
+      <h2><i class="fa-solid fa-user-plus"></i> Completa tu Registro</h2>
+      <p class="subtitulo">Crea tu contraseña y verifica tu correo</p>
+
+      <div class="info-usuario">
+        <i class="fa-solid fa-user"></i>
+        ¡Hola <strong id="nombre-usuario"></strong>! Finaliza tu registro.
+      </div>
+
+      <form id="formCrearContrasena">
+        <!-- Sección de Contraseña -->
+        <div class="seccion">
+          <div class="seccion-titulo">
+            <i class="fa-solid fa-lock"></i> Crea tu contraseña
+          </div>
+
+          <div class="form-group">
+            <label for="contrasena">Nueva Contraseña</label>
+            <div class="password-field">
+              <input type="password" id="contrasena" placeholder="Mínimo 6 caracteres" required minlength="6">
+              <i class="fa-solid fa-eye toggle-password" id="togglePassword1"></i>
+            </div>
+            <div class="password-strength">
+              <div class="password-strength-bar" id="strengthBar"></div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="confirmarContrasena">Confirmar Contraseña</label>
+            <div class="password-field">
+              <input type="password" id="confirmarContrasena" placeholder="Repite tu contraseña" required>
+              <i class="fa-solid fa-eye toggle-password" id="togglePassword2"></i>
+            </div>
+            <div id="password-match" class="password-match"></div>
+          </div>
+        </div>
+
+        <!-- Sección de Verificación -->
+        <div class="seccion">
+          <div class="seccion-titulo">
+            <i class="fa-solid fa-envelope"></i> Verifica tu correo
+          </div>
+
+          <div class="verificacion-box">
+            <div id="verification-status" class="verification-status pending">
+              <i class="fa-solid fa-clock"></i>
+              <span>Pendiente de verificación</span>
+            </div>
+
+            <p class="correo-info">
+              Enviamos un código a: <strong id="correo-oculto"></strong>
+            </p>
+
+            <div class="code-inputs">
+              <input type="text" class="code-input" maxlength="1" id="code1" inputmode="numeric">
+              <input type="text" class="code-input" maxlength="1" id="code2" inputmode="numeric">
+              <input type="text" class="code-input" maxlength="1" id="code3" inputmode="numeric">
+              <input type="text" class="code-input" maxlength="1" id="code4" inputmode="numeric">
+            </div>
+
+            <div id="error-codigo" class="error-msg">
+              <i class="fa-solid fa-exclamation-triangle"></i>
+              <span id="error-codigo-text"></span>
+            </div>
+
+            <p style="text-align: center; margin: 0;">
+              <span class="resend-link" id="reenviarCodigo">
+                <i class="fa-solid fa-redo"></i> Reenviar código
+              </span>
+              <span id="countdown" style="display: none; color: #888; font-size: 0.85rem;"> (espera <span id="timer">60</span>s)</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Info de aprobación -->
+        <div class="alerta-aprobacion" id="infoAprobacion" style="display: none;">
+          <i class="fa-solid fa-info-circle"></i>
+          Tu cuenta también requiere aprobación del administrador antes de poder iniciar sesión.
+        </div>
+
+        <button type="submit" class="btn-crear" id="btnCrear" disabled>
+          <i class="fa-solid fa-check-circle"></i> Completar Registro
+        </button>
+
+        <div class="loading" id="loading">
+          <div class="spinner"></div>
+          <p>Procesando...</p>
+        </div>
+      </form>
+    </div>
+
+    <!-- Error -->
+    <div id="error-container" class="error-container">
+      <div class="error-icon">
+        <i class="fa-solid fa-times"></i>
+      </div>
+      <h3 class="error-titulo">¡Oops! Algo salió mal</h3>
+      <p id="error-text" style="color: #666; margin-bottom: 20px;"></p>
+      <a href="/General/registro.html" class="btn-login">
+        <i class="fa-solid fa-arrow-left"></i> Volver al Registro
+      </a>
+    </div>
+
+    <!-- Éxito -->
+    <div id="exito-container" class="exito-container">
+      <div class="exito-icon">
+        <i class="fa-solid fa-check"></i>
+      </div>
+      <h3 class="exito-titulo">¡Registro Completado!</h3>
+      <p id="mensaje-exito" class="exito-mensaje"></p>
+      <a href="/General/Ingreso.html" class="btn-login">
+        <i class="fa-solid fa-sign-in-alt"></i> Ir a Iniciar Sesión
+      </a>
+    </div>
+  </div>
+
+  <script>
+    let tokenActual = null;
+    let usuarioData = null;
+    let codigoVerificado = false;
+    let passwordsMatch = false;
+    let resendCooldown = false;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    tokenActual = urlParams.get('token');
+
+    window.addEventListener('DOMContentLoaded', iniciarVerificacion);
+
+    async function iniciarVerificacion() {
+      if (!tokenActual) {
+        mostrarError('No se proporcionó un token válido. Regresa al formulario de registro.');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/verificar-token-contrasena', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: tokenActual })
+        });
+
+        const data = await response.json();
+
+        if (data.valido) {
+          usuarioData = data.usuario;
+          document.getElementById('nombre-usuario').textContent = 
+            `${usuarioData.nombre} ${usuarioData.apellido}`;
+          
+          if (usuarioData.tipoUsuario === 'Comerciante' || usuarioData.tipoUsuario === 'PrestadorServicio') {
+            document.getElementById('infoAprobacion').style.display = 'block';
+          }
+          
+          await enviarCodigoVerificacion();
+          
+          document.getElementById('loading-inicial').style.display = 'none';
+          document.getElementById('formulario-principal').style.display = 'block';
+        } else {
+          mostrarError(data.error || 'El enlace es inválido o ha expirado.');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        mostrarError('Error al verificar el enlace. Por favor, intenta nuevamente.');
+      }
+    }
+
+    async function enviarCodigoVerificacion() {
+      try {
+        const response = await fetch('/api/enviar-codigo-verificacion', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: tokenActual })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          document.getElementById('correo-oculto').textContent = data.correo;
+          document.getElementById('code1').focus();
+        } else {
+          console.warn('Error al enviar código:', data.error);
+          document.getElementById('correo-oculto').textContent = usuarioData.correo || 'tu correo';
+        }
+      } catch (error) {
+        console.error('Error al enviar código:', error);
+      }
+    }
+
+    const codeInputs = document.querySelectorAll('.code-input');
+    codeInputs.forEach((input, index) => {
+      input.addEventListener('input', (e) => {
+        e.target.value = e.target.value.replace(/[^0-9]/g, '');
+        
+        if (e.target.value && index < codeInputs.length - 1) {
+          codeInputs[index + 1].focus();
+        }
+        
+        const codigo = Array.from(codeInputs).map(i => i.value).join('');
+        if (codigo.length === 4) {
+          verificarCodigo();
+        }
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !e.target.value && index > 0) {
+          codeInputs[index - 1].focus();
+        }
+      });
+
+      input.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const pastedData = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 4);
+        pastedData.split('').forEach((char, i) => {
+          if (codeInputs[i]) {
+            codeInputs[i].value = char;
+          }
+        });
+        if (pastedData.length === 4) {
+          verificarCodigo();
+        }
+      });
+    });
+
+    async function verificarCodigo() {
+      const codigo = Array.from(codeInputs).map(i => i.value).join('');
+      if (codigo.length !== 4) return;
+
+      document.getElementById('error-codigo').style.display = 'none';
+
+      try {
+        const response = await fetch('/api/verificar-codigo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: tokenActual, codigo: codigo })
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.verificado) {
+          codigoVerificado = true;
+          codeInputs.forEach(input => {
+            input.classList.add('valid');
+            input.classList.remove('invalid');
+            input.disabled = true;
+          });
+          
+          document.getElementById('verification-status').className = 'verification-status verified';
+          document.getElementById('verification-status').innerHTML = 
+            '<i class="fa-solid fa-check-circle"></i><span>¡Correo verificado!</span>';
+          
+          actualizarBotonSubmit();
+        } else {
+          codeInputs.forEach(input => {
+            input.classList.add('invalid');
+            input.value = '';
+          });
+          codeInputs[0].focus();
+          mostrarErrorCodigo(data.error || 'Código incorrecto. Intenta de nuevo.');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        mostrarErrorCodigo('Error al verificar el código.');
+      }
+    }
+
+    function mostrarErrorCodigo(mensaje) {
+      document.getElementById('error-codigo').style.display = 'block';
+      document.getElementById('error-codigo-text').textContent = mensaje;
+    }
+
+    document.getElementById('reenviarCodigo').addEventListener('click', async function() {
+      if (resendCooldown || codigoVerificado) return;
+
+      resendCooldown = true;
+      this.classList.add('disabled');
+      document.getElementById('countdown').style.display = 'inline';
+      
+      let timer = 60;
+      const timerElement = document.getElementById('timer');
+      const interval = setInterval(() => {
+        timer--;
+        timerElement.textContent = timer;
+        if (timer <= 0) {
+          clearInterval(interval);
+          resendCooldown = false;
+          document.getElementById('reenviarCodigo').classList.remove('disabled');
+          document.getElementById('countdown').style.display = 'none';
+        }
+      }, 1000);
+
+      try {
+        const response = await fetch('/api/reenviar-codigo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: tokenActual })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          codeInputs.forEach(input => {
+            input.value = '';
+            input.classList.remove('invalid');
+          });
+          codeInputs[0].focus();
+          document.getElementById('error-codigo').style.display = 'none';
+        } else {
+          mostrarErrorCodigo(data.error || 'Error al reenviar el código.');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        mostrarErrorCodigo('Error al reenviar el código.');
+      }
+    });
+
+    document.getElementById('togglePassword1').addEventListener('click', function() {
+      togglePasswordVisibility('contrasena', this);
+    });
+
+    document.getElementById('togglePassword2').addEventListener('click', function() {
+      togglePasswordVisibility('confirmarContrasena', this);
+    });
+
+    function togglePasswordVisibility(inputId, icon) {
+      const input = document.getElementById(inputId);
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+      } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+      }
+    }
+
+    document.getElementById('contrasena').addEventListener('input', function(e) {
+      const password = e.target.value;
+      const strengthBar = document.getElementById('strengthBar');
+      
+      let strength = 0;
+      if (password.length >= 6) strength += 25;
+      if (password.length >= 8) strength += 25;
+      if (/[A-Z]/.test(password)) strength += 25;
+      if (/[0-9]/.test(password)) strength += 25;
+
+      strengthBar.style.width = strength + '%';
+      
+      if (strength < 50) {
+        strengthBar.style.background = '#f44336';
+      } else if (strength < 75) {
+        strengthBar.style.background = '#ff9800';
+      } else {
+        strengthBar.style.background = '#4caf50';
+      }
+      
+      checkPasswordMatch();
+    });
+
+    document.getElementById('confirmarContrasena').addEventListener('input', checkPasswordMatch);
+
+    function checkPasswordMatch() {
+      const password = document.getElementById('contrasena').value;
+      const confirm = document.getElementById('confirmarContrasena').value;
+      const matchDiv = document.getElementById('password-match');
+      
+      if (confirm.length === 0) {
+        matchDiv.innerHTML = '';
+        passwordsMatch = false;
+      } else if (password === confirm && password.length >= 6) {
+        matchDiv.innerHTML = '<span style="color: #4caf50;"><i class="fa-solid fa-check"></i> Las contraseñas coinciden</span>';
+        passwordsMatch = true;
+      } else {
+        matchDiv.innerHTML = '<span style="color: #f44336;"><i class="fa-solid fa-times"></i> Las contraseñas no coinciden</span>';
+        passwordsMatch = false;
+      }
+      
+      actualizarBotonSubmit();
+    }
+
+    function actualizarBotonSubmit() {
+      const btn = document.getElementById('btnCrear');
+      btn.disabled = !(codigoVerificado && passwordsMatch);
+    }
+
+    document.getElementById('formCrearContrasena').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      if (!codigoVerificado) {
+        alert('Debes verificar tu código de correo electrónico primero.');
+        return;
+      }
+
+      const contrasena = document.getElementById('contrasena').value;
+      const confirmar = document.getElementById('confirmarContrasena').value;
+
+      if (contrasena !== confirmar) {
+        alert('Las contraseñas no coinciden');
+        return;
+      }
+
+      if (contrasena.length < 6) {
+        alert('La contraseña debe tener al menos 6 caracteres');
+        return;
+      }
+
+      document.getElementById('btnCrear').disabled = true;
+      document.getElementById('loading').style.display = 'block';
+
+      try {
+        const response = await fetch('/api/crear-contrasena-con-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            token: tokenActual, 
+            contrasena: contrasena 
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          document.getElementById('formulario-principal').style.display = 'none';
+          document.getElementById('exito-container').style.display = 'block';
+          
+          if (usuarioData.tipoUsuario === 'Comerciante' || usuarioData.tipoUsuario === 'PrestadorServicio') {
+            document.getElementById('mensaje-exito').textContent = 
+              'Tu cuenta está pendiente de aprobación por un administrador. Te notificaremos cuando esté activa.';
+          } else {
+            document.getElementById('mensaje-exito').textContent = 
+              '¡Ya puedes iniciar sesión con tu correo y contraseña!';
+          }
+        } else {
+          alert(data.error || 'Error al crear la contraseña');
+          document.getElementById('btnCrear').disabled = false;
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error al crear la contraseña. Por favor, intenta nuevamente.');
+        document.getElementById('btnCrear').disabled = false;
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+      }
+    });
+
+    function mostrarError(mensaje) {
+      document.getElementById('loading-inicial').style.display = 'none';
+      document.getElementById('formulario-principal').style.display = 'none';
+      document.getElementById('error-container').style.display = 'block';
+      document.getElementById('error-text').textContent = mensaje;
+    }
+  </script>
+</body>
+</html>

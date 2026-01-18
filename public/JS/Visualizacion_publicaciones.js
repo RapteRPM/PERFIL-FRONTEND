@@ -12,6 +12,7 @@ let categoriaSeleccionada = null;
  */
 async function cargarPublicaciones(categoria = null, limite = null) {
   try {
+    console.log("🔵 Visualizacion_publicaciones.js - cargarPublicaciones iniciando...", {categoria, limite});
     let url = '/api/publicaciones_publicas';
     const params = [];
     if (categoria && categoria.toLowerCase() !== 'todos') {
@@ -24,8 +25,11 @@ async function cargarPublicaciones(categoria = null, limite = null) {
       url += `?${params.join('&')}`;
     }
 
+    console.log("🔵 Fetching URL:", url);
     const res = await fetch(url);
+    console.log("🔵 Response status:", res.status);
     let productos = await res.json();
+    console.log("🔵 Productos recibidos:", productos.length);
 
     // 🔹 Normalizar rutas de imágenes
     productos = productos.map(p => {
@@ -55,6 +59,7 @@ async function cargarPublicaciones(categoria = null, limite = null) {
     }
 
     publicacionesGlobal = productos;
+    console.log("🔵 Llamando renderizarProductos con", productos.slice(0, limite || productos.length).length, "productos");
     renderizarProductos(productos.slice(0, limite || productos.length));
 
   } catch (err) {
@@ -66,7 +71,9 @@ async function cargarPublicaciones(categoria = null, limite = null) {
  * Renderiza productos en el contenedor
  */
 function renderizarProductos(lista) {
+  console.log("🔵 renderizarProductos llamado con", lista.length, "productos");
   const contenedor = document.getElementById("contenedor-productos");
+  console.log("🔵 Contenedor encontrado:", !!contenedor);
   if (!contenedor) return;
 
   contenedor.innerHTML = "";
@@ -77,6 +84,7 @@ function renderizarProductos(lista) {
   }
 
   lista.forEach(p => {
+    console.log("🔵 Renderizando producto:", p.nombreProducto);
     const carouselId = `carousel-${p.idPublicacion}`;
 
     // 🖼️ Crear carrusel con imágenes
@@ -168,6 +176,7 @@ async function cargarCategorias() {
  * Inicialización al cargar la página
  */
 document.addEventListener("DOMContentLoaded", () => {
+  console.log("🔵 Visualizacion_publicaciones.js - DOMContentLoaded iniciando...");
   cargarCategorias();
   cargarPublicaciones(null, 6);
 
@@ -189,6 +198,17 @@ document.addEventListener("DOMContentLoaded", () => {
 let todosLosProductos = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
+  console.log("🔵 Visualizacion_publicaciones.js - Segundo DOMContentLoaded (INDEX.HTML)");
+  
+  // Solo ejecutar si estamos en index.html (verificar si existe productos-grid)
+  const gridIndex = document.getElementById('productos-grid');
+  if (!gridIndex) {
+    console.log("🔵 No se encontró productos-grid, saltando inicialización de index.html");
+    return;
+  }
+  
+  console.log("🔵 Encontrado productos-grid, inicializando para index.html...");
+  
   // 🔹 Mostrar todos los productos públicos
   try {
     const res = await fetch('/api/publicaciones_publicas?limite=50'); // Cargar más productos para filtrar

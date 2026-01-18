@@ -39,12 +39,12 @@ async function cargarPublicacionesGrua() {
       const carruselId = `carrusel-${id}`;
       
       // Normalizar rutas de imágenes siguiendo la estructura real:
-      // /Imagen/PrestadorServicios/idUsuario/publicaciones/idPublicacion/nombreArchivo.ext
+      // /imagen/PrestadorServicios/idUsuario/publicaciones/idPublicacion/nombreArchivo.ext
       const imagenesNormalizadas = imagenes.map(img => {
         let ruta = img.replace(/\\/g, '/').trim();
         
-        // Si la imagen ya tiene la ruta completa con "Imagen/PrestadorServicios", usarla directamente
-        if (ruta.includes('Imagen/PrestadorServicios')) {
+        // Si la imagen ya tiene la ruta completa con "imagen/PrestadorServicios", usarla directamente
+        if (ruta.includes('imagen/PrestadorServicios') || ruta.includes('Imagen/PrestadorServicios')) {
           return ruta.startsWith('public/')
             ? '/' + ruta.substring(7)
             : (ruta.startsWith('/') ? ruta : '/' + ruta);
@@ -52,7 +52,7 @@ async function cargarPublicacionesGrua() {
         
         // Extraer nombre de archivo y construir ruta correcta
         const nombreArchivo = ruta.split('/').pop();
-        return `/Imagen/PrestadorServicios/${idUsuario}/publicaciones/${id}/${nombreArchivo}`;
+        return `/imagen/PrestadorServicios/${idUsuario}/publicaciones/${id}/${nombreArchivo}`;
       });
       
       console.log('🖼️ Imágenes normalizadas para publicación', id, ':', imagenesNormalizadas);

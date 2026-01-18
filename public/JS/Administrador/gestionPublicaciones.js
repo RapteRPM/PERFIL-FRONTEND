@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-aplicar-filtros').addEventListener('click', aplicarFiltros);
   document.getElementById('btn-limpiar-filtros').addEventListener('click', limpiarFiltros);
   document.getElementById('buscar-producto').addEventListener('input', aplicarFiltros);
+  document.getElementById('filtro-tipo-usuario').addEventListener('change', filtrarPorTipoUsuario);
 });
 
 // Cargar todas las publicaciones desde el backend
@@ -27,8 +28,9 @@ async function cargarPublicaciones() {
     publicacionesFiltradas = [...publicacionesData];
     
     cargarComercios();
-    actualizarGrid();
-    actualizarContador();
+    
+    // Aplicar filtro de comercio por defecto
+    filtrarPorTipoUsuario();
   } catch (error) {
     console.error('Error:', error);
     mostrarError('No se pudieron cargar las publicaciones');
@@ -40,6 +42,9 @@ function cargarComercios() {
   const comercios = [...new Set(publicacionesData.map(p => p.NombreComercio))];
   const select = document.getElementById('filtro-comercio');
   
+  // Limpiar opciones anteriores excepto la primera
+  select.innerHTML = '<option value="">Todos</option>';
+  
   comercios.forEach(comercio => {
     const option = document.createElement('option');
     option.value = comercio;
@@ -48,13 +53,67 @@ function cargarComercios() {
   });
 }
 
+// Filtrar por tipo de usuario (Comercio o Grúa)
+function filtrarPorTipoUsuario() {
+  const tipoUsuario = document.getElementById('filtro-tipo-usuario').value;
+  const select = document.getElementById('filtro-comercio');
+  const label = document.getElementById('label-filtro-comercio');
+  
+  // Actualizar la etiqueta según el tipo
+  if (tipoUsuario === 'Comercio') {
+    label.textContent = 'Comercio';
+  } else if (tipoUsuario === 'Grua') {
+    label.textContent = 'Grúa';
+  }
+  
+  // Filtrar publicaciones según el tipo
+  let publicacionesPorTipo = publicacionesData.filter(p => {
+    if (tipoUsuario === 'Comercio') {
+      // Verificar si es un comercio
+      return p.TipoUsuario === 'Comerciante' || p.TipoUsuario === 'Comercio' || !p.EsGrua;
+    } else if (tipoUsuario === 'Grua') {
+      // Verificar si es una grúa
+      return p.TipoUsuario === 'PrestadorServicios' || p.TipoUsuario === 'Grua' || p.EsGrua;
+    }
+    return true;
+  });
+  
+  // Actualizar el select de comercios/grúas con los datos filtrados
+  const comercios = [...new Set(publicacionesPorTipo.map(p => p.NombreComercio))];
+  select.innerHTML = '<option value="">Todos</option>';
+  
+  comercios.forEach(comercio => {
+    const option = document.createElement('option');
+    option.value = comercio;
+    option.textContent = comercio;
+    select.appendChild(option);
+  });
+  
+  // Aplicar filtros
+  aplicarFiltros();
+}
+
 // Aplicar filtros
 function aplicarFiltros() {
+  const tipoUsuarioFiltro = document.getElementById('filtro-tipo-usuario').value;
   const comercioFiltro = document.getElementById('filtro-comercio').value;
   const estadoFiltro = document.getElementById('filtro-estado').value;
   const busqueda = document.getElementById('buscar-producto').value.toLowerCase();
   
   publicacionesFiltradas = publicacionesData.filter(pub => {
+    // Filtro por tipo de usuario
+    if (tipoUsuarioFiltro) {
+      if (tipoUsuarioFiltro === 'Comercio') {
+        if (pub.TipoUsuario === 'PrestadorServicios' || pub.TipoUsuario === 'Grua' || pub.EsGrua) {
+          return false;
+        }
+      } else if (tipoUsuarioFiltro === 'Grua') {
+        if (!(pub.TipoUsuario === 'PrestadorServicios' || pub.TipoUsuario === 'Grua' || pub.EsGrua)) {
+          return false;
+        }
+      }
+    }
+    
     // Filtro por comercio
     if (comercioFiltro && pub.NombreComercio !== comercioFiltro) {
       return false;
@@ -80,14 +139,13 @@ function aplicarFiltros() {
 
 // Limpiar filtros
 function limpiarFiltros() {
+  document.getElementById('filtro-tipo-usuario').value = 'Comercio';
   document.getElementById('filtro-comercio').value = '';
   document.getElementById('filtro-estado').value = '';
   document.getElementById('buscar-producto').value = '';
   
-  publicacionesFiltradas = [...publicacionesData];
-  paginaActual = 1;
-  actualizarGrid();
-  actualizarContador();
+  // Volver a filtrar por comercio (valor por defecto)
+  filtrarPorTipoUsuario();
 }
 
 // Actualizar grid de publicaciones
@@ -127,6 +185,12 @@ function actualizarGrid() {
       ? '<span class="badge bg-success">Disponible</span>'
       : '<span class="badge bg-danger">Agotado</span>';
     
+    // Determinar el tipo de publicación para mostrar el badge
+    const esGrua = pub.TipoUsuario === 'PrestadorServicios' || pub.TipoUsuario === 'Grua' || pub.EsGrua;
+    const badgeTipo = esGrua 
+      ? '<span class="badge bg-info text-white"><i class="fas fa-truck mr-1"></i>Grúa</span>'
+      : '<span class="badge bg-warning text-dark"><i class="fas fa-store mr-1"></i>Comercio</span>';
+    
     return `
       <div class="bg-white rounded-lg shadow hover:shadow-xl transition-shadow overflow-hidden">
         <div class="relative">
@@ -134,16 +198,24 @@ function actualizarGrid() {
           <div class="absolute top-2 right-2">
             ${badgeEstado}
           </div>
+          <div class="absolute top-2 left-2">
+            ${badgeTipo}
+          </div>
         </div>
         <div class="p-4">
           <h4 class="font-bold text-lg text-gray-800 mb-2 truncate">${pub.NombreProducto}</h4>
           <p class="text-gray-600 text-sm mb-2">
-            <i class="fas fa-store mr-1"></i>${pub.NombreComercio}
+            <i class="fas ${esGrua ? 'fa-truck' : 'fa-store'} mr-1"></i>${pub.NombreComercio}
           </p>
           <p class="text-blue-600 font-bold text-xl mb-3">$${formatearPrecio(pub.Precio)}</p>
-          <button class="btn btn-primary btn-sm w-full" onclick="verDetalles(${pub.IdPublicacion})">
-            <i class="fas fa-eye mr-2"></i>Ver Detalles
-          </button>
+          <div class="grid grid-cols-2 gap-2">
+            <button class="btn btn-primary btn-sm" onclick="verDetalles(${pub.IdPublicacion}, ${esGrua})">
+              <i class="fas fa-eye mr-1"></i>Ver
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="abrirModalEliminar(${pub.IdPublicacion}, ${esGrua})">
+              <i class="fas fa-trash mr-1"></i>Eliminar
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -152,8 +224,19 @@ function actualizarGrid() {
   actualizarPaginacion();
 }
 
-// Ver detalles de una publicación
-async function verDetalles(idPublicacion) {
+// Ver detalles de una publicación (redirigir a la página de detalle)
+function verDetalles(idPublicacion, esGrua) {
+  if (esGrua) {
+    // Redirigir a la página de detalle de grúa
+    window.location.href = `/Natural/detalle_publicaciongrua.html?id=${idPublicacion}`;
+  } else {
+    // Redirigir a la página de detalle del producto
+    window.location.href = `/Natural/Detalle_producto.html?id=${idPublicacion}`;
+  }
+}
+
+// Abrir modal para eliminar publicación
+function abrirModalEliminar(idPublicacion, esGrua) {
   const publicacion = publicacionesData.find(p => p.IdPublicacion === idPublicacion);
   if (!publicacion) return;
   
@@ -170,30 +253,80 @@ async function verDetalles(idPublicacion) {
     }
   }
   
-  const badgeEstado = publicacion.Estado > 0
-    ? '<span class="badge bg-success">Disponible</span>'
-    : '<span class="badge bg-danger">Agotado</span>';
+  const tipoIcono = esGrua ? 'fa-truck' : 'fa-store';
+  const tipoTexto = esGrua ? 'Grúa' : 'Comercio';
   
-  const detallesHTML = `
-    <div class="row">
-      <div class="col-md-5">
-        <img src="${imagen}" alt="${publicacion.NombreProducto}" class="img-fluid rounded">
-      </div>
-      <div class="col-md-7">
-        <h3 class="mb-3">${publicacion.NombreProducto}</h3>
-        <p><strong>ID:</strong> ${publicacion.IdPublicacion}</p>
-        <p><strong>Comerciante:</strong> ${publicacion.NombreComercio}</p>
-        <p><strong>Documento Comerciante:</strong> ${publicacion.Comerciante}</p>
-        <p><strong>Precio:</strong> <span class="text-primary fs-4">$${formatearPrecio(publicacion.Precio)}</span></p>
-        <p><strong>Stock:</strong> ${publicacion.Estado || 0} unidades</p>
-        <p><strong>Estado:</strong> ${badgeEstado}</p>
+  const infoHTML = `
+    <div class="d-flex align-items-center">
+      <img src="${imagen}" alt="${publicacion.NombreProducto}" class="rounded" style="width: 80px; height: 80px; object-fit: cover;">
+      <div class="ms-3">
+        <h6 class="mb-1 fw-bold">${publicacion.NombreProducto}</h6>
+        <p class="mb-0 text-muted small">
+          <i class="fas ${tipoIcono} mr-1"></i>${publicacion.NombreComercio} <span class="badge bg-${esGrua ? 'info' : 'warning'}">${tipoTexto}</span><br>
+          <i class="fas fa-dollar-sign mr-1"></i>$${formatearPrecio(publicacion.Precio)}
+        </p>
       </div>
     </div>
   `;
   
-  document.getElementById('detalles-producto').innerHTML = detallesHTML;
-  const modal = new bootstrap.Modal(document.getElementById('modalDetalles'));
+  document.getElementById('info-publicacion-eliminar').innerHTML = infoHTML;
+  document.getElementById('observacion-eliminacion').value = '';
+  
+  // Guardar el ID y el tipo en el botón
+  const btnConfirmar = document.getElementById('btn-confirmar-eliminar');
+  btnConfirmar.onclick = () => eliminarPublicacion(idPublicacion, esGrua);
+  
+  const modal = new bootstrap.Modal(document.getElementById('modalEliminar'));
   modal.show();
+}
+
+// Eliminar publicación
+async function eliminarPublicacion(idPublicacion, esGrua) {
+  const observacion = document.getElementById('observacion-eliminacion').value.trim();
+  
+  if (!observacion) {
+    alert('Por favor, ingresa el motivo de la eliminación');
+    return;
+  }
+  
+  const btnConfirmar = document.getElementById('btn-confirmar-eliminar');
+  const textoOriginal = btnConfirmar.innerHTML;
+  btnConfirmar.disabled = true;
+  btnConfirmar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Eliminando...';
+  
+  try {
+    const response = await fetch(`/api/admin/publicacion/${idPublicacion}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ observacion, esGrua })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al eliminar publicación');
+    }
+    
+    const data = await response.json();
+    
+    // Cerrar modal
+    bootstrap.Modal.getInstance(document.getElementById('modalEliminar')).hide();
+    
+    // Mostrar mensaje de éxito
+    const tipoUsuario = esGrua ? 'prestador de servicio' : 'comerciante';
+    alert(`Publicación eliminada correctamente. Se ha enviado un correo al ${tipoUsuario}.`);
+    
+    // Recargar publicaciones
+    cargarPublicaciones();
+    
+  } catch (error) {
+    console.error('Error:', error);
+    alert(`Error: ${error.message}`);
+  } finally {
+    btnConfirmar.disabled = false;
+    btnConfirmar.innerHTML = textoOriginal;
+  }
 }
 
 // Formatear precio

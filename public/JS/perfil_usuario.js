@@ -1,14 +1,23 @@
 // 📁 public/JS/perfil_usuario.js
 
 document.addEventListener('DOMContentLoaded', async () => {
+  console.log("🔵 perfil_usuario.js - Iniciando...");
+  
   const nombreUsuario = document.getElementById('nombre-usuario');
   const fotoUsuario = document.getElementById('foto-usuario');
 
   try {
+    console.log("🔵 Solicitando /api/usuario-actual...");
     const response = await fetch('/api/usuario-actual');
-    if (!response.ok) throw new Error("Error al obtener datos del usuario");
+    console.log("🔵 Response status:", response.status);
+    
+    if (!response.ok) {
+      console.log("⚠️ Response no OK, lanzando error");
+      throw new Error("Error al obtener datos del usuario");
+    }
 
     const data = await response.json();
+    console.log("✅ Datos recibidos:", data);
 
     // Extraer solo el primer nombre
     let nombreMostrar = data.nombre || 'Usuario';
@@ -30,12 +39,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log("✅ Datos del usuario cargados:", data);
 
   } catch (error) {
-    console.error("❌ Error al obtener datos del usuario:", error);
+    console.error("❌ Error en perfil_usuario.js:", error.message);
+    console.error("❌ Stack:", error.stack);
 
     // Si no hay sesión activa, limpiar localStorage
     localStorage.removeItem('usuarioActivo');
 
-    nombreUsuario.textContent = 'Invitado';
-    fotoUsuario.src = '/imagen/imagen_perfil.png';
+    // Ocultar el dropdown completo si no hay usuario logueado
+    const dropdown = document.querySelector('.dropdown');
+    if (dropdown) {
+      console.log("🔵 Ocultando dropdown (no hay sesión)");
+      dropdown.style.display = 'none';
+    }
   }
 });

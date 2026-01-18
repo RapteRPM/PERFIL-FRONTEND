@@ -65,17 +65,44 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- Campos comunes según tipo ---
     if (tipoUsuario === "natural") {
-      const nombreCompleto = document.getElementById("Nombre").value.trim();
+      const getVal = (id) => document.getElementById(id)?.value?.trim() || "";
+      
+      const nombreCompleto = getVal("Nombre");
       const { nombres, apellidos } = separarNombreCompleto(nombreCompleto);
       
       formData.append("TipoUsuario", "Natural");
-      formData.append("Usuario", document.getElementById("Usuario").value);
+      formData.append("Usuario", getVal("Usuario"));
       formData.append("Nombre", nombres);
       formData.append("Apellido", apellidos);
-      formData.append("Correo", document.getElementById("Correo").value);
-      formData.append("Direccion", document.getElementById("Direccion").value);
-      formData.append("Telefono", document.getElementById("Telefono").value);
-      formData.append("Barrio", document.getElementById("Barrio").value);
+      formData.append("Correo", getVal("Correo"));
+      formData.append("Telefono", getVal("Telefono"));
+      formData.append("Barrio", getVal("Barrio"));
+
+      // --- Construir dirección completa para usuario natural ---
+      const tipoVia = getVal("TipoViaNatural");
+      const numPrincipal = getVal("NumPrincipalNatural");
+      const letra1 = getVal("Letra1Natural");
+      const orient1 = getVal("Orient1Natural");
+      const numSecundario = getVal("NumSecundarioNatural");
+      const letra2 = getVal("Letra2Natural");
+      const orient2 = getVal("Orient2Natural");
+      const numFinal = getVal("NumFinalNatural");
+      const letra3 = getVal("Letra3Natural");
+
+      let direccionCompleta = `${tipoVia} ${numPrincipal}`.trim();
+      if (letra1) direccionCompleta += ` ${letra1}`;
+      if (orient1) direccionCompleta += ` ${orient1}`;
+      if (numSecundario) direccionCompleta += ` #${numSecundario}`;
+      if (letra2) direccionCompleta += ` ${letra2}`;
+      if (orient2) direccionCompleta += ` ${orient2}`;
+      if (numFinal) direccionCompleta += ` - ${numFinal}`;
+      if (letra3) direccionCompleta += ` ${letra3}`;
+
+      if (!direccionCompleta || direccionCompleta.trim() === "" || direccionCompleta === "undefined") {
+        direccionCompleta = "Sin dirección especificada";
+      }
+
+      formData.append("Direccion", direccionCompleta);
 
       const fotoPerfil = document.getElementById("FotoPerfil")?.files?.[0];
       if (fotoPerfil) formData.append("FotoPerfil", fotoPerfil);
@@ -182,16 +209,18 @@ if (tipoUsuario === "comerciante") {
       const data = await res.json();
 
       if (res.ok) {
-        alert("✅ Registro exitoso. Ahora crea tu contraseña de acceso.");
-        console.log("Respuesta del servidor:", data);
-        
-        // Guardar usuario recién registrado para crear contraseña
-        localStorage.setItem("usuarioRecuperacion", JSON.stringify({
-          id: data.usuario,
-          esNuevoRegistro: true
-        }));
-        
-        window.location.href = "CambiarContraseña.html";
+        // Siempre redirigir a la página de crear contraseña con el token
+        if (data.token) {
+          console.log("✅ Registro exitoso, redirigiendo a crear contraseña...");
+          console.log("Respuesta del servidor:", data);
+          
+          // Redirigir directamente a la página de crear contraseña con el token
+          window.location.href = `crear-contrasena.html?token=${data.token}`;
+        } else {
+          // Fallback si no hay token (no debería pasar)
+          alert("✅ " + data.mensaje);
+          window.location.href = "Ingreso.html";
+        }
       } else {
         // Manejar tanto 'error' como 'mensaje'
         const mensajeError = data.error || data.mensaje || "No se pudo registrar";

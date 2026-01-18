@@ -59,7 +59,7 @@
 
       <!-- Enlaces a la derecha -->
       <div class="navbar-links">
-        <a href="../Natural/perfil_usuario.html" id="link-inicio-nav">Inicio</a>
+        <a href="index.html" id="link-inicio-nav">Inicio</a>
         <a href="CentroAyuda.html">Centro de ayuda</a>
       </div>
     </div>
@@ -112,7 +112,7 @@
         </div>
         <div class="col-md-3">
           <h4>Atención al cliente</h4>
-          <p>Email: infoRPM@gmail.com</p>
+          <p>Email: rpmservice2026@gmail.com</p>
           <p>Teléfono: 301 403 8181</p>
         </div>
         <div class="col-md-3">
@@ -146,6 +146,7 @@
       const perfilContainer = document.getElementById('perfil-container');
       const linkIngresar = document.getElementById('link-ingresar-taller');
       const linkEditarPerfil = document.getElementById('link-editar-perfil');
+      const linkInicioNav = document.getElementById('link-inicio-nav');
       
       if (usuario && usuario.id) {
         console.log('✅ Usuario con sesión activa, mostrando perfil');
@@ -155,6 +156,19 @@
           console.log('✅ Perfil container mostrado');
         }
         if (linkIngresar) linkIngresar.style.display = 'none';
+        
+        // Configurar enlace "Inicio" según tipo de usuario
+        if (linkInicioNav) {
+          if (usuario.tipo === 'Natural') {
+            linkInicioNav.href = '../Natural/perfil_usuario.html';
+          } else if (usuario.tipo === 'Comerciante') {
+            linkInicioNav.href = '../Comerciante/perfil_comerciante.html';
+          } else if (usuario.tipo === 'PrestadorServicio' || usuario.tipo === 'PrestadorServicios') {
+            linkInicioNav.href = '../PrestadorServicios/perfil_servicios.html';
+          } else {
+            linkInicioNav.href = 'index.html';
+          }
+        }
         
         // Cargar información del usuario
         await cargarUsuarioHeader();
@@ -174,6 +188,9 @@
         // No hay sesión: ocultar perfil y mostrar botón ingresar
         if (perfilContainer) perfilContainer.style.display = 'none';
         if (linkIngresar) linkIngresar.style.display = 'inline-block';
+        
+        // Configurar enlace "Inicio" para ir al index público
+        if (linkInicioNav) linkInicioNav.href = 'index.html';
       }
     });
   </script>

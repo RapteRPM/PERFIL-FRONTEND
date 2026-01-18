@@ -194,9 +194,13 @@ function formatearFecha(fecha) {
 }
 
 // Ver detalles de una PQR
+let pqrActual = null;
+
 function verDetallesPQR(idPQR) {
   const pqr = pqrData.find(p => p.IdCentroAyuda === idPQR);
   if (!pqr) return;
+  
+  pqrActual = pqr; // Guardar la PQR actual para responder
   
   const badgeTipo = getBadgeTipo(pqr.TipoSolicitud);
   const badgeRol = getBadgeRol(pqr.Rol);
@@ -205,6 +209,22 @@ function verDetallesPQR(idPQR) {
   // Verificar si está respondida
   const val = pqr.Respondida;
   const isRespondida = val === true || val === 1 || val === '1' || String(val).toLowerCase() === 'true';
+  
+  let respuestaHTML = '';
+  if (isRespondida && pqr.Respuesta) {
+    const fechaRespuesta = pqr.FechaRespuesta ? formatearFecha(pqr.FechaRespuesta) : 'No disponible';
+    respuestaHTML = `
+      <div class="mb-3">
+        <h6 class="text-muted">Respuesta del Administrador</h6>
+        <hr>
+        <p><strong>Fecha de respuesta:</strong> ${fechaRespuesta}</p>
+        <div class="alert alert-success" style="white-space: pre-wrap;">
+          <i class="fas fa-check-circle"></i> <strong>Respuesta:</strong><br>
+          ${pqr.Respuesta}
+        </div>
+      </div>
+    `;
+  }
   
   const detallesHTML = `
     <div class="mb-3">
@@ -216,7 +236,7 @@ function verDetallesPQR(idPQR) {
       <p><strong>Usuario:</strong> ${pqr.NombreUsuario || 'No disponible'}</p>
       <p><strong>Perfil (Email):</strong> ${pqr.Perfil || 'No disponible'}</p>
       <p><strong>Fecha:</strong> ${fecha}</p>
-      <p><strong>Respondida:</strong> ${isRespondida ? 'Sí' : 'No'}</p>
+      <p><strong>Estado:</strong> ${isRespondida ? '<span class="badge bg-success">Respondida</span>' : '<span class="badge bg-warning">Pendiente</span>'}</p>
     </div>
     
     <div class="mb-3">
@@ -230,11 +250,92 @@ function verDetallesPQR(idPQR) {
         ${pqr.Descripcion}
       </div>
     </div>
+    
+    ${respuestaHTML}
   `;
   
   document.getElementById('detalles-pqr-contenido').innerHTML = detallesHTML;
+  
+  // Mostrar/ocultar botón de responder
+  const btnResponder = document.getElementById('btn-responder-pqr');
+  if (isRespondida) {
+    btnResponder.style.display = 'none';
+  } else {
+    btnResponder.style.display = 'inline-block';
+  }
+  
   const modal = new bootstrap.Modal(document.getElementById('modalDetallesPQR'));
   modal.show();
+}
+
+// Mostrar formulario de respuesta
+function mostrarFormularioRespuesta() {
+  if (!pqrActual) return;
+  
+  const badgeTipo = getBadgeTipo(pqrActual.TipoSolicitud);
+  
+  const infoHTML = `
+    <p><strong>ID:</strong> ${pqrActual.IdCentroAyuda}</p>
+    <p><strong>Tipo:</strong> ${badgeTipo}</p>
+    <p><strong>Usuario:</strong> ${pqrActual.NombreUsuario || 'No disponible'}</p>
+    <p><strong>Email:</strong> ${pqrActual.Perfil || 'No disponible'}</p>
+    <p><strong>Asunto:</strong> ${pqrActual.Asunto}</p>
+  `;
+  
+  document.getElementById('info-pqr-respuesta').innerHTML = infoHTML;
+  document.getElementById('id-pqr-respuesta').value = pqrActual.IdCentroAyuda;
+  document.getElementById('respuesta-texto').value = '';
+  
+  // Cerrar modal de detalles y abrir modal de respuesta
+  const modalDetalles = bootstrap.Modal.getInstance(document.getElementById('modalDetallesPQR'));
+  if (modalDetalles) modalDetalles.hide();
+  
+  const modalResponder = new bootstrap.Modal(document.getElementById('modalResponderPQR'));
+  modalResponder.show();
+}
+
+// Enviar respuesta
+async function enviarRespuesta() {
+  const idPQR = document.getElementById('id-pqr-respuesta').value;
+  const respuesta = document.getElementById('respuesta-texto').value.trim();
+  
+  if (!respuesta) {
+    alert('Por favor escribe una respuesta');
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/admin/pqr/responder', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ idPQR, respuesta })
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      // Cerrar modal
+      const modal = bootstrap.Modal.getInstance(document.getElementById('modalResponderPQR'));
+      if (modal) modal.hide();
+      
+      // Mostrar mensaje de éxito
+      const mensaje = data.emailSent 
+        ? 'Respuesta enviada correctamente y notificación enviada por correo' 
+        : 'Respuesta guardada correctamente (no se pudo enviar correo)';
+      
+      alert('✅ ' + mensaje);
+      
+      // Recargar PQR
+      await cargarPQR();
+    } else {
+      throw new Error(data.error || 'Error al enviar respuesta');
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    alert('❌ Error al enviar respuesta: ' + error.message);
+  }
 }
 
 // Actualizar paginación
