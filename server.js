@@ -5050,9 +5050,15 @@ app.get('/api/historial-servicios-prestador/:usuarioId', async (req, res) => {
 // Middleware para verificar si es administrador
 function verificarAdmin(req, res, next) {
   const usuarioSesion = req.session.usuario;
+  console.log('🔐 Verificando admin - Usuario en sesión:', usuarioSesion);
+  console.log('🔐 Tipo de usuario:', usuarioSesion?.tipo);
+  
   if (!usuarioSesion || usuarioSesion.tipo !== "Administrador") {
+    console.error('❌ Acceso denegado - No es administrador');
     return res.status(403).json({ error: "Acceso denegado. Solo administradores." });
   }
+  
+  console.log('✅ Administrador verificado');
   next();
 }
 
@@ -5124,20 +5130,27 @@ app.get('/api/admin/usuarios', verificarAdmin, async (req, res) => {
 // Activar/Desactivar usuario
 // ===============================
 app.post('/api/admin/usuario/:id/toggle-estado', verificarAdmin, async (req, res) => {
-  const { id } = req.params;
-  const { estado } = req.body;
-
-  if (!estado || !['Activo', 'Inactivo'].includes(estado)) {
-    return res.status(400).json({ error: 'Estado inválido. Debe ser Activo o Inactivo.' });
-  }
-
+  console.log('📥 POST /api/admin/usuario/:id/toggle-estado - Solicitud recibida');
+  console.log('📋 Params:', req.params);
+  console.log('📋 Body:', req.body);
+  
   try {
+    const { id } = req.params;
+    const { estado } = req.body;
+
+    if (!estado || !['Activo', 'Inactivo'].includes(estado)) {
+      console.error('❌ Estado inválido:', estado);
+      return res.status(400).json({ error: 'Estado inválido. Debe ser Activo o Inactivo.' });
+    }
+
     console.log(`🔄 Cambiando estado del usuario ${id} a ${estado}`);
 
-    await queryPromise(
+    const [result] = await pool.query(
       'UPDATE usuario SET Estado = ? WHERE IdUsuario = ?',
       [estado, id]
     );
+    
+    console.log('✅ Resultado de actualización:', result);
 
     res.json({ 
       success: true, 
@@ -5145,8 +5158,14 @@ app.post('/api/admin/usuario/:id/toggle-estado', verificarAdmin, async (req, res
     });
 
   } catch (error) {
-    console.error('❌ Error al cambiar estado del usuario:', error);
-    res.status(500).json({ error: 'Error en el servidor al actualizar estado.' });
+    console.error('❌ Error COMPLETO al cambiar estado del usuario:');
+    console.error('❌ Mensaje:', error.message);
+    console.error('❌ Stack:', error.stack);
+    console.error('❌ Error completo:', error);
+    res.status(500).json({ 
+      error: 'Error en el servidor al actualizar estado.', 
+      detalle: error.message 
+    });
   }
 });
 
