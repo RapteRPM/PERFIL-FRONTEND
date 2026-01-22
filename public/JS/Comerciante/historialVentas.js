@@ -34,7 +34,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!data || data.length === 0) {
         tablaBody.innerHTML = `
           <tr>
-            <td colspan="11" class="text-center text-muted py-3">
+            <td colspan="12" class="text-center text-muted py-3">
               No se encontraron resultados para los filtros seleccionados.
             </td>
           </tr>
@@ -55,6 +55,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else if (venta.modoEntrega === 'Domicilio' && !venta.fechaEntrega) {
           fechaEntregaDisplay = '<small class="text-warning"><i class="fas fa-clock"></i> Pendiente</small>';
         }
+
+        // Determinar el badge de confirmación del cliente
+        let confirmacionBadge = '';
+        if (venta.confirmacionUsuario === 'Recibido') {
+          confirmacionBadge = '<span class="badge bg-success"><i class="fas fa-check-circle"></i> Recibido</span>';
+        } else if (venta.confirmacionUsuario === 'Pendiente') {
+          confirmacionBadge = '<span class="badge bg-warning text-dark"><i class="fas fa-clock"></i> Pendiente</span>';
+        } else {
+          confirmacionBadge = '<span class="badge bg-secondary">-</span>';
+        }
         
         const fila = document.createElement("tr");
         fila.innerHTML = `
@@ -73,6 +83,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               ${venta.estado || "Pendiente"}
             </span>
           </td>
+          <td>${confirmacionBadge}</td>
         `;
         tablaBody.appendChild(fila);
       });
@@ -80,7 +91,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       console.error("Error al cargar ventas:", error);
       tablaBody.innerHTML = `
         <tr>
-          <td colspan="11" class="text-center text-danger py-3">
+          <td colspan="12" class="text-center text-danger py-3">
             Error al obtener los datos. Intenta nuevamente más tarde.
           </td>
         </tr>

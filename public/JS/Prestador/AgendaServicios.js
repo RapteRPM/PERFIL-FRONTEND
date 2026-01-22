@@ -90,6 +90,14 @@ document.addEventListener("DOMContentLoaded", async () => {
           `;
         }
 
+        // Observaciones del cliente (si existen)
+        const observaciones = item.ComentariosAdicionales 
+          ? `<div class="alert alert-info py-2 px-3 mb-2" style="font-size: 0.9rem;">
+               <i class="fas fa-comment-dots me-2"></i>
+               <strong>Observación del cliente:</strong> ${item.ComentariosAdicionales}
+             </div>` 
+          : '';
+
         card.innerHTML = `
           <div class="card card-solicitud p-4 shadow-sm">
             <h5 class="fw-bold text-lg mb-2">
@@ -97,7 +105,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             </h5>
             <p class="mb-1"><strong>Tipo de servicio:</strong> ${item.Servicio}</p>
             <p class="mb-1"><strong>Ubicación:</strong> ${item.DireccionRecogida}${destino}</p>
-            <p class="mb-3"><strong>Fecha solicitada:</strong> ${item.FechaServicio}</p>
+            <p class="mb-2"><strong>Fecha solicitada:</strong> ${item.FechaServicio}</p>
+            ${observaciones}
             <div class="mb-3">
               <span class="badge ${estadoColor[item.Estado] || "bg-secondary text-light"}">${item.Estado}</span>
             </div>

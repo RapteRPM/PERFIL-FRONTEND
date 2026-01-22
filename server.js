@@ -696,10 +696,18 @@ app.put('/api/historial/estado/:id', async (req, res) => {
     );
 
     // 3️⃣ Actualizar detallefacturacomercio correspondiente (por Factura y Publicacion)
-    await queryPromise(
-      'UPDATE detallefacturacomercio SET Estado = ? WHERE Factura = ? AND Publicacion = ?',
-      [estado, Factura, Publicacion]
-    );
+    // Si el estado es Finalizado, también actualizar ConfirmacionUsuario a 'Recibido'
+    if (estado === 'Finalizado') {
+      await queryPromise(
+        'UPDATE detallefacturacomercio SET Estado = ?, ConfirmacionUsuario = ? WHERE Factura = ? AND Publicacion = ?',
+        [estado, 'Recibido', Factura, Publicacion]
+      );
+    } else {
+      await queryPromise(
+        'UPDATE detallefacturacomercio SET Estado = ? WHERE Factura = ? AND Publicacion = ?',
+        [estado, Factura, Publicacion]
+      );
+    }
 
     // 4️⃣ Si se marcó como Finalizado, verificar si toda la factura está finalizada
     if (estado === 'Finalizado') {
@@ -1026,6 +1034,7 @@ app.get('/api/historial-ventas', async (req, res) => {
 
     const nitComercio = comercianteRows[0].NitComercio;
 
+    // 🧾 Consultar TODAS las ventas (sin filtro de confirmación en historial)
     let query = `
       SELECT 
         f.IdFactura AS idVenta,
@@ -1033,19 +1042,20 @@ app.get('/api/historial-ventas', async (req, res) => {
         c.NombreCategoria AS categoria,
         u.Nombre AS comprador,
         f.FechaCompra AS fecha,
-        df.Total AS total,
-        df.Cantidad AS cantidad,
+        dfc.Total AS total,
+        dfc.Cantidad AS cantidad,
         f.MetodoPago AS metodoPago,
-        df.Estado AS estado,
+        dfc.Estado AS estado,
+        dfc.ConfirmacionUsuario AS confirmacionUsuario,
+        dfc.ConfirmacionComercio AS confirmacionComercio,
         ca.FechaServicio AS fechaEntrega,
         ca.HoraServicio AS horaEntrega,
         ca.ModoServicio AS modoEntrega
-      FROM detallefactura df
-      JOIN factura f ON df.Factura = f.IdFactura
-      JOIN publicacion pub ON df.Publicacion = pub.IdPublicacion
+      FROM detallefacturacomercio dfc
+      JOIN factura f ON dfc.Factura = f.IdFactura
+      JOIN publicacion pub ON dfc.Publicacion = pub.IdPublicacion
       JOIN categoria c ON pub.Categoria = c.IdCategoria
       LEFT JOIN usuario u ON f.Usuario = u.IdUsuario
-      LEFT JOIN detallefacturacomercio dfc ON df.IdDetalleFactura = dfc.IdDetalleFacturaComercio
       LEFT JOIN controlagendacomercio ca ON dfc.IdDetalleFacturaComercio = ca.DetFacturacomercio
       WHERE pub.Comerciante = ?
     `;
@@ -1067,9 +1077,9 @@ app.get('/api/historial-ventas', async (req, res) => {
       params.push(tipoProducto.toLowerCase());
     }
 
-    if (ordenPrecio === 'asc') query += ' ORDER BY df.Total ASC';
-    else if (ordenPrecio === 'desc') query += ' ORDER BY df.Total DESC';
-    else query += ' ORDER BY f.FechaCompra DESC, df.IdDetalleFactura DESC';
+    if (ordenPrecio === 'asc') query += ' ORDER BY dfc.Total ASC';
+    else if (ordenPrecio === 'desc') query += ' ORDER BY dfc.Total DESC';
+    else query += ' ORDER BY f.FechaCompra DESC, dfc.IdDetalleFacturaComercio DESC';
 
     const results = await queryPromise(query, params);
     res.json(results);
@@ -1106,6 +1116,7 @@ app.get('/api/historial-ventas/excel', async (req, res) => {
     const nitComercio = comercianteRows[0].NitComercio;
     const params = [nitComercio];
 
+    // 🧾 Consultar TODAS las ventas (sin filtro de confirmación en historial)
     let query = `
       SELECT 
         f.IdFactura AS idVenta,
@@ -1113,13 +1124,15 @@ app.get('/api/historial-ventas/excel', async (req, res) => {
         c.NombreCategoria AS categoria,
         u.Nombre AS comprador,
         f.FechaCompra AS fecha,
-        df.Cantidad AS cantidad,
-        df.Total AS total,
+        dfc.Cantidad AS cantidad,
+        dfc.Total AS total,
         f.MetodoPago AS metodoPago,
-        df.Estado AS estado
-      FROM detallefactura df
-      JOIN factura f ON df.Factura = f.IdFactura
-      JOIN publicacion pub ON df.Publicacion = pub.IdPublicacion
+        dfc.Estado AS estado,
+        dfc.ConfirmacionUsuario AS confirmacionUsuario,
+        dfc.ConfirmacionComercio AS confirmacionComercio
+      FROM detallefacturacomercio dfc
+      JOIN factura f ON dfc.Factura = f.IdFactura
+      JOIN publicacion pub ON dfc.Publicacion = pub.IdPublicacion
       JOIN categoria c ON pub.Categoria = c.IdCategoria
       LEFT JOIN usuario u ON f.Usuario = u.IdUsuario
       WHERE pub.Comerciante = ?
@@ -1140,8 +1153,8 @@ app.get('/api/historial-ventas/excel', async (req, res) => {
     }
 
     // 🔹 Orden
-    if (ordenPrecio === 'asc') query += ' ORDER BY df.Total ASC';
-    else if (ordenPrecio === 'desc') query += ' ORDER BY df.Total DESC';
+    if (ordenPrecio === 'asc') query += ' ORDER BY dfc.Total ASC';
+    else if (ordenPrecio === 'desc') query += ' ORDER BY dfc.Total DESC';
     else query += ' ORDER BY f.FechaCompra DESC';
 
     const results = await queryPromise(query, params);
@@ -2715,21 +2728,22 @@ app.get('/api/dashboard/comerciante', async (req, res) => {
 
     const nitComercio = comercianteRows[0].NitComercio;
 
-    // 🧾 Consultar las ventas del comerciante usando detallefactura
+    // 🧾 Consultar las ventas del comerciante usando detallefacturacomercio
+    // SOLO contar como ventas cuando ConfirmacionUsuario = 'Recibido'
     let query = `
       SELECT 
         c.NombreComercio,
         cat.NombreCategoria,
         p.NombreProducto,
-        COUNT(df.IdDetalleFactura) AS totalVentas,
-        SUM(df.Total) AS totalRecaudado,
+        COUNT(dfc.IdDetalleFacturaComercio) AS totalVentas,
+        SUM(dfc.Total) AS totalRecaudado,
         DATE(f.FechaCompra) AS fechaCompra
-      FROM detallefactura df
-      INNER JOIN factura f ON df.Factura = f.IdFactura
-      INNER JOIN publicacion p ON df.Publicacion = p.IdPublicacion
+      FROM detallefacturacomercio dfc
+      INNER JOIN factura f ON dfc.Factura = f.IdFactura
+      INNER JOIN publicacion p ON dfc.Publicacion = p.IdPublicacion
       INNER JOIN categoria cat ON p.Categoria = cat.IdCategoria
       INNER JOIN comerciante c ON p.Comerciante = c.NitComercio
-      WHERE c.NitComercio = ?
+      WHERE c.NitComercio = ? AND dfc.ConfirmacionUsuario = 'Recibido'
     `;
     
     const params = [nitComercio];
@@ -3107,9 +3121,8 @@ app.put('/api/confirmar-fecha-pedido', async (req, res) => {
 
   try {
     // Confirmar/actualizar fecha y hora en controlagendacomercio
-    // También marcamos el estado como "confirmado" si existe ese campo
     await queryPromise(
-      'UPDATE controlagendacomercio SET FechaServicio = ?, HoraServicio = ?, Estado = COALESCE(NULLIF(Estado, "pendiente"), "confirmado") WHERE IdSolicitud = ?',
+      'UPDATE controlagendacomercio SET FechaServicio = ?, HoraServicio = ? WHERE IdSolicitud = ?',
       [fecha, hora, id]
     );
 
@@ -4690,7 +4703,8 @@ app.get("/api/solicitudes-grua/:idPrestador", async (req, res) => {
          cas.DireccionRecogida,
          cas.Destino,
          cas.FechaServicio,
-         cas.Estado
+         cas.Estado,
+         cas.ComentariosAdicionales
        FROM controlagendaservicios cas
        JOIN publicaciongrua pg ON cas.PublicacionGrua = pg.IdPublicacionGrua
        JOIN usuario u ON cas.UsuarioNatural = u.IdUsuario
@@ -5050,9 +5064,15 @@ app.get('/api/historial-servicios-prestador/:usuarioId', async (req, res) => {
 // Middleware para verificar si es administrador
 function verificarAdmin(req, res, next) {
   const usuarioSesion = req.session.usuario;
+  console.log('🔐 Verificando admin - Usuario en sesión:', usuarioSesion);
+  console.log('🔐 Tipo de usuario:', usuarioSesion?.tipo);
+  
   if (!usuarioSesion || usuarioSesion.tipo !== "Administrador") {
+    console.error('❌ Acceso denegado - No es administrador');
     return res.status(403).json({ error: "Acceso denegado. Solo administradores." });
   }
+  
+  console.log('✅ Administrador verificado');
   next();
 }
 
@@ -5124,20 +5144,27 @@ app.get('/api/admin/usuarios', verificarAdmin, async (req, res) => {
 // Activar/Desactivar usuario
 // ===============================
 app.post('/api/admin/usuario/:id/toggle-estado', verificarAdmin, async (req, res) => {
-  const { id } = req.params;
-  const { estado } = req.body;
-
-  if (!estado || !['Activo', 'Inactivo'].includes(estado)) {
-    return res.status(400).json({ error: 'Estado inválido. Debe ser Activo o Inactivo.' });
-  }
-
+  console.log('📥 POST /api/admin/usuario/:id/toggle-estado - Solicitud recibida');
+  console.log('📋 Params:', req.params);
+  console.log('📋 Body:', req.body);
+  
   try {
+    const { id } = req.params;
+    const { estado } = req.body;
+
+    if (!estado || !['Activo', 'Inactivo'].includes(estado)) {
+      console.error('❌ Estado inválido:', estado);
+      return res.status(400).json({ error: 'Estado inválido. Debe ser Activo o Inactivo.' });
+    }
+
     console.log(`🔄 Cambiando estado del usuario ${id} a ${estado}`);
 
-    await queryPromise(
+    const [result] = await pool.query(
       'UPDATE usuario SET Estado = ? WHERE IdUsuario = ?',
       [estado, id]
     );
+    
+    console.log('✅ Resultado de actualización:', result);
 
     res.json({ 
       success: true, 
@@ -5145,8 +5172,14 @@ app.post('/api/admin/usuario/:id/toggle-estado', verificarAdmin, async (req, res
     });
 
   } catch (error) {
-    console.error('❌ Error al cambiar estado del usuario:', error);
-    res.status(500).json({ error: 'Error en el servidor al actualizar estado.' });
+    console.error('❌ Error COMPLETO al cambiar estado del usuario:');
+    console.error('❌ Mensaje:', error.message);
+    console.error('❌ Stack:', error.stack);
+    console.error('❌ Error completo:', error);
+    res.status(500).json({ 
+      error: 'Error en el servidor al actualizar estado.', 
+      detalle: error.message 
+    });
   }
 });
 

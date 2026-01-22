@@ -116,25 +116,26 @@ function descargarPDF() {
       <meta charset="UTF-8">
       <title>Factura #FAC-${factura.IdFactura}</title>
       <style>
-        body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
-        .header { text-align: center; border-bottom: 2px solid #004B87; padding-bottom: 20px; margin-bottom: 20px; }
-        .header h1 { color: #004B87; margin: 0; }
-        .header p { color: #666; margin: 5px 0; }
-        .logo { font-size: 24px; font-weight: bold; color: #004B87; }
-        .section { margin-bottom: 20px; }
-        .section h3 { color: #004B87; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
-        .row { display: flex; justify-content: space-between; }
+        body { font-family: 'Inter', 'Arial', sans-serif; padding: 20px; color: #1f2937; background-color: #f3f4f6; }
+        .header { text-align: center; background: linear-gradient(135deg, red, #004B87); color: white; padding: 30px 20px; border-radius: 10px 10px 0 0; margin-bottom: 20px; }
+        .header h1 { color: white; margin: 10px 0; font-size: 28px; font-weight: bold; }
+        .header p { color: #e5e7eb; margin: 5px 0; font-style: italic; }
+        .logo { font-size: 32px; font-weight: bold; color: white; margin-bottom: 10px; }
+        .section { margin-bottom: 20px; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .section h3 { color: #004B87; border-bottom: 2px solid #004B87; padding-bottom: 8px; margin-bottom: 15px; font-weight: bold; }
+        .row { display: flex; justify-content: space-between; gap: 20px; }
         .col { width: 48%; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
-        th { background-color: #004B87; color: white; }
-        .total { text-align: right; font-size: 18px; font-weight: bold; margin-top: 15px; }
-        .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px; }
+        th, td { border: 1px solid #e5e7eb; padding: 12px; text-align: center; }
+        th { background: linear-gradient(135deg, red, #004B87); color: white; font-weight: bold; }
+        tbody tr:nth-child(even) { background-color: #f9fafb; }
+        .total { text-align: right; font-size: 20px; font-weight: bold; margin-top: 15px; color: #004B87; background: #e0f2fe; padding: 10px; border-radius: 5px; }
+        .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 2px solid #004B87; color: #666; font-size: 12px; }
       </style>
     </head>
     <body>
       <div class="header">
-        <div class="logo">🚗 RPM Market</div>
+        <div class="logo">RPM</div>
         <h1>FACTURA DE COMPRA</h1>
         <p>Confianza que mueve tu camino</p>
       </div>
@@ -142,7 +143,7 @@ function descargarPDF() {
       <div class="row">
         <div class="col">
           <div class="section">
-            <h3>👤 Datos del Comprador</h3>
+            <h3>Datos del Comprador</h3>
             <p><strong>Nombre:</strong> ${factura.NombreUsuario} ${factura.ApellidoUsuario}</p>
             <p><strong>Correo:</strong> ${factura.Correo}</p>
             <p><strong>Teléfono:</strong> ${factura.Telefono || 'No registrado'}</p>
@@ -150,7 +151,7 @@ function descargarPDF() {
         </div>
         <div class="col">
           <div class="section">
-            <h3>🏪 Datos del Comercio</h3>
+            <h3>Datos del Comercio</h3>
             <p><strong>Nombre:</strong> ${comercioInfo.nombre}</p>
             <p><strong>Dirección:</strong> ${comercioInfo.direccion}</p>
           </div>
@@ -158,7 +159,7 @@ function descargarPDF() {
       </div>
       
       <div class="section">
-        <h3>📋 Detalles de la Factura</h3>
+        <h3>Detalles de la Factura</h3>
         <p><strong>N° Factura:</strong> #FAC-${factura.IdFactura}</p>
         <p><strong>Fecha:</strong> ${new Date(factura.FechaCompra).toLocaleString()}</p>
         <p><strong>Método de pago:</strong> ${factura.MetodoPago || 'No especificado'}</p>
@@ -166,7 +167,7 @@ function descargarPDF() {
       </div>
       
       <div class="section">
-        <h3>🛒 Productos Comprados</h3>
+        <h3>Productos Comprados</h3>
         <table>
           <thead>
             <tr>
