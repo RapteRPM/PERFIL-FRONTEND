@@ -160,6 +160,7 @@ function cargarListaCitas() {
               <small class="d-block" style="color: rgba(255,255,255,0.85) !important; font-size: 0.75rem;">Cliente: ${props.cliente || 'N/A'}</small>
               <small class="d-block" style="color: rgba(255,255,255,0.85) !important; font-size: 0.75rem;">Cantidad: ${props.cantidad} | Total: $${Number(props.total || 0).toLocaleString()}</small>
               ${tieneFecha && props.modoServicio === 'Domicilio' ? `<small class="d-block mt-1" style="color: #00ff88 !important; font-size: 0.75rem; font-weight: 600;">📦 Entrega programada: ${props.fechaServicio} ${props.hora}</small>` : ''}
+              ${props.modoServicio === 'Contraentrega' && props.comentarios ? `<small class="d-block mt-1" style="color: #ffd700 !important; font-size: 0.75rem; font-weight: 500; font-style: italic;">💬 Observación: ${props.comentarios}</small>` : ''}
             </div>
             <div class="d-flex flex-column align-items-end gap-1">
               <span class="badge" style="background-color: rgba(255,255,255,0.2) !important; color: ${textColor}; font-size: 0.7rem;">${props.estado}</span>
@@ -207,7 +208,14 @@ function mostrarModal(evento) {
   }
   
   document.getElementById('modal-title').innerText = evento.title;
-  document.getElementById('modal-desc').innerText = evento.extendedProps.descripcion;
+  
+  // Construir descripción con observaciones si existen
+  let descripcion = evento.extendedProps.descripcion;
+  if (evento.extendedProps.comentarios && evento.extendedProps.comentarios.trim() !== '') {
+    descripcion += `\n\n💬 Observación del cliente: ${evento.extendedProps.comentarios}`;
+  }
+  
+  document.getElementById('modal-desc').innerText = descripcion;
   document.getElementById('modal-date').innerText = evento.startStr;
   document.getElementById('modal-time').innerText = evento.extendedProps.hora || 'No definida';
   document.getElementById('overlay').style.display = 'block';
@@ -406,6 +414,7 @@ function aplicarFiltroFecha(fecha) {
               <small class="d-block" style="color: rgba(255,255,255,0.85) !important; font-size: 0.75rem;">Cliente: ${props.cliente || 'N/A'}</small>
               <small class="d-block" style="color: rgba(255,255,255,0.85) !important; font-size: 0.75rem;">Cantidad: ${props.cantidad} | Total: $${Number(props.total || 0).toLocaleString()}</small>
               ${tieneFecha && props.modoServicio === 'Domicilio' ? `<small class="d-block mt-1" style="color: #00ff88 !important; font-size: 0.75rem; font-weight: 600;">📦 Entrega programada: ${props.fechaServicio} ${props.hora}</small>` : ''}
+              ${props.modoServicio === 'Contraentrega' && props.comentarios ? `<small class="d-block mt-1" style="color: #ffd700 !important; font-size: 0.75rem; font-weight: 500; font-style: italic;">💬 Observación: ${props.comentarios}</small>` : ''}
             </div>
             <div class="d-flex flex-column align-items-end gap-1">
               <span class="badge" style="background-color: rgba(255,255,255,0.2) !important; color: ${textColor}; font-size: 0.7rem;">${props.estado}</span>
@@ -478,6 +487,7 @@ async function mostrarModalSinFecha(eventoData) {
 📍 Modo: ${props.modoServicio}
 📦 Cantidad: ${props.cantidad}
 💰 Total: $${Number(props.total || 0).toLocaleString()}
+${props.comentarios ? `💬 Observación: ${props.comentarios}` : ''}
 ━━━━━━━━━━━━━━━━━━━━━
 
 📅 Fecha propuesta por el cliente: ${props.fechaServicio} a las ${props.hora}
@@ -494,6 +504,7 @@ async function mostrarModalSinFecha(eventoData) {
 📍 Modo: ${props.modoServicio}
 📦 Cantidad: ${props.cantidad}
 💰 Total: $${Number(props.total || 0).toLocaleString()}
+${props.comentarios ? `💬 Observación: ${props.comentarios}` : ''}
 ━━━━━━━━━━━━━━━━━━━━━
 
 ⏳ Este pedido NO tiene fecha confirmada.
