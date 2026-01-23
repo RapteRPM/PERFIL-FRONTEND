@@ -1,2 +1,32 @@
-project-root/uploads
+# Variables de entorno
 .env
+
+# Archivos subidos
+uploads/
+project-root/uploads
+
+# Base de datos SQLite (desarrollo)
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Dependencias
+node_modules/
+
+# Archivos temporales
+.DS_Store
+Thumbs.db
+*.tmp
+*.temp
+
+# Archivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

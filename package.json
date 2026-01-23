@@ -9,6 +9,7 @@
     "bcrypt": "^6.0.0",
     "better-sqlite3": "^12.4.1",
     "body-parser": "^2.2.0",
+    "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
@@ -19,7 +20,9 @@
     "nodemailer": "^7.0.10"
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "curl http://localhost:3000/health && curl http://localhost:3000/api/db-status"
   },
   "license": "ISC"
 }
