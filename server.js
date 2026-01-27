@@ -28,8 +28,38 @@ const port = process.env.PORT || 3000;
 // ===============================
 // 🌐 Configuración de CORS
 // ===============================
+// Obtener URLs del frontend desde variables de entorno o usar valores por defecto
+const allowedOrigins = process.env.FRONTEND_URLS 
+  ? process.env.FRONTEND_URLS.split(',')
+  : [
+      'http://localhost:5500',
+      'http://127.0.0.1:5500',
+      'http://localhost:5501',
+      'http://127.0.0.1:5501'
+    ];
+
 const corsOptions = {
-  origin: true, // ⚠️ TEMPORAL: Permite TODOS los orígenes para debugging
+  origin: function (origin, callback) {
+    // Permitir peticiones sin origin (ej: Postman, curl) en desarrollo
+    if (!origin && process.env.NODE_ENV === 'development') {
+      return callback(null, true);
+    }
+    
+    // En desarrollo, permitir todos los orígenes locales
+    if (process.env.NODE_ENV === 'development' && origin) {
+      if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+        return callback(null, true);
+      }
+    }
+    
+    // Verificar si el origin está en la lista permitida
+    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      callback(null, true);
+    } else {
+      console.log(`❌ CORS bloqueó petición desde: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true, // Permitir envío de cookies/sesiones
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
@@ -40,7 +70,8 @@ app.use(cors(corsOptions));
 
 // Log para debugging CORS
 app.use((req, res, next) => {
-  console.log(`📨 ${req.method} ${req.path} - Origin: ${req.headers.origin || 'sin origin'}`);
+  const origin = req.headers.origin || 'sin origin';
+  console.log(`📨 ${req.method} ${req.path} - Origin: ${origin}`);
   next();
 });
 

@@ -1,32 +1,63 @@
-# Variables de entorno
+# ===============================
+# 🔒 Variables de entorno
+# ===============================
 .env
+.env.local
+.env.*.local
 
-# Archivos subidos
+# ===============================
+# 📁 Archivos subidos por usuarios
+# ===============================
 uploads/
-project-root/uploads
+public/imagen/
+public/Publicaciones/
 
-# Base de datos SQLite (desarrollo)
+# ===============================
+# 🗄️ Base de datos
+# ===============================
 *.db
 *.sqlite
 *.sqlite3
+*.sql.backup
 
-# Logs
+# ===============================
+# 📋 Logs
+# ===============================
 logs/
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Dependencias
+# ===============================
+# 📦 Dependencias
+# ===============================
 node_modules/
+package-lock.json
+yarn.lock
 
-# Archivos temporales
+# ===============================
+# 🗂️ Archivos temporales
+# ===============================
 .DS_Store
 Thumbs.db
 *.tmp
 *.temp
+.cache/
 
-# Archivos de IDE
+# ===============================
+# 🛠️ Archivos de IDE
+# ===============================
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+
+# ===============================
+# 🚀 Archivos de deploy
+# ===============================
+.vercel
+.netlify
+dist/
+build/
