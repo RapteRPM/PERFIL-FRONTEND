@@ -1,2 +1,63 @@
-project-root/uploads
+# ===============================
+# 🔒 Variables de entorno
+# ===============================
 .env
+.env.local
+.env.*.local
+
+# ===============================
+# 📁 Archivos subidos por usuarios
+# ===============================
+uploads/
+public/imagen/
+public/Publicaciones/
+
+# ===============================
+# 🗄️ Base de datos
+# ===============================
+*.db
+*.sqlite
+*.sqlite3
+*.sql.backup
+
+# ===============================
+# 📋 Logs
+# ===============================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===============================
+# 📦 Dependencias
+# ===============================
+node_modules/
+package-lock.json
+yarn.lock
+
+# ===============================
+# 🗂️ Archivos temporales
+# ===============================
+.DS_Store
+Thumbs.db
+*.tmp
+*.temp
+.cache/
+
+# ===============================
+# 🛠️ Archivos de IDE
+# ===============================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===============================
+# 🚀 Archivos de deploy
+# ===============================
+.vercel
+.netlify
+dist/
+build/

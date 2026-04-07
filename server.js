@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import express from 'express';
 import bodyParser from 'body-parser';
+import cors from 'cors';
 import path from 'path';
 import session from 'express-session';
 import ExcelJS from 'exceljs';
@@ -24,12 +25,81 @@ const __dirname = dirname(__filename);
 const app = express();
 const port = process.env.PORT || 3000;
 
+// ===============================
+// 🌐 Configuración de CORS
+// ===============================
+// Obtener URLs del frontend desde variables de entorno o usar valores por defecto
+const allowedOrigins = process.env.FRONTEND_URLS 
+  ? process.env.FRONTEND_URLS.split(',')
+  : [
+      'http://localhost:5500',
+      'http://127.0.0.1:5500',
+      'http://localhost:5501',
+      'http://127.0.0.1:5501'
+    ];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Permitir peticiones sin origin (ej: Postman, curl) en desarrollo
+    if (!origin && process.env.NODE_ENV === 'development') {
+      return callback(null, true);
+    }
+    
+    // En desarrollo, permitir todos los orígenes locales
+    if (process.env.NODE_ENV === 'development' && origin) {
+      if (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+        return callback(null, true);
+      }
+    }
+    
+    // Verificar si el origin está en la lista permitida
+    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      callback(null, true);
+    } else {
+      console.log(`❌ CORS bloqueó petición desde: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true, // Permitir envío de cookies/sesiones
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  exposedHeaders: ['set-cookie']
+};
+
+app.use(cors(corsOptions));
+
+// Log para debugging CORS
+app.use((req, res, next) => {
+  const origin = req.headers.origin || 'sin origin';
+  console.log(`📨 ${req.method} ${req.path} - Origin: ${origin}`);
+  next();
+});
+
+// ===============================
+// 🔐 Configuración de sesiones
+// ===============================
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || 'clave-secreta-rpm',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: false, // Cambiar a true en producción con HTTPS
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 24 * 60 * 60 * 1000 // 24 horas
+    },
+  })
+);
+
 // Configuración general
 app.use("/api/privado", verificarSesion); 
 app.use(express.json());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
+
+// Servir archivos de imágenes (uploads)
 app.use("/imagen", express.static(path.join(__dirname, "public/imagen")));
 
 // ===============================
@@ -71,26 +141,29 @@ app.get('/api/db-status', async (req, res) => {
   }
 });
 
-
 // ===============================
-// 🔐 Configuración de sesiones
+// 🧪 Test CORS - Endpoint de prueba
 // ===============================
-app.use(
-  session({
-    secret: 'clave-secreta-rpm',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      // Sin maxAge - la sesión termina al cerrar el navegador
-      httpOnly: true,
-      secure: false, // Cambiar a true en producción con HTTPS
-      sameSite: 'lax',
-      path: '/' // Asegurar que la cookie esté disponible en todas las rutas
-    },
-  })
-);
+app.get('/api/test-cors', (req, res) => {
+  res.json({
+    success: true,
+    message: 'CORS funcionando correctamente',
+    origin: req.headers.origin || 'sin origin',
+    timestamp: new Date().toISOString()
+  });
+});
 
-// Evitar caché en páginas protegidas
+app.post('/api/test-cors', (req, res) => {
+  res.json({
+    success: true,
+    message: 'POST con CORS funcionando',
+    data: req.body,
+    origin: req.headers.origin || 'sin origin'
+  });
+});
+
+
+// Evitar caché en respuestas API
 app.use((req, res, next) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.setHeader('Pragma', 'no-cache');
@@ -99,10 +172,48 @@ app.use((req, res, next) => {
 });
 
 // ===============================
-// 🏠 Ruta raíz - Redireccionar al índice
+// 🏠 Ruta raíz - Información de la API
 // ===============================
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/General/index.html'));
+  res.json({
+    nombre: 'RPM Market API',
+    version: '2.0.0',
+    descripcion: 'Backend API para RPM Market',
+    estado: 'Operativo',
+    frontend: 'https://github.com/RapteRPM/Perfil',
+    endpoints: {
+      health: '/health',
+      dbStatus: '/api/db-status',
+      autenticacion: {
+        login: 'POST /api/login',
+        logout: 'POST /api/logout',
+        verificarSesion: 'GET /api/verificar-sesion'
+      },
+      usuarios: {
+        listar: 'GET /api/usuarios',
+        crear: 'POST /api/usuarios',
+        actualizar: 'PUT /api/usuarios/:id',
+        eliminar: 'DELETE /api/usuarios/:id'
+      },
+      publicaciones: {
+        listar: 'GET /api/publicaciones',
+        crear: 'POST /api/publicaciones',
+        actualizar: 'PUT /api/publicaciones/:id',
+        eliminar: 'DELETE /api/publicaciones/:id'
+      },
+      imagenes: 'GET /imagen/:ruta'
+    },
+    cors: {
+      habilitado: true,
+      origenes: ['http://localhost:5500', 'http://127.0.0.1:5500']
+    },
+    documentacion: {
+      backend: 'README-BACKEND.md',
+      migracion: 'MIGRATION-GUIDE.md',
+      ejemplosFrontend: 'FRONTEND-CONFIG-EXAMPLE.js'
+    },
+    mensaje: '✅ Este es un backend API. Use los endpoints listados arriba para interactuar con el servicio.'
+  });
 });
 
 // ===============================
@@ -510,25 +621,13 @@ app.get('/api/verificar-sesion', (req, res) => {
 });
 
 // ===============================
-// 🌐 Rutas protegidas
-// ===============================
-app.get('/perfil_usuario.html', verificarSesion, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/Natural/perfil_usuario.html'));
-});
-
-app.get('/dashboard_comerciante.html', verificarSesion, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/Comerciante/dashboard_comerciante.html'));
-});
-
-app.get('/Historial_ventas.html', verificarSesion, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/Comerciante/Historial_ventas.html'));
-});
-
-// ===============================
 // 🏁 Iniciar servidor
 // ===============================
 app.listen(port, () => {
-  console.log(`🚀 Servidor escuchando en: http://localhost:${port}/General/index.html`);
+  console.log(`🚀 Backend API escuchando en: http://localhost:${port}`);
+  console.log(`📡 CORS habilitado para: localhost:5500 + GitHub Codespaces`);
+  console.log(`🔍 Health check: http://localhost:${port}/health`);
+  console.log(`🗄️ DB Status: http://localhost:${port}/api/db-status`);
 });
 
 // ----------------------
@@ -3464,18 +3563,11 @@ app.get('/api/detallePublicacion/:id', async (req, res) => {
     }
 });
 
-// Ruta del HTML detalle_producto
-app.get('/detalle_producto.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'detalle_producto.html'));
-});
-
 
 //AGREGAR AL CARRITO//
 
 // Middleware
-
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
 
 // ✅ Ruta para agregar producto al carrito
 app.post('/api/carrito', async (req, res) => {
